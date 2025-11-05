@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, JSX } from 'react';
+import React, { useEffect, useState, useCallback , JSX} from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   RefreshControl,
   ListRenderItem,
 } from 'react-native';
-import { supabase } from '../utils/supabase'; // keep this path or adjust to your project
+import { supabase } from '../utils/supabase';
 
 type Song = {
   id: string;
@@ -20,7 +20,13 @@ type Song = {
   is_available?: boolean;
 };
 
-export default function FullSongsScreen(): JSX.Element {
+type Props = {
+  embedded?: boolean; // when true, don't take full screen height
+};
+
+export default function FullSongsScreen({ embedded = false }: Props): JSX.Element {
+  console.log('FullSongsScreen loaded: src/screens/FullSongsScreen.tsx');
+  
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,34 +35,36 @@ export default function FullSongsScreen(): JSX.Element {
   const fetchFullSongs = useCallback(async () => {
     setError(null);
     try {
-      const selectCols = 'id, title, artist, audio_url, cover_url';
-      const { data, error: fetchError } = await supabase
+      // Try with full column list (that should exist according to supabase table)
+      const selectCols = 'id,title,artist,audio_url,cover_url,teaser_url,is_available,created_at,popularity';
+      let { data, error } = await supabase
         .from('songs')
         .select(selectCols)
-        .eq('is_available', true);
+        .order('created_at', { ascending: false })
+        .limit(embedded ? 6 : 1000);
 
-      if (fetchError) {
-        const message = fetchError.message || JSON.stringify(fetchError);
-        // If the is_available column doesn't exist, retry without that filter
-        const isUndefinedColumn =
-          (fetchError.code === '42703') ||
-          /column .* does not exist/i.test(message) ||
-          /42703/.test(message);
+      // Debug log immediately so we can see the raw response
+      console.log('FullSongs fetch result (attempt 1):', { data, error });
 
-        if (isUndefinedColumn) {
-          const { data: allData, error: allError } = await supabase.from('songs').select(selectCols);
-          if (allError) {
-            const msg2 = allError.message || JSON.stringify(allError);
-            setError(msg2);
-            setSongs([]);
-          } else {
-            setSongs((allData as Song[]) || []);
-            setError(null);
-          }
-        } else {
-          setError(message);
-          setSongs([]);
-        }
+      // If column missing error (Postgres 42703 or message), retry with minimal safe select
+      const isMissingColumn = error && (error.code === '42703' || /column .* does not exist/i.test(error.message || ''));
+      if (isMissingColumn) {
+        const fallbackCols = 'id,title,created_at';
+        const retry = await supabase
+          .from('songs')
+          .select(fallbackCols)
+          .order('created_at', { ascending: false })
+          .limit(embedded ? 6 : 1000);
+  // Log the retry result
+  console.log('FullSongs fetch result (fallback):', retry);
+  data = retry.data as any;
+        error = retry.error;
+      }
+
+      if (error) {
+        const message = error.message || JSON.stringify(error);
+        setError(message);
+        setSongs([]);
       } else {
         setSongs((data as Song[]) || []);
       }
@@ -67,11 +75,9 @@ export default function FullSongsScreen(): JSX.Element {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [embedded]);
 
-  useEffect(() => {
-    fetchFullSongs();
-  }, [fetchFullSongs]);
+  useEffect(() => { fetchFullSongs(); }, [fetchFullSongs]);
 
   const renderSongItem: ListRenderItem<Song> = ({ item }) => (
     <View style={styles.songItem}>
@@ -82,7 +88,7 @@ export default function FullSongsScreen(): JSX.Element {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <View style={embedded ? styles.containerEmbedded : styles.container}>
         <ActivityIndicator size="large" />
         <Text style={{ marginTop: 12 }}>Loading songs...</Text>
       </View>
@@ -91,41 +97,28 @@ export default function FullSongsScreen(): JSX.Element {
 
   if (error) {
     return (
-      <View style={styles.container}>
+      <View style={embedded ? styles.containerEmbedded : styles.container}>
         <Text style={styles.errorTitle}>Error loading songs</Text>
         <Text style={styles.errorMessage}>{error}</Text>
         <View style={{ marginTop: 12 }}>
-          <Button
-            title="Retry"
-            onPress={() => {
-              setLoading(true);
-              fetchFullSongs();
-            }}
-          />
+          <Button title="Retry" onPress={() => { setLoading(true); fetchFullSongs(); }} />
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={embedded ? styles.containerEmbedded : styles.container}>
       <FlatList
         data={songs}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         renderItem={renderSongItem}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              fetchFullSongs();
-            }}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchFullSongs(); }} />
         }
-        // Remove the full-size "No available songs found." empty state so it doesn't push UI around.
         ListEmptyComponent={null}
-        // Keep contentContainerStyle minimal — this avoids unexpected extra space when empty.
         contentContainerStyle={songs.length === 0 ? { flexGrow: 0 } : undefined}
+        scrollEnabled={!embedded}
       />
     </View>
   );
@@ -133,11 +126,12 @@ export default function FullSongsScreen(): JSX.Element {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
+  containerEmbedded: { padding: 0, marginTop: 8, marginBottom: 8, flexShrink: 0 },
+  songItem: { paddingVertical: 12, paddingHorizontal: 16, backgroundColor: '#fff' },
+  songTitle: { fontSize: 16, fontWeight: '700' },
+  songArtist: { fontSize: 13, color: '#666', marginTop: 4 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  songItem: { marginBottom: 20 },
-  songTitle: { fontSize: 18, fontWeight: 'bold' },
-  songArtist: { fontSize: 14, color: '#666' },
   errorTitle: { fontSize: 18, fontWeight: '700', color: '#b00020' },
   errorMessage: { marginTop: 8, color: '#333' },
-  empty: { color: '#666', padding: 12 },
 });
+
