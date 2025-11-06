@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import Slider from '@react-native-community/slider';
+import { Feather } from '@expo/vector-icons';
 import { usePlayback } from '../contexts/PlaybackContext';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/types';
@@ -41,6 +42,7 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
   const localPosRef = useRef<number>(positionMillis ?? 0); // fast current value
   const rafRef = useRef<number | null>(null); // interpolation RAF for non-seeking playback
   const labelRafRef = useRef<number | null>(null); // RAF used to throttle label updates during drag
+  const labelUpdateTimeoutRef = useRef<number | null>(null); // timeout id for delayed label sync
   const lastContextPosRef = useRef<number>(positionMillis ?? 0);
   const lastLabelUpdateRef = useRef<number>(0);
 
@@ -71,6 +73,10 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
   useEffect(() => {
     return () => {
       cancelAllRafs();
+      if (labelUpdateTimeoutRef.current) {
+        clearTimeout(labelUpdateTimeoutRef.current as any);
+        labelUpdateTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -79,6 +85,11 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
+    }
+    // also clear any pending label timeout scheduled to sync labels
+    if (labelUpdateTimeoutRef.current) {
+      clearTimeout(labelUpdateTimeoutRef.current as any);
+      labelUpdateTimeoutRef.current = null;
     }
   };
 
@@ -124,7 +135,15 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
           setLocalPos(target);
         } else {
           // if we can't update label now, still schedule a small timeout to ensure eventual sync
-          setTimeout(() => setLocalPos(target), LABEL_UPDATE_THROTTLE_MS);
+          // clear any previous timeout and schedule a new one; store id so we can clear on unmount
+          if (labelUpdateTimeoutRef.current) {
+            clearTimeout(labelUpdateTimeoutRef.current as any);
+            labelUpdateTimeoutRef.current = null;
+          }
+          labelUpdateTimeoutRef.current = setTimeout(() => {
+            labelUpdateTimeoutRef.current = null;
+            setLocalPos(target);
+          }, LABEL_UPDATE_THROTTLE_MS) as unknown as number;
         }
         cancelInterpolationRaf();
         return;
@@ -212,16 +231,8 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
     }
   };
 
-  useEffect(() => {
-    if (seekingRef.current) {
-      // while seeking, cancel the interpolation RAF so the thumb exactly follows finger
-      cancelInterpolationRaf();
-    } else {
-      // when user stops seeking, ensure we follow context
-      startRafLoop();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seeking]);
+  // NOTE: RAF lifecycle is controlled in the handlers (onValueChange/onSlidingComplete).
+  // Removed the seeking-based effect to avoid races between ref-based handlers and state.
 
   return (
     <View style={styles.container}>
@@ -230,23 +241,26 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
       <Text style={styles.artist}>{song?.artist}</Text>
 
       <View style={styles.controls}>
-        <TouchableOpacity onPress={prev}><Text style={styles.control}>⏮</Text></TouchableOpacity>
+        <TouchableOpacity onPress={prev} accessibilityLabel="Previous"><Text style={styles.control}>⏮</Text></TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => {
             // optimistic UI handled in context; call togglePlay without awaiting
             togglePlay();
           }}
-          style={styles.playButton}
+          style={styles.playButtonLarge}
+          activeOpacity={0.9}
+          accessibilityLabel="Play or pause"
+          accessible
         >
-          <Text style={styles.playText}>{isPlaying ? '⏸' : '▶'}</Text>
+          <Feather name={isPlaying ? 'pause' : 'play'} size={32} color="#fff" />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={next}><Text style={styles.control}>⏭</Text></TouchableOpacity>
+        <TouchableOpacity onPress={next} accessibilityLabel="Next"><Text style={styles.control}>⏭</Text></TouchableOpacity>
       </View>
 
       <View style={styles.progressRow}>
-        <Text style={styles.time}>{formatMillis(seekingRef.current ? localPosRef.current : positionMillis)}</Text>
+  <Text style={styles.time}>{formatMillis(localPos)}</Text>
         <Slider
           ref={sliderRef}
           style={{ flex: 1 }}
@@ -288,6 +302,19 @@ const styles = StyleSheet.create({
   control: { fontSize: 22, paddingHorizontal: 12 },
   playButton: { marginHorizontal: 10, backgroundColor: '#2f6dfd', padding: 12, borderRadius: 30 },
   playText: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  playButtonLarge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#2f6dfd',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
   progressRow: { width: '100%', flexDirection: 'row', alignItems: 'center', marginTop: 18 },
   time: { width: 44, textAlign: 'center', color: '#666', fontSize: 12 },
   extraRow: { flexDirection: 'row', marginTop: 20, alignItems: 'center' },
