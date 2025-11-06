@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useRef, useState, useEffect } from 'react';
 import { Audio } from 'expo-av';
 
 type Song = { id: string | number; title: string; artist?: string | null; uri?: { uri: string } | undefined; cover_url?: string | null };
@@ -6,15 +6,15 @@ type Song = { id: string | number; title: string; artist?: string | null; uri?: 
 type PlaybackContextType = {
   currentSong: Song | null;
   isPlaying: boolean;
-  positionMillis: number;    // <-- added
-  durationMillis: number;    // <-- added
+  positionMillis: number;
+  durationMillis: number;
   play: (song: Song) => Promise<void>;
   pause: () => Promise<void>;
   stop: () => Promise<void>;
   next: () => Promise<void>;
   prev: () => Promise<void>;
   seek: (positionMillis: number) => Promise<void>;
-  togglePlay: (song?: Song) => Promise<void>; // <-- added togglePlay
+  togglePlay: (song?: Song) => Promise<void>;
 };
 
 const PlaybackContext = createContext<PlaybackContextType | undefined>(undefined);
@@ -31,17 +31,16 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playlist, setPlaylist] = useState<Song[]>([]);
-
-  // New: position + duration state
   const [positionMillis, setPositionMillis] = useState<number>(0);
   const [durationMillis, setDurationMillis] = useState<number>(0);
 
-  // ---- REPLACE/INSERT in src/contexts/PlaybackContext.tsx (inside PlaybackProvider) ----
+  // Monotonic request id: newest action wins
+  const lastActionIdRef = useRef(0);
 
-  /* small monotonic id to track most recent request and ignore stale async results */
-  const lastActionIdRef = React.useRef(0);
+  // Throttle position updates to avoid excessive re-renders
+  const lastPositionUpdateRef = useRef<number>(0);
+  const POSITION_UPDATE_THROTTLE_MS = 100; // 100ms
 
-  /* Helper: stop and unload existing sound immediately (best-effort) */
   const _stopAndUnloadCurrent = async () => {
     if (soundRef.current) {
       try { await (soundRef.current as any).stopAsync(); } catch (e) {}
@@ -50,36 +49,28 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  /* Optimistic toggle: play or pause the current sound (works for existing currentSong) */
   const togglePlay = async (song?: any) => {
-    // If a specific song is provided and it's different than current, start that song
+    // If a specific song is requested and it's different, start it
     if (song && (currentSong as any)?.id !== song.id) {
       await play(song);
       return;
     }
 
-    // If there's a sound instance, toggle pause/play quickly and update UI optimistically
+    // If there's an active sound, toggle quickly and optimistically
     if (soundRef.current) {
-      // optimistic UI update
-      setIsPlaying((prev: boolean) => {
-        const next = !prev;
-        return next;
-      });
-
+      setIsPlaying((prev) => !prev); // optimistic UI
       try {
         const status = await (soundRef.current as any).getStatusAsync();
         if (status.isLoaded) {
           if (status.isPlaying) {
-            // pause
             await (soundRef.current as any).pauseAsync();
             setIsPlaying(false);
           } else {
-            // play
             await (soundRef.current as any).playAsync();
             setIsPlaying(true);
           }
         } else {
-          // if not loaded, attempt reload/play
+          // attempt to play if not loaded
           await (soundRef.current as any).playAsync();
           setIsPlaying(true);
         }
@@ -90,82 +81,100 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return;
     }
 
-    // If no sound instance: play currentSong if exists
+    // No instance: play currentSong if available
     if (currentSong) {
       await play(currentSong as any);
     }
   };
 
   const play = async (song: any) => {
-    // increment action id and capture locally so any stale async results can be dropped
     const actionId = ++lastActionIdRef.current;
-    if (isLoadingRef.current) return;
+    // mark loading (do not reject new requests, latest actionId controls correctness)
     isLoadingRef.current = true;
 
-    // Optimistic UI: set currentSong and show playing immediately
+    // Optimistic UI: reflect user's intent immediately
     setCurrentSong((prev: any) => ({ ...(prev ?? {}), ...song }));
     setIsPlaying(true);
 
     try {
-      // Stop + unload existing sound instance first (synchronously awaited)
+      // Ensure any existing sound is stopped/unloaded before creating a new one
       await _stopAndUnloadCurrent();
 
-        if (!song?.uri) {
-          // nothing to play — make sure UI reflects stopped state
-          // clear current song to avoid leaving an invalid currentSong
+      if (!song?.uri) {
+        // nothing playable: only clear UI if this action is still the latest
+        if (lastActionIdRef.current === actionId) {
           setCurrentSong(null);
           setIsPlaying(false);
           setPositionMillis(0);
           setDurationMillis(0);
-          return;
         }
+        return;
+      }
 
       // create and play new sound
       const created = await Audio.Sound.createAsync(song.uri, { shouldPlay: true });
       const sound = (created as any).sound;
+
+      // If a newer action arrived while we were creating the sound, unload & abandon
+      if (lastActionIdRef.current !== actionId) {
+        try { await sound.unloadAsync(); } catch (e) {}
+        return;
+      }
+
       soundRef.current = sound;
 
-      // update position/duration right away
+      // Seed position/duration and set playback status update with throttle & staleness checks
       const statusAny = (await sound.getStatusAsync()) as any;
+
       if (lastActionIdRef.current !== actionId) {
-        // a newer action happened — abandon this sound
         try { await sound.unloadAsync(); } catch (e) {}
         soundRef.current = null;
         return;
       }
+
       setPositionMillis(statusAny.positionMillis ?? 0);
       setDurationMillis(statusAny.durationMillis ?? 0);
-
-      // make sure isPlaying flag matches actual status
       setIsPlaying(statusAny.isPlaying ?? true);
 
       sound.setOnPlaybackStatusUpdate((s: any) => {
         if (!s) return;
-
-        // ignore updates from stale actions
+        // Ignore updates for stale actions
         if (lastActionIdRef.current !== actionId) return;
 
-        setPositionMillis(s.positionMillis ?? 0);
-        setDurationMillis(s.durationMillis ?? 0);
-
+        // Always handle didJustFinish immediately
         if (s.didJustFinish) {
+          setPositionMillis( s.positionMillis ?? 0 );
+          setDurationMillis( s.durationMillis ?? 0 );
           setIsPlaying(false);
-          // optional: unload to free resources
           try { sound.unloadAsync().catch(() => {}); } catch (e) {}
           soundRef.current = null;
+          return;
+        }
+
+        // Throttle frequent position updates to reduce re-renders
+        const now = Date.now();
+        if (now - lastPositionUpdateRef.current >= POSITION_UPDATE_THROTTLE_MS) {
+          lastPositionUpdateRef.current = now;
+          setPositionMillis(s.positionMillis ?? 0);
+          setDurationMillis(s.durationMillis ?? 0);
         }
       });
     } catch (err) {
       console.warn('play error', err);
-      setIsPlaying(false);
+      // Only flip UI if this action is still the latest
+      if (lastActionIdRef.current === actionId) {
+        setIsPlaying(false);
+      }
     } finally {
-      isLoadingRef.current = false;
+      // Only clear loading flag if this action is still active
+      if (lastActionIdRef.current === actionId) {
+        isLoadingRef.current = false;
+      }
     }
   };
 
   const pause = async () => {
-    // Optimistic UI update: set not-playing immediately
-    setIsPlaying(false);
+    setIsPlaying(false); // optimistic
     if (soundRef.current) {
       try {
         await (soundRef.current as any).pauseAsync();
@@ -176,14 +185,11 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const stop = async () => {
-    // Optimistic UI update
     setIsPlaying(false);
     await _stopAndUnloadCurrent();
     setPositionMillis(0);
     setDurationMillis(0);
   };
-
-  // ---- END INSERT ----
 
   const next = async () => {
     if (!currentSong || playlist.length === 0) return;
@@ -199,39 +205,33 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (prevSong) await play(prevSong);
   };
 
-  const seek = async (positionMillis: number) => {
+  const seek = async (position: number) => {
     if (soundRef.current) {
       try {
-        await soundRef.current.setPositionAsync(positionMillis);
-        setPositionMillis(positionMillis);
+        await soundRef.current.setPositionAsync(position);
+        setPositionMillis(position);
       } catch (e) {
         console.warn('seek error', e);
       }
     }
   };
 
-  // Ensure provider value includes togglePlay and seek (if seek exists)
-  const value = {
+  // Expose methods
+  const value: PlaybackContextType = {
     currentSong,
     isPlaying,
-    positionMillis,   // exposed
-    durationMillis,   // exposed
-    togglePlay,
+    positionMillis,
+    durationMillis,
     play,
     pause,
     stop,
     next,
     prev,
     seek,
+    togglePlay,
   };
 
-  return (
-    <PlaybackContext.Provider value={value}>
-      {children}
-    </PlaybackContext.Provider>
-  );
+  return <PlaybackContext.Provider value={value}>{children}</PlaybackContext.Provider>;
 };
 
 export default PlaybackContext;
-
-
