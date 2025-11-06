@@ -1,16 +1,23 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, useColorScheme } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { usePlayback } from '../contexts/PlaybackContext';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/types';
 import { useFocusEffect } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons'; // Visual-only: Feather icons for modern UI
 
 const { width } = Dimensions.get('window');
+
+// Visual-only: Design tokens for consistent UI
+const PRIMARY_COLOR = '#2f6dfd';
+const FAB_SIZE = 60;
 
 export default function PlayerScreen({ route }: { route: RouteProp<RootStackParamList, 'Player'> }) {
   const paramSong = route.params?.song;
   const { currentSong, isPlaying, positionMillis, durationMillis, play, pause, next, prev, seek, togglePlay } = usePlayback();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   // Ensure playback started if navigated with a param and it's different
   useFocusEffect(
@@ -224,47 +231,57 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
   }, [seeking]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && styles.containerDark]}>
       <Image source={song?.cover_url ? { uri: String(song.cover_url) } : undefined} style={styles.cover} />
-      <Text style={styles.title}>{song?.title}</Text>
-      <Text style={styles.artist}>{song?.artist}</Text>
+      <Text style={[styles.title, isDark && styles.titleDark]}>{song?.title}</Text>
+      <Text style={[styles.artist, isDark && styles.artistDark]}>{song?.artist}</Text>
 
+      {/* Visual-only: Modern controls with Feather icons and circular FAB */}
       <View style={styles.controls}>
-        <TouchableOpacity onPress={prev}><Text style={styles.control}>⏮</Text></TouchableOpacity>
+        <TouchableOpacity onPress={prev} accessibilityLabel="Previous">
+          <Feather name="skip-back" size={32} color={isDark ? '#fff' : '#111'} />
+        </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => {
-            // optimistic UI handled in context; call togglePlay without awaiting
             togglePlay();
           }}
-          style={styles.playButton}
+          style={styles.playFab}
+          accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
         >
-          <Text style={styles.playText}>{isPlaying ? '⏸' : '▶'}</Text>
+          <Feather name={isPlaying ? 'pause' : 'play'} size={32} color="#fff" />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={next}><Text style={styles.control}>⏭</Text></TouchableOpacity>
+        <TouchableOpacity onPress={next} accessibilityLabel="Next">
+          <Feather name="skip-forward" size={32} color={isDark ? '#fff' : '#111'} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.progressRow}>
-        <Text style={styles.time}>{formatMillis(seekingRef.current ? localPosRef.current : positionMillis)}</Text>
+        <Text style={[styles.time, isDark && styles.timeDark]}>{formatMillis(seekingRef.current ? localPosRef.current : positionMillis)}</Text>
         <Slider
           ref={sliderRef}
           style={{ flex: 1 }}
           minimumValue={0}
           maximumValue={durationMillis || 0}
-          value={localPos} // React-driven, but during drag we move native thumb directly for instant feedback
-          minimumTrackTintColor="#2f6dfd"
-          maximumTrackTintColor="#ddd"
-          thumbTintColor="#2f6dfd"
+          value={localPos}
+          minimumTrackTintColor={PRIMARY_COLOR}
+          maximumTrackTintColor={isDark ? '#333' : '#ddd'}
+          thumbTintColor={PRIMARY_COLOR}
           onValueChange={onValueChange}
           onSlidingComplete={onSlidingComplete}
         />
-        <Text style={styles.time}>{formatMillis(durationMillis)}</Text>
+        <Text style={[styles.time, isDark && styles.timeDark]}>{formatMillis(durationMillis)}</Text>
       </View>
 
+      {/* Visual-only: Extra controls with Feather icons */}
       <View style={styles.extraRow}>
-        <TouchableOpacity style={styles.smallBtn}><Text>🔁</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.smallBtn}><Text>🔀</Text></TouchableOpacity>
+        <TouchableOpacity style={[styles.smallBtn, isDark && styles.smallBtnDark]} accessibilityLabel="Repeat">
+          <Feather name="repeat" size={20} color={isDark ? '#aaa' : '#666'} />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.smallBtn, isDark && styles.smallBtnDark]} accessibilityLabel="Shuffle">
+          <Feather name="shuffle" size={20} color={isDark ? '#aaa' : '#666'} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -281,15 +298,41 @@ function formatMillis(ms: number | null | undefined): string {
 const COVER = Math.min(width - 48, 420);
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', padding: 20, backgroundColor: '#fff' },
-  cover: { width: COVER, height: COVER, borderRadius: 12, backgroundColor: '#eee' },
-  title: { marginTop: 18, fontSize: 20, fontWeight: '800' },
+  containerDark: { backgroundColor: '#000' },
+  cover: { width: COVER, height: COVER, borderRadius: 16, backgroundColor: '#eee' },
+  title: { marginTop: 18, fontSize: 20, fontWeight: '800', color: '#111' },
+  titleDark: { color: '#fff' },
   artist: { color: '#666', marginTop: 6 },
-  controls: { flexDirection: 'row', alignItems: 'center', marginTop: 18 },
-  control: { fontSize: 22, paddingHorizontal: 12 },
-  playButton: { marginHorizontal: 10, backgroundColor: '#2f6dfd', padding: 12, borderRadius: 30 },
-  playText: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  progressRow: { width: '100%', flexDirection: 'row', alignItems: 'center', marginTop: 18 },
+  artistDark: { color: '#aaa' },
+  controls: { flexDirection: 'row', alignItems: 'center', marginTop: 24, gap: 20 },
+  
+  // Visual-only: Circular FAB play button matching mini-player aesthetic
+  playFab: { 
+    backgroundColor: PRIMARY_COLOR,
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
+    alignItems: 'center', 
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
+  },
+  
+  progressRow: { width: '100%', flexDirection: 'row', alignItems: 'center', marginTop: 24 },
   time: { width: 44, textAlign: 'center', color: '#666', fontSize: 12 },
-  extraRow: { flexDirection: 'row', marginTop: 20, alignItems: 'center' },
-  smallBtn: { padding: 10, marginHorizontal: 8, backgroundColor: '#f3f3f3', borderRadius: 8 },
+  timeDark: { color: '#aaa' },
+  extraRow: { flexDirection: 'row', marginTop: 20, alignItems: 'center', gap: 16 },
+  smallBtn: { 
+    padding: 12, 
+    backgroundColor: '#f3f3f3', 
+    borderRadius: 12,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smallBtnDark: { backgroundColor: '#1a1a1a' },
 });

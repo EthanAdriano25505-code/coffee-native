@@ -20,12 +20,24 @@ import { usePlayback } from '../contexts/PlaybackContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../utils/supabase';
 import SongCard from '../components/SongCard';
+import { Feather } from '@expo/vector-icons'; // Visual-only: Feather icons for modern UI
+import BannerIllustration from '../assets/BannerIllustration'; // Visual-only: SVG illustration for banner
 
 const { width, height } = Dimensions.get('window');
 const isLargeScreen = Math.max(width, height) >= 768;
 const BANNER_HEIGHT = Math.round(width * (isLargeScreen ? 0.35 : 0.45));
 const PLAYER_HEIGHT = isLargeScreen ? 88 : 72;
 const BASE_PADDING = 16;
+
+// Visual-only: Design tokens for consistent modern UI
+const CARD_RADIUS = 14;
+const MINI_PLAYER_RADIUS = 18;
+const FAB_SIZE = 56;
+const SPACING_SM = 8;
+const SPACING_MD = 12;
+const SPACING_LG = 16;
+const PRIMARY_COLOR = '#2f6dfd';
+const ACCENT_COLOR = '#ffd166';
 
 type HomeNavProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -134,14 +146,16 @@ const HomeScreen: React.FC = () => {
 
   const ListHeader = () => (
     <View>
-      {/* Banner */}
+      {/* Banner - Visual-only: Replaced placeholder with SVG illustration */}
       <View style={[styles.bannerWrapper, { height: BANNER_HEIGHT }]}>
-        <View style={styles.bannerPlaceholder}><Text style={styles.bannerText}>Banner Placeholder</Text></View>
+        <View style={styles.bannerCard}>
+          <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+        </View>
       </View>
 
       {/* New Albums row */}
       <View style={styles.sectionHeaderCompact}>
-        <Text style={styles.sectionTitle}>New Albums</Text>
+        <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>New Albums</Text>
         <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
           <Text style={styles.seeAll}>See all</Text>
         </TouchableOpacity>
@@ -149,27 +163,33 @@ const HomeScreen: React.FC = () => {
 
       <View style={styles.albumRow}>
         <View style={styles.albumCard}>
-          <View style={styles.albumThumb}><Text style={styles.albumThumbText}>Album</Text></View>
-          <Text style={styles.albumTitle}>Free songs</Text>
+          <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
+            <Text style={styles.albumThumbText}>Album</Text>
+          </View>
+          <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Free songs</Text>
           <Text style={styles.albumArtist}> </Text>
         </View>
 
         <View style={styles.albumCard}>
-          <View style={styles.albumThumb}><Text style={styles.albumThumbText}>Album</Text></View>
-          <Text style={styles.albumTitle}>Teasers</Text>
+          <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
+            <Text style={styles.albumThumbText}>Album</Text>
+          </View>
+          <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Teasers</Text>
           <Text style={styles.albumArtist}> </Text>
         </View>
 
         <View style={styles.albumCard}>
-          <View style={styles.albumThumb}><Text style={styles.albumThumbText}>Album</Text></View>
-          <Text style={styles.albumTitle}>Playlists</Text>
+          <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
+            <Text style={styles.albumThumbText}>Album</Text>
+          </View>
+          <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Playlists</Text>
           <Text style={styles.albumArtist}> </Text>
         </View>
       </View>
 
       {/* Song List header */}
       <View style={[styles.sectionHeaderCompact, { marginTop: 6 }]}>
-        <Text style={styles.sectionTitle}>Song List</Text>
+        <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Song List</Text>
         <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
           <Text style={styles.seeAll}>See all</Text>
         </TouchableOpacity>
@@ -199,13 +219,39 @@ const HomeScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={[styles.safe, isDark && styles.safeDark, { position: 'relative' }]}>
-      {/* Top app header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Music</Text>
+      {/* Top app header - Visual-only: Modern header with Feather icons and search chip */}
+      <View style={[styles.header, isDark && styles.headerDark]}>
+        <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>Music</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconButton}><Text style={styles.iconText}>⚙️</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}><Text style={styles.iconText}>🔍</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.profileButton}><Text style={styles.profileInitials}>JD</Text></TouchableOpacity>
+          {/* Visual-only: Search chip */}
+          <TouchableOpacity 
+            style={[styles.searchChip, isDark && styles.searchChipDark]}
+            accessibilityLabel="Search"
+            onPress={() => {
+              // TODO: Attach existing search handler when available
+              console.log('Search tapped');
+            }}
+          >
+            <Feather name="search" size={16} color={isDark ? '#aaa' : '#666'} />
+            <Text style={[styles.searchChipText, isDark && styles.searchChipTextDark]}>Search</Text>
+          </TouchableOpacity>
+          
+          {/* Visual-only: Feather icons replace emojis */}
+          <TouchableOpacity 
+            style={styles.iconButton} 
+            accessibilityLabel="Settings"
+            onPress={() => console.log('Settings tapped')}
+          >
+            <Feather name="settings" size={22} color={isDark ? '#fff' : '#111'} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.profileButton, isDark && styles.profileButtonDark]}
+            accessibilityLabel="Profile"
+            onPress={() => console.log('Profile tapped')}
+          >
+            <Text style={[styles.profileInitials, isDark && styles.profileInitialsDark]}>JD</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -221,7 +267,7 @@ const HomeScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Player anchored to bottom (tappable area navigates to Player) */}
+      {/* Mini-player - Visual-only: FAB-style circular play button with progress bar */}
       {currentSong ? (
         <Pressable
           onPress={() => {
@@ -230,7 +276,6 @@ const HomeScreen: React.FC = () => {
           style={[styles.playerBar, { height: PLAYER_HEIGHT, bottom: (insets.bottom ?? 0) + 6 }]}
           pointerEvents="box-none"
         >
-          {/* playerInner remains interactive — child touchables will handle their own presses */}
           <View style={[styles.playerInner, isDark && styles.playerInnerDark]}>
             <View style={styles.playerLeft}>
               {currentSong?.cover_url ? (
@@ -243,7 +288,7 @@ const HomeScreen: React.FC = () => {
                 <Text style={styles.playerTitle} numberOfLines={1}>{currentSong?.title ?? ''}</Text>
                 <Text style={styles.playerArtist}>{currentSong?.artist ?? ''}</Text>
 
-                {/* progress bar (existing styles) */}
+                {/* Visual-only: Progress bar above controls */}
                 <View style={styles.progressContainer}>
                   <Animated.View
                     style={[
@@ -261,27 +306,34 @@ const HomeScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* keep player controls functional; tapping these should not navigate */}
+            {/* Visual-only: Mini-player controls with Feather icons and circular FAB play button */}
             <View style={styles.playerControls}>
-              <TouchableOpacity onPress={(e) => { e?.stopPropagation?.(); prev(); }} style={styles.controlBtn}>
-                <Text style={styles.controlText}>⏮</Text>
+              <TouchableOpacity 
+                onPress={(e) => { e?.stopPropagation?.(); prev(); }} 
+                style={styles.controlBtn}
+                accessibilityLabel="Previous"
+              >
+                <Feather name="skip-back" size={20} color="#fff" />
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={(e) => {
                   e?.stopPropagation?.();
-                  // optimistic UI toggle
                   setIsPlaying((p) => !p);
-                  // call context toggle quickly (do not await)
                   togglePlay();
                 }}
-                style={[styles.controlBtn, styles.playControl]}
+                style={styles.playFab}
+                accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
               >
-                <Text style={styles.controlText}>{isPlaying ? '⏸' : '▶️'}</Text>
+                <Feather name={isPlaying ? 'pause' : 'play'} size={24} color="#111" />
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={(e) => { e?.stopPropagation?.(); next(); }} style={styles.controlBtn}>
-                <Text style={styles.controlText}>⏭</Text>
+              <TouchableOpacity 
+                onPress={(e) => { e?.stopPropagation?.(); next(); }} 
+                style={styles.controlBtn}
+                accessibilityLabel="Next"
+              >
+                <Feather name="skip-forward" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
           </View>
@@ -297,8 +349,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
   safeDark: { backgroundColor: '#000' },
 
+  // Visual-only: Modern header with search chip and Feather icons
   header: {
-    paddingTop: 12,
+    paddingTop: SPACING_MD,
     paddingBottom: 10,
     paddingHorizontal: BASE_PADDING,
     height: 64,
@@ -307,21 +360,87 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#fff',
   },
-  headerTitle: { fontSize: isLargeScreen ? 30 : 24, fontWeight: '800', letterSpacing: 0.5 },
-  headerActions: { flexDirection: 'row', alignItems: 'center' },
-  iconButton: { paddingHorizontal: 8, paddingVertical: 6, marginLeft: 8 },
-  iconText: { fontSize: 18 },
-  profileButton: { marginLeft: 10, width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  profileInitials: { fontSize: 12, fontWeight: '700', color: '#111' },
+  headerDark: { backgroundColor: '#121212' },
+  headerTitle: { 
+    fontSize: isLargeScreen ? 30 : 24, 
+    fontWeight: '800', 
+    letterSpacing: 0.5,
+    color: '#111',
+  },
+  headerTitleDark: { color: '#fff' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING_SM },
+  
+  // Visual-only: Search chip with rounded background
+  searchChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f3f5',
+    paddingHorizontal: SPACING_MD,
+    paddingVertical: SPACING_SM,
+    borderRadius: 20,
+    gap: 6,
+  },
+  searchChipDark: { backgroundColor: '#1a1a1a' },
+  searchChipText: { fontSize: 14, color: '#666' },
+  searchChipTextDark: { color: '#aaa' },
+  
+  iconButton: { 
+    padding: SPACING_SM,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  
+  // Visual-only: Circular avatar with proper contrast
+  profileButton: { 
+    width: 32, 
+    height: 32, 
+    borderRadius: 16, 
+    backgroundColor: '#e6eeff',
+    alignItems: 'center', 
+    justifyContent: 'center',
+  },
+  profileButtonDark: { backgroundColor: '#1a1a2e' },
+  profileInitials: { fontSize: 12, fontWeight: '700', color: '#2f6dfd' },
+  profileInitialsDark: { color: '#7f9fff' },
 
-  bannerWrapper: { marginHorizontal: BASE_PADDING, marginTop: 8, marginBottom: 12 },
-  bannerPlaceholder: { flex: 1, borderRadius: 14, backgroundColor: '#e9e7e5', alignItems: 'center', justifyContent: 'center' },
-  bannerText: { color: '#666', fontSize: isLargeScreen ? 18 : 16 },
+  // Visual-only: Banner with SVG illustration in rounded card
+  bannerWrapper: { 
+    marginHorizontal: BASE_PADDING, 
+    marginTop: SPACING_SM, 
+    marginBottom: SPACING_MD,
+  },
+  bannerCard: { 
+    flex: 1, 
+    borderRadius: CARD_RADIUS, 
+    backgroundColor: '#fff',
+    alignItems: 'center', 
+    justifyContent: 'center',
+    padding: SPACING_MD,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
 
-  sectionHeaderCompact: { marginHorizontal: BASE_PADDING, marginTop: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { fontSize: isLargeScreen ? 20 : 18, fontWeight: '700' },
+  sectionHeaderCompact: { 
+    marginHorizontal: BASE_PADDING, 
+    marginTop: 6, 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center',
+  },
+  sectionTitle: { 
+    fontSize: isLargeScreen ? 20 : 18, 
+    fontWeight: '700',
+    color: '#111',
+  },
+  sectionTitleDark: { color: '#fff' },
   seeAll: { color: '#999', fontSize: 13 },
 
+  // Visual-only: Modern album cards with consistent rounded style and shadow
   albumRow: {
     flexDirection: 'row',
     marginTop: 10,
@@ -329,46 +448,112 @@ const styles = StyleSheet.create({
     paddingHorizontal: BASE_PADDING,
     justifyContent: 'space-between',
   },
-  albumCard: { width: (width - BASE_PADDING * 2 - 16) / 3, },
-  albumThumb: { height: CARD, borderRadius: 14, backgroundColor: '#e6eaff', alignItems: 'center', justifyContent: 'center' },
+  albumCard: { width: (width - BASE_PADDING * 2 - 16) / 3 },
+  albumThumb: { 
+    height: CARD, 
+    borderRadius: CARD_RADIUS, 
+    backgroundColor: '#e6eaff',
+    alignItems: 'center', 
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  albumThumbDark: { backgroundColor: '#1a1a2e' },
   albumThumbText: { color: '#667', fontWeight: '700' },
-  albumTitle: { marginTop: 10, fontWeight: '700' },
+  albumTitle: { 
+    marginTop: 10, 
+    fontWeight: '700',
+    color: '#111',
+  },
+  albumTitleDark: { color: '#fff' },
   albumArtist: { color: '#777', marginTop: 2 },
 
-  topSongList: { marginTop: 6, marginHorizontal: BASE_PADDING },
-  songRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: BASE_PADDING, paddingVertical: 14, backgroundColor: '#fff',
-  },
   rowSeparator: { height: 10, backgroundColor: '#f7f7f8' },
 
-  // image for list thumbnail
-  songThumbImage: { width: 48, height: 48, borderRadius: 10, backgroundColor: '#f3e6ff', marginRight: 12 },
-
-  songMeta: { flex: 1 },
-  songTitle: { fontSize: 16, fontWeight: '700' },
-  songArtist: { fontSize: 13, color: '#666', marginTop: 4 },
-  playLink: { color: '#2f6dfd', fontWeight: '700' },
-
-  playerBar: { position: 'absolute', left: 0, right: 0, paddingHorizontal: BASE_PADDING, zIndex: 20 },
-  playerInner: { height: PLAYER_HEIGHT - 8, backgroundColor: '#111', borderRadius: 18, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, elevation: 6 },
+  // Visual-only: Mini-player bar anchored to bottom with modern FAB
+  playerBar: { 
+    position: 'absolute', 
+    left: 0, 
+    right: 0, 
+    paddingHorizontal: BASE_PADDING, 
+    zIndex: 20,
+  },
+  playerInner: { 
+    height: PLAYER_HEIGHT - 8, 
+    backgroundColor: '#111', 
+    borderRadius: MINI_PLAYER_RADIUS, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: SPACING_MD, 
+    shadowColor: '#000', 
+    shadowOpacity: 0.2, 
+    shadowRadius: 12, 
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
   playerInnerDark: { backgroundColor: '#121212' },
   playerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
 
-  // player image
-  playerArt: { width: 48, height: 48, borderRadius: 8, backgroundColor: '#2a2a2a', alignItems: 'center', justifyContent: 'center' },
+  playerArt: { 
+    width: 48, 
+    height: 48, 
+    borderRadius: SPACING_SM, 
+    backgroundColor: '#2a2a2a', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+  },
   playerArtText: { color: '#6b6b6b' },
-  playerArtImage: { width: 48, height: 48, borderRadius: 8, backgroundColor: '#2a2a2a' },
+  playerArtImage: { 
+    width: 48, 
+    height: 48, 
+    borderRadius: SPACING_SM, 
+    backgroundColor: '#2a2a2a',
+  },
 
-  playerMeta: { marginLeft: 12, flex: 1 },
+  playerMeta: { marginLeft: SPACING_MD, flex: 1 },
   playerTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
   playerArtist: { color: '#ccc', fontSize: 12, marginTop: 2 },
-  playerControls: { flexDirection: 'row', alignItems: 'center' },
-  controlBtn: { paddingHorizontal: 8 },
-  playControl: { backgroundColor: '#fff', borderRadius: 24, padding: 8, marginHorizontal: 6 },
-  controlText: { fontSize: 18, color: '#111' },
-  progressContainer: { height: 4, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 2, overflow: 'hidden', marginTop: 8, alignSelf: 'stretch', },
-  progressFill: { height: '100%', backgroundColor: '#2f6dfd', borderRadius: 2, width: '0%', },
+  
+  // Visual-only: FAB-style circular play button with Feather icons
+  playerControls: { flexDirection: 'row', alignItems: 'center', gap: SPACING_SM },
+  controlBtn: { 
+    padding: SPACING_SM,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playFab: { 
+    backgroundColor: ACCENT_COLOR,
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
+    alignItems: 'center', 
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  
+  progressContainer: { 
+    height: 4, 
+    backgroundColor: 'rgba(255,255,255,0.12)', 
+    borderRadius: 2, 
+    overflow: 'hidden', 
+    marginTop: SPACING_SM, 
+    alignSelf: 'stretch',
+  },
+  progressFill: { 
+    height: '100%', 
+    backgroundColor: PRIMARY_COLOR, 
+    borderRadius: 2, 
+    width: '0%',
+  },
 });
 
 export default HomeScreen;
