@@ -6,12 +6,9 @@ import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/types';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons'; // Visual-only: Feather icons for modern UI
+import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens'; // Visual-only: Design tokens
 
 const { width } = Dimensions.get('window');
-
-// Visual-only: Design tokens for consistent UI
-const PRIMARY_COLOR = '#2f6dfd';
-const FAB_SIZE = 60;
 
 export default function PlayerScreen({ route }: { route: RouteProp<RootStackParamList, 'Player'> }) {
   const paramSong = route.params?.song;
@@ -297,40 +294,36 @@ function formatMillis(ms: number | null | undefined): string {
 
 const COVER = Math.min(width - 48, 420);
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', padding: 20, backgroundColor: '#fff' },
+  container: { flex: 1, alignItems: 'center', padding: spacing.lg, backgroundColor: '#fff' },
   containerDark: { backgroundColor: '#000' },
-  cover: { width: COVER, height: COVER, borderRadius: 16, backgroundColor: '#eee' },
+  cover: { width: COVER, height: COVER, borderRadius: radii.normal, backgroundColor: '#eee' },
   title: { marginTop: 18, fontSize: 20, fontWeight: '800', color: '#111' },
   titleDark: { color: '#fff' },
   artist: { color: '#666', marginTop: 6 },
   artistDark: { color: '#aaa' },
-  controls: { flexDirection: 'row', alignItems: 'center', marginTop: 24, gap: 20 },
+  controls: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg, gap: spacing.lg },
   
   // Visual-only: Circular FAB play button matching mini-player aesthetic
   playFab: { 
-    backgroundColor: PRIMARY_COLOR,
-    width: FAB_SIZE,
-    height: FAB_SIZE,
-    borderRadius: FAB_SIZE / 2,
+    backgroundColor: '#2f6dfd', // primary color
+    width: sizes.fabLarge,
+    height: sizes.fabLarge,
+    borderRadius: sizes.fabLarge / 2,
     alignItems: 'center', 
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 6,
+    ...elevation.high,
   },
   
-  progressRow: { width: '100%', flexDirection: 'row', alignItems: 'center', marginTop: 24 },
+  progressRow: { width: '100%', flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg },
   time: { width: 44, textAlign: 'center', color: '#666', fontSize: 12 },
   timeDark: { color: '#aaa' },
-  extraRow: { flexDirection: 'row', marginTop: 20, alignItems: 'center', gap: 16 },
+  extraRow: { flexDirection: 'row', marginTop: spacing.lg, alignItems: 'center', gap: spacing.md },
   smallBtn: { 
-    padding: 12, 
+    padding: spacing.md, 
     backgroundColor: '#f3f3f3', 
-    borderRadius: 12,
-    minWidth: 44,
-    minHeight: 44,
+    borderRadius: radii.normal,
+    minWidth: sizes.touchTarget,
+    minHeight: sizes.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
   },

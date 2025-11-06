@@ -22,22 +22,15 @@ import { supabase } from '../utils/supabase';
 import SongCard from '../components/SongCard';
 import { Feather } from '@expo/vector-icons'; // Visual-only: Feather icons for modern UI
 import BannerIllustration from '../assets/BannerIllustration'; // Visual-only: SVG illustration for banner
+import BannerSlider from '../components/BannerSlider'; // Visual-only: Auto-advancing banner slider
+import SearchBar from '../components/SearchBar'; // Visual-only: Expanded search bar
+import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens'; // Visual-only: Design tokens
 
 const { width, height } = Dimensions.get('window');
 const isLargeScreen = Math.max(width, height) >= 768;
 const BANNER_HEIGHT = Math.round(width * (isLargeScreen ? 0.35 : 0.45));
 const PLAYER_HEIGHT = isLargeScreen ? 88 : 72;
-const BASE_PADDING = 16;
-
-// Visual-only: Design tokens for consistent modern UI
-const CARD_RADIUS = 14;
-const MINI_PLAYER_RADIUS = 18;
-const FAB_SIZE = 56;
-const SPACING_SM = 8;
-const SPACING_MD = 12;
-const SPACING_LG = 16;
-const PRIMARY_COLOR = '#2f6dfd';
-const ACCENT_COLOR = '#ffd166';
+const BASE_PADDING = spacing.md; // Use design token
 
 type HomeNavProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -144,58 +137,71 @@ const HomeScreen: React.FC = () => {
     }
   };
 
-  const ListHeader = () => (
-    <View>
-      {/* Banner - Visual-only: Replaced placeholder with SVG illustration */}
-      <View style={[styles.bannerWrapper, { height: BANNER_HEIGHT }]}>
-        <View style={styles.bannerCard}>
-          <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
-        </View>
-      </View>
-
-      {/* New Albums row */}
-      <View style={styles.sectionHeaderCompact}>
-        <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>New Albums</Text>
-        <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
-          <Text style={styles.seeAll}>See all</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.albumRow}>
-        <View style={styles.albumCard}>
-          <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
-            <Text style={styles.albumThumbText}>Album</Text>
+  const ListHeader = () => {
+    // Visual-only: Create slides for BannerSlider with multiple banner variations
+    const bannerSlides = [
+      {
+        id: 'banner-1',
+        component: (
+          <View style={styles.bannerCard}>
+            <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
           </View>
-          <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Free songs</Text>
-          <Text style={styles.albumArtist}> </Text>
+        ),
+      },
+      // Additional slides can be added here for variety
+    ];
+
+    return (
+      <View>
+        {/* Banner - Visual-only: Auto-advancing BannerSlider */}
+        <View style={[styles.bannerWrapper, { height: BANNER_HEIGHT }]}>
+          <BannerSlider slides={bannerSlides} autoAdvanceMs={3000} height={BANNER_HEIGHT} />
         </View>
 
-        <View style={styles.albumCard}>
-          <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
-            <Text style={styles.albumThumbText}>Album</Text>
-          </View>
-          <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Teasers</Text>
-          <Text style={styles.albumArtist}> </Text>
+        {/* New Albums row */}
+        <View style={styles.sectionHeaderCompact}>
+          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>New Albums</Text>
+          <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
+            <Text style={styles.seeAll}>See all</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.albumCard}>
-          <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
-            <Text style={styles.albumThumbText}>Album</Text>
+        <View style={styles.albumRow}>
+          <View style={styles.albumCard}>
+            <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
+              <Text style={styles.albumThumbText}>Album</Text>
+            </View>
+            <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Free songs</Text>
+            <Text style={styles.albumArtist}> </Text>
           </View>
-          <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Playlists</Text>
-          <Text style={styles.albumArtist}> </Text>
+
+          <View style={styles.albumCard}>
+            <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
+              <Text style={styles.albumThumbText}>Album</Text>
+            </View>
+            <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Teasers</Text>
+            <Text style={styles.albumArtist}> </Text>
+          </View>
+
+          <View style={styles.albumCard}>
+            <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
+              <Text style={styles.albumThumbText}>Album</Text>
+            </View>
+            <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Playlists</Text>
+            <Text style={styles.albumArtist}> </Text>
+          </View>
+        </View>
+
+        {/* Song List header */}
+        <View style={[styles.sectionHeaderCompact, { marginTop: 6 }]}>
+          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Song List</Text>
+          <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
+            <Text style={styles.seeAll}>See all</Text>
+          </TouchableOpacity>
         </View>
       </View>
-
-      {/* Song List header */}
-      <View style={[styles.sectionHeaderCompact, { marginTop: 6 }]}>
-        <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Song List</Text>
-        <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
-          <Text style={styles.seeAll}>See all</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const onCardPress = (song: Song) => {
     // start playback quickly (do not await so navigation feels instant)
@@ -219,44 +225,30 @@ const HomeScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={[styles.safe, isDark && styles.safeDark, { position: 'relative' }]}>
-      {/* Top app header - Visual-only: Modern header with Feather icons and search chip */}
+      {/* Top app header - Visual-only: Modern header with expanded search and filter icon */}
       <View style={[styles.header, isDark && styles.headerDark]}>
         <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>Music</Text>
         <View style={styles.headerActions}>
-          {/* Visual-only: Search chip */}
-          <TouchableOpacity 
-            style={[styles.searchChip, isDark && styles.searchChipDark]}
-            accessibilityLabel="Search"
+          {/* Visual-only: Expanded SearchBar component */}
+          <SearchBar
             onPress={() => {
               // TODO: Attach existing search handler when available
               console.log('Search tapped');
             }}
-          >
-            <Feather name="search" size={16} color={isDark ? '#aaa' : '#666'} />
-            <Text style={[styles.searchChipText, isDark && styles.searchChipTextDark]}>Search</Text>
-          </TouchableOpacity>
+            placeholder="Search songs, artists..."
+          />
           
-          {/* Visual-only: Feather icons replace emojis */}
+          {/* Visual-only: Filter icon replaces avatar/settings */}
           <TouchableOpacity 
             style={styles.iconButton} 
-            accessibilityLabel="Settings"
+            accessibilityLabel="Filter"
+            accessibilityHint="Filter and sort options"
             onPress={() => {
-              // TODO: Attach existing settings handler when available
-              console.log('Settings tapped');
+              // TODO: Attach existing filter handler when available
+              console.log('Filter tapped');
             }}
           >
-            <Feather name="settings" size={22} color={isDark ? '#fff' : '#111'} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.profileButton, isDark && styles.profileButtonDark]}
-            accessibilityLabel="Profile"
-            onPress={() => {
-              // TODO: Attach existing profile handler when available
-              console.log('Profile tapped');
-            }}
-          >
-            <Text style={[styles.profileInitials, isDark && styles.profileInitialsDark]}>JD</Text>
+            <Feather name="filter" size={22} color={isDark ? '#fff' : '#111'} />
           </TouchableOpacity>
         </View>
       </View>
@@ -355,9 +347,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
   safeDark: { backgroundColor: '#000' },
 
-  // Visual-only: Modern header with search chip and Feather icons
+  // Visual-only: Modern header with expanded search and filter
   header: {
-    paddingTop: SPACING_MD,
+    paddingTop: spacing.md,
     paddingBottom: 10,
     paddingHorizontal: BASE_PADDING,
     height: 64,
@@ -365,6 +357,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#fff',
+    gap: spacing.md,
   },
   headerDark: { backgroundColor: '#121212' },
   headerTitle: { 
@@ -374,61 +367,36 @@ const styles = StyleSheet.create({
     color: '#111',
   },
   headerTitleDark: { color: '#fff' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING_SM },
-  
-  // Visual-only: Search chip with rounded background
-  searchChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f1f3f5',
-    paddingHorizontal: SPACING_MD,
-    paddingVertical: SPACING_SM,
-    borderRadius: 20,
-    gap: 6,
+  headerActions: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: spacing.sm,
+    flex: 1,
+    justifyContent: 'flex-end',
   },
-  searchChipDark: { backgroundColor: '#1a1a1a' },
-  searchChipText: { fontSize: 14, color: '#666' },
-  searchChipTextDark: { color: '#aaa' },
   
   iconButton: { 
-    padding: SPACING_SM,
-    minWidth: 44,
-    minHeight: 44,
+    padding: spacing.sm,
+    minWidth: sizes.touchTarget,
+    minHeight: sizes.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  
-  // Visual-only: Circular avatar with proper contrast
-  profileButton: { 
-    width: 32, 
-    height: 32, 
-    borderRadius: 16, 
-    backgroundColor: '#e6eeff',
-    alignItems: 'center', 
-    justifyContent: 'center',
-  },
-  profileButtonDark: { backgroundColor: '#1a1a2e' },
-  profileInitials: { fontSize: 12, fontWeight: '700', color: '#2f6dfd' },
-  profileInitialsDark: { color: '#7f9fff' },
 
   // Visual-only: Banner with SVG illustration in rounded card
   bannerWrapper: { 
     marginHorizontal: BASE_PADDING, 
-    marginTop: SPACING_SM, 
-    marginBottom: SPACING_MD,
+    marginTop: spacing.sm, 
+    marginBottom: spacing.md,
   },
   bannerCard: { 
     flex: 1, 
-    borderRadius: CARD_RADIUS, 
+    borderRadius: radii.normal, 
     backgroundColor: '#fff',
     alignItems: 'center', 
     justifyContent: 'center',
-    padding: SPACING_MD,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    padding: spacing.md,
+    ...elevation.low,
   },
 
   sectionHeaderCompact: { 
@@ -457,15 +425,11 @@ const styles = StyleSheet.create({
   albumCard: { width: (width - BASE_PADDING * 2 - 16) / 3 },
   albumThumb: { 
     height: CARD, 
-    borderRadius: CARD_RADIUS, 
+    borderRadius: radii.normal, 
     backgroundColor: '#e6eaff',
     alignItems: 'center', 
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    ...elevation.medium,
   },
   albumThumbDark: { backgroundColor: '#1a1a2e' },
   albumThumbText: { color: '#667', fontWeight: '700' },
@@ -506,7 +470,7 @@ const styles = StyleSheet.create({
   playerArt: { 
     width: 48, 
     height: 48, 
-    borderRadius: SPACING_SM, 
+    borderRadius: spacing.sm, 
     backgroundColor: '#2a2a2a', 
     alignItems: 'center', 
     justifyContent: 'center',
@@ -515,35 +479,31 @@ const styles = StyleSheet.create({
   playerArtImage: { 
     width: 48, 
     height: 48, 
-    borderRadius: SPACING_SM, 
+    borderRadius: spacing.sm, 
     backgroundColor: '#2a2a2a',
   },
 
-  playerMeta: { marginLeft: SPACING_MD, flex: 1 },
+  playerMeta: { marginLeft: spacing.md, flex: 1 },
   playerTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
   playerArtist: { color: '#ccc', fontSize: 12, marginTop: 2 },
   
   // Visual-only: FAB-style circular play button with Feather icons
-  playerControls: { flexDirection: 'row', alignItems: 'center', gap: SPACING_SM },
+  playerControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   controlBtn: { 
-    padding: SPACING_SM,
-    minWidth: 44,
-    minHeight: 44,
+    padding: spacing.sm,
+    minWidth: sizes.touchTarget,
+    minHeight: sizes.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
   },
   playFab: { 
-    backgroundColor: ACCENT_COLOR,
-    width: FAB_SIZE,
-    height: FAB_SIZE,
-    borderRadius: FAB_SIZE / 2,
+    backgroundColor: '#ffd166', // accent color
+    width: sizes.fabMini,
+    height: sizes.fabMini,
+    borderRadius: sizes.fabMini / 2,
     alignItems: 'center', 
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
+    ...elevation.medium,
   },
   
   progressContainer: { 
@@ -551,12 +511,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.12)', 
     borderRadius: 2, 
     overflow: 'hidden', 
-    marginTop: SPACING_SM, 
+    marginTop: spacing.sm, 
     alignSelf: 'stretch',
   },
   progressFill: { 
     height: '100%', 
-    backgroundColor: PRIMARY_COLOR, 
+    backgroundColor: '#2f6dfd', // primary color
     borderRadius: 2, 
     width: '0%',
   },
