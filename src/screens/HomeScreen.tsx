@@ -240,7 +240,10 @@ const HomeScreen: React.FC = () => {
           <TouchableOpacity 
             style={styles.iconButton} 
             accessibilityLabel="Settings"
-            onPress={() => console.log('Settings tapped')}
+            onPress={() => {
+              // TODO: Attach existing settings handler when available
+              console.log('Settings tapped');
+            }}
           >
             <Feather name="settings" size={22} color={isDark ? '#fff' : '#111'} />
           </TouchableOpacity>
@@ -248,7 +251,10 @@ const HomeScreen: React.FC = () => {
           <TouchableOpacity 
             style={[styles.profileButton, isDark && styles.profileButtonDark]}
             accessibilityLabel="Profile"
-            onPress={() => console.log('Profile tapped')}
+            onPress={() => {
+              // TODO: Attach existing profile handler when available
+              console.log('Profile tapped');
+            }}
           >
             <Text style={[styles.profileInitials, isDark && styles.profileInitialsDark]}>JD</Text>
           </TouchableOpacity>
