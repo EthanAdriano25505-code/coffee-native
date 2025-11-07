@@ -7,6 +7,7 @@ import type { RootStackParamList } from '../navigation/types';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons'; // Visual-only: Feather icons for modern UI
 import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens'; // Visual-only: Design tokens
+import { tokens } from '../theme/designTokens'; 
 
 const { width } = Dimensions.get('window');
 
@@ -262,9 +263,9 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
           minimumValue={0}
           maximumValue={durationMillis || 0}
           value={localPos}
-          minimumTrackTintColor={PRIMARY_COLOR}
+          minimumTrackTintColor={tokens.light.colors.primary}
           maximumTrackTintColor={isDark ? '#333' : '#ddd'}
-          thumbTintColor={PRIMARY_COLOR}
+          thumbTintColor={tokens.light.colors.primary}
           onValueChange={onValueChange}
           onSlidingComplete={onSlidingComplete}
         />

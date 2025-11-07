@@ -7,6 +7,7 @@ import {
   AccessibilityInfo,
   Platform,
   useColorScheme,
+  TouchableOpacity,
 } from 'react-native';
 import type { ListRenderItem } from 'react-native';
 import { radii, elevation, getColors } from '../theme/designTokens';
@@ -36,12 +37,23 @@ export default function BannerSlider({ slides, autoAdvanceMs = 3000, height }: P
 
   useEffect(() => {
     startTimer();
-    return () => stopTimer();
+    return () => {
+      stopTimer();
+      // clear any pending resume timeout when unmounting
+      if (resumeTimeoutRef.current) {
+        clearTimeout(resumeTimeoutRef.current as any);
+        resumeTimeoutRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slides, autoAdvanceMs, isAuto]);
 
   const startTimer = () => {
-    stopTimer();
+    // Be idempotent: clear any existing timer directly (don't call stopTimer to avoid implicit behavior)
+    if (autoTimer.current) {
+      clearInterval(autoTimer.current as any);
+      autoTimer.current = null;
+    }
     if (!isAuto || slides.length <= 1) return;
     autoTimer.current = setInterval(() => {
       const next = (indexRef.current + 1) % slides.length;
@@ -51,32 +63,71 @@ export default function BannerSlider({ slides, autoAdvanceMs = 3000, height }: P
 
   const stopTimer = () => {
     if (autoTimer.current) {
-      clearInterval(autoTimer.current);
+      clearInterval(autoTimer.current as any);
       autoTimer.current = null;
     }
   };
 
+  // Safely scroll to an index: clamp desired index and gracefully handle FlatList layout errors
   const scrollToIndex = (i: number) => {
-    indexRef.current = i;
-    setCurrentIndex(i);
-    listRef.current?.scrollToIndex({ index: i, animated: true });
+    const maxIndex = Math.max(0, slides.length - 1);
+    const target = Math.min(Math.max(0, i), maxIndex);
+    indexRef.current = target;
+    setCurrentIndex(target);
+
+    if (!listRef.current) {
+      // If the list isn't ready, bail; the effect will restart when layout/data changes
+      // Accessibility announcement still happens below
+    } else {
+      try {
+        listRef.current.scrollToIndex({ index: target, animated: true });
+      } catch (err) {
+        // Fallback: try scrollToOffset to a computed position or reset to 0
+        try {
+          const offset = WINDOW.width * target;
+          listRef.current.scrollToOffset({ offset, animated: true });
+        } catch (_err) {
+          // Last resort: try index 0
+          try {
+            listRef.current.scrollToIndex({ index: 0, animated: false });
+            indexRef.current = 0;
+            setCurrentIndex(0);
+          } catch (finalErr) {
+            // give up silently; avoid throwing to keep UI responsive
+          }
+        }
+      }
+    }
+
     // Accessibility announcement
-    const message = `Banner ${i + 1} of ${slides.length}`;
+    const message = `Banner ${target + 1} of ${slides.length}`;
     if (Platform.OS === 'ios' || Platform.OS === 'android') {
       AccessibilityInfo.announceForAccessibility(message);
     }
   };
 
+  const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const onScrollBeginDrag = () => {
     setIsAuto(false);
     stopTimer();
+    if (resumeTimeoutRef.current) {
+      clearTimeout(resumeTimeoutRef.current as any);
+      resumeTimeoutRef.current = null;
+    }
   };
 
   const onScrollEndDrag = () => {
-    // Resume auto-advance after a short delay when user stops dragging
-    setTimeout(() => {
+    // Resume auto-advance after a delay derived from autoAdvanceMs so timing scales with config
+    const resumeDelayMs = Math.min(autoAdvanceMs, 1000);
+    if (resumeTimeoutRef.current) {
+      clearTimeout(resumeTimeoutRef.current as any);
+      resumeTimeoutRef.current = null;
+    }
+    resumeTimeoutRef.current = setTimeout(() => {
       setIsAuto(true);
-    }, 1000);
+      resumeTimeoutRef.current = null;
+    }, resumeDelayMs);
   };
 
   const onMomentumScrollEnd = (event: any) => {
@@ -119,18 +170,20 @@ export default function BannerSlider({ slides, autoAdvanceMs = 3000, height }: P
       {slides.length > 1 && (
         <View style={styles.pagination}>
           {slides.map((_, index) => (
-            <View
+            <TouchableOpacity
               key={index}
-              style={[
-                styles.dot,
-                {
-                  backgroundColor: index === currentIndex ? colors.primary : colors.muted,
-                  opacity: index === currentIndex ? 1 : 0.3,
-                },
-              ]}
+              onPress={() => scrollToIndex(index)}
+              accessibilityRole="button"
               accessibilityLabel={`Slide ${index + 1} of ${slides.length}${
                 index === currentIndex ? ', current' : ''
               }`}
+              style={[
+                styles.dot,
+                {
+                  backgroundColor: index === currentIndex ? colors.accent : colors.muted,
+                  opacity: index === currentIndex ? 1 : 0.3,
+                },
+              ]}
             />
           ))}
         </View>

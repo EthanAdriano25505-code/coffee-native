@@ -1,7 +1,7 @@
 // src/assets/BannerIllustration.tsx
 // Simple music-themed SVG illustration for Home banner
 import React from 'react';
-import Svg, { Path, Circle, Rect, Ellipse } from 'react-native-svg';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 
 type Props = {
   width?: number;

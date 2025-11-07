@@ -1,14 +1,14 @@
 // src/components/SongCard.tsx
 // Visual-only: Modern song card with rounded thumbnail and trailing action icon
 import React from 'react';
-import { Animated, Pressable, Text, View, Image, StyleSheet, useColorScheme } from 'react-native';
+import { Animated, Pressable, Text, View, Image, StyleSheet, useColorScheme, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
 type Song = { id: string | number; title: string; artist?: string | null; cover_url?: string | null };
 
-type Props = { song: Song; onPress: () => void };
+type Props = { song: Song; onPress: () => void; onMorePress?: () => void };
 
-export default function SongCard({ song, onPress }: Props) {
+export default function SongCard({ song, onPress, onMorePress }: Props) {
   const scale = React.useRef(new Animated.Value(1)).current;
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -29,13 +29,16 @@ export default function SongCard({ song, onPress }: Props) {
           <Text numberOfLines={1} style={[styles.title, isDark && styles.titleDark]}>{song.title}</Text>
           <Text numberOfLines={1} style={[styles.artist, isDark && styles.artistDark]}>{song.artist}</Text>
         </View>
-        {/* Visual-only: Trailing action icon for more options */}
-        <Feather 
-          name="more-vertical" 
-          size={20} 
-          color={isDark ? '#aaa' : '#666'} 
+        {/* Trailing action icon for more options. Wrapped in a touchable so it can be interactive. */}
+        <TouchableOpacity
+          onPress={onMorePress}
+          accessibilityRole="button"
+          accessibilityLabel="More options"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           style={styles.actionIcon}
-        />
+        >
+          <Feather name="more-vertical" size={20} color={isDark ? '#aaa' : '#666'} />
+        </TouchableOpacity>
       </Animated.View>
     </Pressable>
   );

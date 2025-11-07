@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   StyleSheet,
@@ -13,9 +12,10 @@ import {
   Image,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation';
+import type { RootStackParamList } from '../navigation/types';
 import { usePlayback } from '../contexts/PlaybackContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../utils/supabase';
@@ -25,6 +25,7 @@ import BannerIllustration from '../assets/BannerIllustration'; // Visual-only: S
 import BannerSlider from '../components/BannerSlider'; // Visual-only: Auto-advancing banner slider
 import SearchBar from '../components/SearchBar'; // Visual-only: Expanded search bar
 import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens'; // Visual-only: Design tokens
+import { tokens } from '../theme/designTokens';
 
 const { width, height } = Dimensions.get('window');
 const isLargeScreen = Math.max(width, height) >= 768;
@@ -50,6 +51,7 @@ const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const colors = getColors(isDark);
   const insets = useSafeAreaInsets();
 
   const { currentSong: ctxSong, isPlaying: ctxPlaying, positionMillis, durationMillis, play, pause, next, prev, togglePlay } = usePlayback();
@@ -159,7 +161,7 @@ const HomeScreen: React.FC = () => {
         </View>
 
         {/* New Albums row */}
-        <View style={styles.sectionHeaderCompact}>
+        <View style={[styles.sectionHeaderCompact, { marginTop: spacing.sm, marginBottom: spacing.sm }]}>
           <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>New Albums</Text>
           <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
             <Text style={styles.seeAll}>See all</Text>
@@ -167,33 +169,54 @@ const HomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.albumRow}>
-          <View style={styles.albumCard}>
+          <TouchableOpacity
+            style={styles.albumCard}
+            accessible
+            accessibilityRole="button"
+            onPress={() => hookNav.navigate('FullSongs')}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
               <Text style={styles.albumThumbText}>Album</Text>
             </View>
             <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Free songs</Text>
             <Text style={styles.albumArtist}> </Text>
-          </View>
+          </TouchableOpacity>
 
-          <View style={styles.albumCard}>
+          <TouchableOpacity
+            style={styles.albumCard}
+            accessible
+            accessibilityRole="button"
+            onPress={() => hookNav.navigate('FullSongs')}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
               <Text style={styles.albumThumbText}>Album</Text>
             </View>
             <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Teasers</Text>
             <Text style={styles.albumArtist}> </Text>
-          </View>
+          </TouchableOpacity>
 
-          <View style={styles.albumCard}>
+          <TouchableOpacity
+            style={styles.albumCard}
+            accessible
+            accessibilityRole="button"
+            onPress={() => hookNav.navigate('FullSongs')}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
               <Text style={styles.albumThumbText}>Album</Text>
             </View>
             <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Playlists</Text>
             <Text style={styles.albumArtist}> </Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Song List header */}
-        <View style={[styles.sectionHeaderCompact, { marginTop: 6 }]}>
+        <View style={[styles.sectionHeaderCompact, { marginTop: spacing.sm }]}>
           <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Song List</Text>
           <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
             <Text style={styles.seeAll}>See all</Text>
@@ -224,31 +247,40 @@ const HomeScreen: React.FC = () => {
   const listFooter = songs.length > 0 ? <View style={{ height: PLAYER_HEIGHT + (insets.bottom ?? 0) + 12 }} /> : null;
 
   return (
-    <SafeAreaView style={[styles.safe, isDark && styles.safeDark, { position: 'relative' }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background, paddingTop: insets.top + spacing.md }, isDark && styles.safeDark, { position: 'relative' }]}>
       {/* Top app header - Visual-only: Modern header with expanded search and filter icon */}
       <View style={[styles.header, isDark && styles.headerDark]}>
         <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>Music</Text>
         <View style={styles.headerActions}>
           {/* Visual-only: Expanded SearchBar component */}
-          <SearchBar
-            onPress={() => {
-              // TODO: Attach existing search handler when available
-              console.log('Search tapped');
-            }}
-            placeholder="Search songs, artists..."
-          />
+          <View style={{ marginTop: spacing.lg }}>
+            <SearchBar
+              onPress={() => {
+                // TODO: Attach existing search handler when available
+                console.log('Search tapped');
+              }}
+              placeholder="Search songs, artists..."
+            />
+          </View>
           
           {/* Visual-only: Filter icon replaces avatar/settings */}
-          <TouchableOpacity 
-            style={styles.iconButton} 
-            accessibilityLabel="Filter"
-            accessibilityHint="Filter and sort options"
+          <TouchableOpacity
+            style={styles.iconButton}
+            accessibilityLabel="Open menu"
+            accessibilityHint="Open navigation menu"
             onPress={() => {
-              // TODO: Attach existing filter handler when available
-              console.log('Filter tapped');
+              // Toggle the navigation drawer if available; fall back to a safe navigation action
+              if (typeof navigation?.toggleDrawer === 'function') {
+                navigation.toggleDrawer();
+              } else if (typeof (hookNav as any)?.toggleDrawer === 'function') {
+                (hookNav as any).toggleDrawer();
+              } else {
+                // Feature not available: navigate to FullSongs as a fallback
+                hookNav.navigate('FullSongs');
+              }
             }}
           >
-            <Feather name="filter" size={22} color={isDark ? '#fff' : '#111'} />
+            <Feather name="menu" size={22} color={isDark ? '#fff' : '#111'} />
           </TouchableOpacity>
         </View>
       </View>
@@ -306,8 +338,8 @@ const HomeScreen: React.FC = () => {
 
             {/* Visual-only: Mini-player controls with Feather icons and circular FAB play button */}
             <View style={styles.playerControls}>
-              <TouchableOpacity 
-                onPress={(e) => { e?.stopPropagation?.(); prev(); }} 
+              <TouchableOpacity
+                onPress={() => prev()}
                 style={styles.controlBtn}
                 accessibilityLabel="Previous"
               >
@@ -315,8 +347,7 @@ const HomeScreen: React.FC = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={(e) => {
-                  e?.stopPropagation?.();
+                onPress={() => {
                   setIsPlaying((p) => !p);
                   togglePlay();
                 }}
@@ -326,8 +357,8 @@ const HomeScreen: React.FC = () => {
                 <Feather name={isPlaying ? 'pause' : 'play'} size={24} color="#111" />
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                onPress={(e) => { e?.stopPropagation?.(); next(); }} 
+              <TouchableOpacity
+                onPress={() => next()}
                 style={styles.controlBtn}
                 accessibilityLabel="Next"
               >
@@ -386,8 +417,7 @@ const styles = StyleSheet.create({
   // Visual-only: Banner with SVG illustration in rounded card
   bannerWrapper: { 
     marginHorizontal: BASE_PADDING, 
-    marginTop: spacing.sm, 
-    marginBottom: spacing.md,
+    marginVertical: spacing.sm,
   },
   bannerCard: { 
     flex: 1, 
@@ -401,7 +431,6 @@ const styles = StyleSheet.create({
 
   sectionHeaderCompact: { 
     marginHorizontal: BASE_PADDING, 
-    marginTop: 6, 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center',
@@ -454,10 +483,10 @@ const styles = StyleSheet.create({
   playerInner: { 
     height: PLAYER_HEIGHT - 8, 
     backgroundColor: '#111', 
-    borderRadius: MINI_PLAYER_RADIUS, 
+    borderRadius: tokens.radii.normal,
     flexDirection: 'row', 
     alignItems: 'center', 
-    paddingHorizontal: SPACING_MD, 
+    paddingHorizontal: spacing.md, 
     shadowColor: '#000', 
     shadowOpacity: 0.2, 
     shadowRadius: 12, 
