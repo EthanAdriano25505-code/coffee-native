@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   StyleSheet,
@@ -13,19 +12,26 @@ import {
   Image,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation';
+import type { RootStackParamList } from '../navigation/types';
 import { usePlayback } from '../contexts/PlaybackContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../utils/supabase';
 import SongCard from '../components/SongCard';
+import { Feather } from '@expo/vector-icons'; // Visual-only: Feather icons for modern UI
+import BannerIllustration from '../assets/BannerIllustration'; // Visual-only: SVG illustration for banner
+import BannerSlider from '../components/BannerSlider'; // Visual-only: Auto-advancing banner slider
+import SearchBar from '../components/SearchBar'; // Visual-only: Expanded search bar
+import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens'; // Visual-only: Design tokens
+import { tokens } from '../theme/designTokens';
 
 const { width, height } = Dimensions.get('window');
 const isLargeScreen = Math.max(width, height) >= 768;
 const BANNER_HEIGHT = Math.round(width * (isLargeScreen ? 0.35 : 0.45));
 const PLAYER_HEIGHT = isLargeScreen ? 88 : 72;
-const BASE_PADDING = 16;
+const BASE_PADDING = spacing.md; // Use design token
 
 type HomeNavProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -45,6 +51,7 @@ const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const colors = getColors(isDark);
   const insets = useSafeAreaInsets();
 
   const { currentSong: ctxSong, isPlaying: ctxPlaying, positionMillis, durationMillis, play, pause, next, prev, togglePlay } = usePlayback();
@@ -132,50 +139,108 @@ const HomeScreen: React.FC = () => {
     }
   };
 
-  const ListHeader = () => (
-    <View>
-      {/* Banner */}
-      <View style={[styles.bannerWrapper, { height: BANNER_HEIGHT }]}>
-        <View style={styles.bannerPlaceholder}><Text style={styles.bannerText}>Banner Placeholder</Text></View>
-      </View>
+  const ListHeader = () => {
+    // Visual-only: Create slides for BannerSlider with 3-dot pagination
+    const bannerSlides = [
+      {
+        id: 'banner-1',
+        component: (
+          <View style={styles.bannerCard}>
+            <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+          </View>
+        ),
+      },
+      {
+        id: 'banner-2',
+        component: (
+          <View style={styles.bannerCard}>
+            <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+          </View>
+        ),
+      },
+      {
+        id: 'banner-3',
+        component: (
+          <View style={styles.bannerCard}>
+            <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+          </View>
+        ),
+      },
+      // When Supabase banner data is available, fetch and map here
+    ];
 
-      {/* New Albums row */}
-      <View style={styles.sectionHeaderCompact}>
-        <Text style={styles.sectionTitle}>New Albums</Text>
-        <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
-          <Text style={styles.seeAll}>See all</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.albumRow}>
-        <View style={styles.albumCard}>
-          <View style={styles.albumThumb}><Text style={styles.albumThumbText}>Album</Text></View>
-          <Text style={styles.albumTitle}>Free songs</Text>
-          <Text style={styles.albumArtist}> </Text>
+    return (
+      <View>
+        {/* Banner - Visual-only: Auto-advancing BannerSlider */}
+        <View style={[styles.bannerWrapper, { height: BANNER_HEIGHT }]}>
+          <BannerSlider slides={bannerSlides} autoAdvanceMs={3000} height={BANNER_HEIGHT} />
         </View>
 
-        <View style={styles.albumCard}>
-          <View style={styles.albumThumb}><Text style={styles.albumThumbText}>Album</Text></View>
-          <Text style={styles.albumTitle}>Teasers</Text>
-          <Text style={styles.albumArtist}> </Text>
+        {/* New Albums row */}
+        <View style={styles.sectionHeaderCompact}>
+          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>New Albums</Text>
+          <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
+            <Text style={styles.seeAll}>See all</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.albumCard}>
-          <View style={styles.albumThumb}><Text style={styles.albumThumbText}>Album</Text></View>
-          <Text style={styles.albumTitle}>Playlists</Text>
-          <Text style={styles.albumArtist}> </Text>
+        <View style={styles.albumRow}>
+          <TouchableOpacity
+            style={styles.albumCard}
+            accessible
+            accessibilityRole="button"
+            onPress={() => hookNav.navigate('FullSongs')}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
+              <Text style={styles.albumThumbText}>Album</Text>
+            </View>
+            <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Free songs</Text>
+            <Text style={styles.albumArtist}> </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.albumCard}
+            accessible
+            accessibilityRole="button"
+            onPress={() => hookNav.navigate('FullSongs')}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
+              <Text style={styles.albumThumbText}>Album</Text>
+            </View>
+            <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Teasers</Text>
+            <Text style={styles.albumArtist}> </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.albumCard}
+            accessible
+            accessibilityRole="button"
+            onPress={() => hookNav.navigate('FullSongs')}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
+              <Text style={styles.albumThumbText}>Album</Text>
+            </View>
+            <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Playlists</Text>
+            <Text style={styles.albumArtist}> </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Song List header */}
+        <View style={styles.sectionHeaderCompact}>
+          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Song List</Text>
+          <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
+            <Text style={styles.seeAll}>See all</Text>
+          </TouchableOpacity>
         </View>
       </View>
-
-      {/* Song List header */}
-      <View style={[styles.sectionHeaderCompact, { marginTop: 6 }]}>
-        <Text style={styles.sectionTitle}>Song List</Text>
-        <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
-          <Text style={styles.seeAll}>See all</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const onCardPress = (song: Song) => {
     // start playback quickly (do not await so navigation feels instant)
@@ -198,14 +263,39 @@ const HomeScreen: React.FC = () => {
   const listFooter = songs.length > 0 ? <View style={{ height: PLAYER_HEIGHT + (insets.bottom ?? 0) + 12 }} /> : null;
 
   return (
-    <SafeAreaView style={[styles.safe, isDark && styles.safeDark, { position: 'relative' }]}>
-      {/* Top app header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Music</Text>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }, isDark && styles.safeDark, { position: 'relative' }]} edges={['left', 'right', 'bottom']}>
+      {/* Top app header - Visual-only: Header positioned close to status bar to match screenshot */}
+      <View style={[styles.header, isDark && styles.headerDark, { paddingTop: 6 }]}>
+        <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>Music</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconButton}><Text style={styles.iconText}>⚙️</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}><Text style={styles.iconText}>🔍</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.profileButton}><Text style={styles.profileInitials}>JD</Text></TouchableOpacity>
+          {/* Visual-only: Expanded SearchBar component */}
+          <SearchBar
+            onPress={() => {
+              // TODO: Attach existing search handler when available
+              console.log('Search tapped');
+            }}
+            placeholder="Search songs, artists..."
+          />
+          
+          {/* Visual-only: Filter icon replaces avatar/settings */}
+          <TouchableOpacity
+            style={styles.iconButton}
+            accessibilityLabel="Open menu"
+            accessibilityHint="Open navigation menu"
+            onPress={() => {
+              // Toggle the navigation drawer if available; fall back to a safe navigation action
+              if (typeof navigation?.toggleDrawer === 'function') {
+                navigation.toggleDrawer();
+              } else if (typeof (hookNav as any)?.toggleDrawer === 'function') {
+                (hookNav as any).toggleDrawer();
+              } else {
+                // Feature not available: navigate to FullSongs as a fallback
+                hookNav.navigate('FullSongs');
+              }
+            }}
+          >
+            <Feather name="menu" size={22} color={isDark ? '#fff' : '#111'} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -221,7 +311,7 @@ const HomeScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Player anchored to bottom (tappable area navigates to Player) */}
+      {/* Mini-player - Visual-only: FAB-style circular play button with progress bar */}
       {currentSong ? (
         <Pressable
           onPress={() => {
@@ -230,7 +320,6 @@ const HomeScreen: React.FC = () => {
           style={[styles.playerBar, { height: PLAYER_HEIGHT, bottom: (insets.bottom ?? 0) + 6 }]}
           pointerEvents="box-none"
         >
-          {/* playerInner remains interactive — child touchables will handle their own presses */}
           <View style={[styles.playerInner, isDark && styles.playerInnerDark]}>
             <View style={styles.playerLeft}>
               {currentSong?.cover_url ? (
@@ -243,7 +332,7 @@ const HomeScreen: React.FC = () => {
                 <Text style={styles.playerTitle} numberOfLines={1}>{currentSong?.title ?? ''}</Text>
                 <Text style={styles.playerArtist}>{currentSong?.artist ?? ''}</Text>
 
-                {/* progress bar (existing styles) */}
+                {/* Visual-only: Progress bar above controls */}
                 <View style={styles.progressContainer}>
                   <Animated.View
                     style={[
@@ -261,27 +350,33 @@ const HomeScreen: React.FC = () => {
               </View>
             </View>
 
-            {/* keep player controls functional; tapping these should not navigate */}
+            {/* Visual-only: Mini-player controls with Feather icons and circular FAB play button */}
             <View style={styles.playerControls}>
-              <TouchableOpacity onPress={(e) => { e?.stopPropagation?.(); prev(); }} style={styles.controlBtn}>
-                <Text style={styles.controlText}>⏮</Text>
+              <TouchableOpacity
+                onPress={() => prev()}
+                style={styles.controlBtn}
+                accessibilityLabel="Previous"
+              >
+                <Feather name="skip-back" size={20} color="#fff" />
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={(e) => {
-                  e?.stopPropagation?.();
-                  // optimistic UI toggle
+                onPress={() => {
                   setIsPlaying((p) => !p);
-                  // call context toggle quickly (do not await)
                   togglePlay();
                 }}
-                style={[styles.controlBtn, styles.playControl]}
+                style={styles.playFab}
+                accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
               >
-                <Text style={styles.controlText}>{isPlaying ? '⏸' : '▶️'}</Text>
+                <Feather name={isPlaying ? 'pause' : 'play'} size={24} color="#111" />
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={(e) => { e?.stopPropagation?.(); next(); }} style={styles.controlBtn}>
-                <Text style={styles.controlText}>⏭</Text>
+              <TouchableOpacity
+                onPress={() => next()}
+                style={styles.controlBtn}
+                accessibilityLabel="Next"
+              >
+                <Feather name="skip-forward" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
           </View>
@@ -297,78 +392,179 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
   safeDark: { backgroundColor: '#000' },
 
+  // Visual-only: Modern header positioned close to status bar
   header: {
-    paddingTop: 12,
-    paddingBottom: 10,
+    paddingTop: 6, // small top offset to avoid notch while matching screenshot
+    paddingBottom: 8, // reduced from 10 for tighter spacing
     paddingHorizontal: BASE_PADDING,
-    height: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#fff',
+    gap: spacing.sm, // reduced from spacing.md for tighter layout
   },
-  headerTitle: { fontSize: isLargeScreen ? 30 : 24, fontWeight: '800', letterSpacing: 0.5 },
-  headerActions: { flexDirection: 'row', alignItems: 'center' },
-  iconButton: { paddingHorizontal: 8, paddingVertical: 6, marginLeft: 8 },
-  iconText: { fontSize: 18 },
-  profileButton: { marginLeft: 10, width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  profileInitials: { fontSize: 12, fontWeight: '700', color: '#111' },
+  headerDark: { backgroundColor: '#121212' },
+  headerTitle: { 
+    fontSize: isLargeScreen ? 30 : 24, 
+    fontWeight: '800', 
+    letterSpacing: 0.5,
+    color: '#111',
+  },
+  headerTitleDark: { color: '#fff' },
+  headerActions: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: spacing.sm,
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  
+  iconButton: { 
+    padding: spacing.sm,
+    minWidth: sizes.touchTarget,
+    minHeight: sizes.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
-  bannerWrapper: { marginHorizontal: BASE_PADDING, marginTop: 8, marginBottom: 12 },
-  bannerPlaceholder: { flex: 1, borderRadius: 14, backgroundColor: '#e9e7e5', alignItems: 'center', justifyContent: 'center' },
-  bannerText: { color: '#666', fontSize: isLargeScreen ? 18 : 16 },
+  // Visual-only: Banner with tighter spacing
+  bannerWrapper: { 
+    marginHorizontal: BASE_PADDING, 
+    marginTop: spacing.sm, // tighter top margin
+    marginBottom: spacing.sm, // reduced from spacing.sm
+  },
+  bannerCard: { 
+    flex: 1, 
+    borderRadius: radii.normal, 
+    backgroundColor: '#fff',
+    alignItems: 'center', 
+    justifyContent: 'center',
+    padding: spacing.md,
+    ...elevation.low,
+  },
 
-  sectionHeaderCompact: { marginHorizontal: BASE_PADDING, marginTop: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { fontSize: isLargeScreen ? 20 : 18, fontWeight: '700' },
+  sectionHeaderCompact: { 
+    marginHorizontal: BASE_PADDING, 
+    marginTop: spacing.sm, // reduced for tighter spacing
+    marginBottom: spacing.xs, // added bottom margin for better balance
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center',
+  },
+  sectionTitle: { 
+    fontSize: isLargeScreen ? 20 : 18, 
+    fontWeight: '700',
+    color: '#111',
+  },
+  sectionTitleDark: { color: '#fff' },
   seeAll: { color: '#999', fontSize: 13 },
 
+  // Visual-only: Modern album cards with tighter spacing
   albumRow: {
     flexDirection: 'row',
-    marginTop: 10,
-    marginBottom: 6,
+    marginTop: spacing.sm, // reduced from 10
+    marginBottom: spacing.sm, // reduced from 6 for consistency
     paddingHorizontal: BASE_PADDING,
     justifyContent: 'space-between',
   },
-  albumCard: { width: (width - BASE_PADDING * 2 - 16) / 3, },
-  albumThumb: { height: CARD, borderRadius: 14, backgroundColor: '#e6eaff', alignItems: 'center', justifyContent: 'center' },
+  albumCard: { width: (width - BASE_PADDING * 2 - 16) / 3 },
+  albumThumb: { 
+    height: CARD, 
+    borderRadius: radii.normal, 
+    backgroundColor: '#e6eaff',
+    alignItems: 'center', 
+    justifyContent: 'center',
+    ...elevation.medium,
+  },
+  albumThumbDark: { backgroundColor: '#1a1a2e' },
   albumThumbText: { color: '#667', fontWeight: '700' },
-  albumTitle: { marginTop: 10, fontWeight: '700' },
+  albumTitle: { 
+    marginTop: 10, 
+    fontWeight: '700',
+    color: '#111',
+  },
+  albumTitleDark: { color: '#fff' },
   albumArtist: { color: '#777', marginTop: 2 },
 
-  topSongList: { marginTop: 6, marginHorizontal: BASE_PADDING },
-  songRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: BASE_PADDING, paddingVertical: 14, backgroundColor: '#fff',
-  },
   rowSeparator: { height: 10, backgroundColor: '#f7f7f8' },
 
-  // image for list thumbnail
-  songThumbImage: { width: 48, height: 48, borderRadius: 10, backgroundColor: '#f3e6ff', marginRight: 12 },
-
-  songMeta: { flex: 1 },
-  songTitle: { fontSize: 16, fontWeight: '700' },
-  songArtist: { fontSize: 13, color: '#666', marginTop: 4 },
-  playLink: { color: '#2f6dfd', fontWeight: '700' },
-
-  playerBar: { position: 'absolute', left: 0, right: 0, paddingHorizontal: BASE_PADDING, zIndex: 20 },
-  playerInner: { height: PLAYER_HEIGHT - 8, backgroundColor: '#111', borderRadius: 18, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, elevation: 6 },
+  // Visual-only: Mini-player bar anchored to bottom with modern FAB
+  playerBar: { 
+    position: 'absolute', 
+    left: 0, 
+    right: 0, 
+    paddingHorizontal: BASE_PADDING, 
+    zIndex: 20,
+  },
+  playerInner: { 
+    height: PLAYER_HEIGHT - 8, 
+    backgroundColor: '#111', 
+    borderRadius: tokens.radii.normal,
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: spacing.md, 
+    shadowColor: '#000', 
+    shadowOpacity: 0.2, 
+    shadowRadius: 12, 
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
   playerInnerDark: { backgroundColor: '#121212' },
   playerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
 
-  // player image
-  playerArt: { width: 48, height: 48, borderRadius: 8, backgroundColor: '#2a2a2a', alignItems: 'center', justifyContent: 'center' },
+  playerArt: { 
+    width: 48, 
+    height: 48, 
+    borderRadius: spacing.sm, 
+    backgroundColor: '#2a2a2a', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+  },
   playerArtText: { color: '#6b6b6b' },
-  playerArtImage: { width: 48, height: 48, borderRadius: 8, backgroundColor: '#2a2a2a' },
+  playerArtImage: { 
+    width: 48, 
+    height: 48, 
+    borderRadius: spacing.sm, 
+    backgroundColor: '#2a2a2a',
+  },
 
-  playerMeta: { marginLeft: 12, flex: 1 },
+  playerMeta: { marginLeft: spacing.md, flex: 1 },
   playerTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
   playerArtist: { color: '#ccc', fontSize: 12, marginTop: 2 },
-  playerControls: { flexDirection: 'row', alignItems: 'center' },
-  controlBtn: { paddingHorizontal: 8 },
-  playControl: { backgroundColor: '#fff', borderRadius: 24, padding: 8, marginHorizontal: 6 },
-  controlText: { fontSize: 18, color: '#111' },
-  progressContainer: { height: 4, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 2, overflow: 'hidden', marginTop: 8, alignSelf: 'stretch', },
-  progressFill: { height: '100%', backgroundColor: '#2f6dfd', borderRadius: 2, width: '0%', },
+  
+  // Visual-only: FAB-style circular play button with Feather icons
+  playerControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  controlBtn: { 
+    padding: spacing.sm,
+    minWidth: sizes.touchTarget,
+    minHeight: sizes.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playFab: { 
+    backgroundColor: '#ffd166', // accent color
+    width: sizes.fabMini,
+    height: sizes.fabMini,
+    borderRadius: sizes.fabMini / 2,
+    alignItems: 'center', 
+    justifyContent: 'center',
+    ...elevation.medium,
+  },
+  
+  progressContainer: { 
+    height: 4, 
+    backgroundColor: 'rgba(255,255,255,0.12)', 
+    borderRadius: 2, 
+    overflow: 'hidden', 
+    marginTop: spacing.sm, 
+    alignSelf: 'stretch',
+  },
+  progressFill: { 
+    height: '100%', 
+    backgroundColor: '#2f6dfd', // primary color
+    borderRadius: 2, 
+    width: '0%',
+  },
 });
 
 export default HomeScreen;
