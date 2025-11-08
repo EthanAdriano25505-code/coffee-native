@@ -180,8 +180,9 @@ export default function BannerSlider({ slides, autoAdvanceMs = 3000, height }: P
               style={[
                 styles.dot,
                 {
-                  backgroundColor: index === currentIndex ? colors.accent : colors.muted,
-                  opacity: index === currentIndex ? 1 : 0.3,
+                  // 3-dot pagination: primary color for active, muted for inactive
+                  backgroundColor: index === currentIndex ? colors.primary : colors.muted,
+                  opacity: index === currentIndex ? 1 : 0.4, // slightly increased opacity for better visibility
                 },
               ]}
             />
@@ -201,16 +202,16 @@ const styles = StyleSheet.create({
   },
   pagination: {
     position: 'absolute',
-    bottom: 12,
+    bottom: 16, // increased from 12 for better visibility
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
+    gap: 8, // increased from 6 for better spacing
   },
   dot: {
-    width: 8,
+    width: 8, // dot size for 3-dot pagination indicator
     height: 8,
     borderRadius: radii.round,
   },

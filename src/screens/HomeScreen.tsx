@@ -140,7 +140,7 @@ const HomeScreen: React.FC = () => {
   };
 
   const ListHeader = () => {
-    // Visual-only: Create slides for BannerSlider with multiple banner variations
+    // Visual-only: Create slides for BannerSlider with 3-dot pagination
     const bannerSlides = [
       {
         id: 'banner-1',
@@ -150,7 +150,23 @@ const HomeScreen: React.FC = () => {
           </View>
         ),
       },
-      // Additional slides can be added here for variety
+      {
+        id: 'banner-2',
+        component: (
+          <View style={styles.bannerCard}>
+            <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+          </View>
+        ),
+      },
+      {
+        id: 'banner-3',
+        component: (
+          <View style={styles.bannerCard}>
+            <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+          </View>
+        ),
+      },
+      // When Supabase banner data is available, fetch and map here
     ];
 
     return (
@@ -161,7 +177,7 @@ const HomeScreen: React.FC = () => {
         </View>
 
         {/* New Albums row */}
-        <View style={[styles.sectionHeaderCompact, { marginTop: spacing.sm, marginBottom: spacing.sm }]}>
+        <View style={styles.sectionHeaderCompact}>
           <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>New Albums</Text>
           <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
             <Text style={styles.seeAll}>See all</Text>
@@ -216,7 +232,7 @@ const HomeScreen: React.FC = () => {
         </View>
 
         {/* Song List header */}
-        <View style={[styles.sectionHeaderCompact, { marginTop: spacing.sm }]}>
+        <View style={styles.sectionHeaderCompact}>
           <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Song List</Text>
           <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
             <Text style={styles.seeAll}>See all</Text>
@@ -247,21 +263,19 @@ const HomeScreen: React.FC = () => {
   const listFooter = songs.length > 0 ? <View style={{ height: PLAYER_HEIGHT + (insets.bottom ?? 0) + 12 }} /> : null;
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background, paddingTop: insets.top + spacing.md }, isDark && styles.safeDark, { position: 'relative' }]}>
-      {/* Top app header - Visual-only: Modern header with expanded search and filter icon */}
-      <View style={[styles.header, isDark && styles.headerDark]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }, isDark && styles.safeDark, { position: 'relative' }]} edges={['left', 'right', 'bottom']}>
+      {/* Top app header - Visual-only: Header positioned close to status bar to match screenshot */}
+      <View style={[styles.header, isDark && styles.headerDark, { paddingTop: 6 }]}>
         <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>Music</Text>
         <View style={styles.headerActions}>
           {/* Visual-only: Expanded SearchBar component */}
-          <View style={{ marginTop: spacing.lg }}>
-            <SearchBar
-              onPress={() => {
-                // TODO: Attach existing search handler when available
-                console.log('Search tapped');
-              }}
-              placeholder="Search songs, artists..."
-            />
-          </View>
+          <SearchBar
+            onPress={() => {
+              // TODO: Attach existing search handler when available
+              console.log('Search tapped');
+            }}
+            placeholder="Search songs, artists..."
+          />
           
           {/* Visual-only: Filter icon replaces avatar/settings */}
           <TouchableOpacity
@@ -378,17 +392,16 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
   safeDark: { backgroundColor: '#000' },
 
-  // Visual-only: Modern header with expanded search and filter
+  // Visual-only: Modern header positioned close to status bar
   header: {
-    paddingTop: spacing.md,
-    paddingBottom: 10,
+    paddingTop: 6, // small top offset to avoid notch while matching screenshot
+    paddingBottom: 8, // reduced from 10 for tighter spacing
     paddingHorizontal: BASE_PADDING,
-    height: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#fff',
-    gap: spacing.md,
+    gap: spacing.sm, // reduced from spacing.md for tighter layout
   },
   headerDark: { backgroundColor: '#121212' },
   headerTitle: { 
@@ -414,10 +427,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Visual-only: Banner with SVG illustration in rounded card
+  // Visual-only: Banner with tighter spacing
   bannerWrapper: { 
     marginHorizontal: BASE_PADDING, 
-    marginVertical: spacing.sm,
+    marginTop: spacing.sm, // tighter top margin
+    marginBottom: spacing.sm, // reduced from spacing.sm
   },
   bannerCard: { 
     flex: 1, 
@@ -431,6 +445,8 @@ const styles = StyleSheet.create({
 
   sectionHeaderCompact: { 
     marginHorizontal: BASE_PADDING, 
+    marginTop: spacing.sm, // reduced for tighter spacing
+    marginBottom: spacing.xs, // added bottom margin for better balance
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center',
@@ -443,11 +459,11 @@ const styles = StyleSheet.create({
   sectionTitleDark: { color: '#fff' },
   seeAll: { color: '#999', fontSize: 13 },
 
-  // Visual-only: Modern album cards with consistent rounded style and shadow
+  // Visual-only: Modern album cards with tighter spacing
   albumRow: {
     flexDirection: 'row',
-    marginTop: 10,
-    marginBottom: 6,
+    marginTop: spacing.sm, // reduced from 10
+    marginBottom: spacing.sm, // reduced from 6 for consistency
     paddingHorizontal: BASE_PADDING,
     justifyContent: 'space-between',
   },
