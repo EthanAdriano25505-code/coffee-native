@@ -21,11 +21,11 @@ type Slide = {
 
 type Props = {
   slides: Slide[];
-  autoAdvanceMs?: number; // default 3000
+  autoAdvanceMs?: number; // default 5000 (5 seconds)
   height?: number;
 };
 
-export default function BannerSlider({ slides, autoAdvanceMs = 3000, height }: Props) {
+export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
   const listRef = useRef<FlatList>(null);
   const indexRef = useRef(0);
   const [isAuto, setIsAuto] = useState(true);

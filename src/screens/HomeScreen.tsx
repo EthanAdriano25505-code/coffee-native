@@ -171,9 +171,9 @@ const HomeScreen: React.FC = () => {
 
     return (
       <View>
-        {/* Banner - Visual-only: Auto-advancing BannerSlider */}
+        {/* Banner - Visual-only: Auto-advancing BannerSlider every 5 seconds */}
         <View style={[styles.bannerWrapper, { height: BANNER_HEIGHT }]}>
-          <BannerSlider slides={bannerSlides} autoAdvanceMs={3000} height={BANNER_HEIGHT} />
+          <BannerSlider slides={bannerSlides} autoAdvanceMs={5000} height={BANNER_HEIGHT} />
         </View>
 
         {/* New Albums row */}
