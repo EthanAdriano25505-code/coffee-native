@@ -9,7 +9,6 @@ import {
   FlatList,
   ListRenderItem,
   Animated,
-  Image,
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +23,7 @@ import { Feather } from '@expo/vector-icons'; // Visual-only: Feather icons for 
 import BannerIllustration from '../assets/BannerIllustration'; // Visual-only: SVG illustration for banner
 import BannerSlider from '../components/BannerSlider'; // Visual-only: Auto-advancing banner slider
 import SearchBar from '../components/SearchBar'; // Visual-only: Expanded search bar
+import RemoteImage from '../components/RemoteImage'; // standardized remote image wrapper
 import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens'; // Visual-only: Design tokens
 import { tokens } from '../theme/designTokens';
 
@@ -193,9 +193,13 @@ const HomeScreen: React.FC = () => {
             activeOpacity={0.8}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
-              <Text style={styles.albumThumbText}>Album</Text>
-            </View>
+            <RemoteImage
+              uri={null}
+              width={CARD}
+              height={CARD}
+              style={isDark ? StyleSheet.flatten([styles.albumThumb, styles.albumThumbDark]) : styles.albumThumb}
+              placeholderText="Album"
+            />
             <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Free songs</Text>
             <Text style={styles.albumArtist}> </Text>
           </TouchableOpacity>
@@ -208,9 +212,13 @@ const HomeScreen: React.FC = () => {
             activeOpacity={0.8}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
-              <Text style={styles.albumThumbText}>Album</Text>
-            </View>
+            <RemoteImage
+              uri={null}
+              width={CARD}
+              height={CARD}
+              style={isDark ? StyleSheet.flatten([styles.albumThumb, styles.albumThumbDark]) : styles.albumThumb}
+              placeholderText="Album"
+            />
             <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Teasers</Text>
             <Text style={styles.albumArtist}> </Text>
           </TouchableOpacity>
@@ -223,9 +231,13 @@ const HomeScreen: React.FC = () => {
             activeOpacity={0.8}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <View style={[styles.albumThumb, isDark && styles.albumThumbDark]}>
-              <Text style={styles.albumThumbText}>Album</Text>
-            </View>
+            <RemoteImage
+              uri={null}
+              width={CARD}
+              height={CARD}
+              style={isDark ? StyleSheet.flatten([styles.albumThumb, styles.albumThumbDark]) : styles.albumThumb}
+              placeholderText="Album"
+            />
             <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Playlists</Text>
             <Text style={styles.albumArtist}> </Text>
           </TouchableOpacity>
@@ -311,8 +323,7 @@ const HomeScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Mini-player - Visual-only: FAB-style circular play button with progress bar */}
-      {currentSong ? (
+      {/* Mini-player - Visual-only: FAB-style circular play button with progress bar */}      {currentSong ? (
         <Pressable
           onPress={() => {
             (hookNav ?? navigation)?.navigate('Player' as any, { song: currentSong });
@@ -322,11 +333,13 @@ const HomeScreen: React.FC = () => {
         >
           <View style={[styles.playerInner, isDark && styles.playerInnerDark]}>
             <View style={styles.playerLeft}>
-              {currentSong?.cover_url ? (
-                <Image source={{ uri: currentSong.cover_url }} style={styles.playerArtImage} resizeMode="cover" />
-              ) : (
-                <View style={styles.playerArt}><Text style={styles.playerArtText}>Art</Text></View>
-              )}
+              <RemoteImage
+                uri={currentSong?.cover_url ?? null}
+                width={48}
+                height={48}
+                style={styles.playerArtImage}
+                placeholderText="Art"
+              />
 
               <View style={styles.playerMeta}>
                 <Text style={styles.playerTitle} numberOfLines={1}>{currentSong?.title ?? ''}</Text>

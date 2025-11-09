@@ -8,9 +8,12 @@ import {
   Platform,
   useColorScheme,
   TouchableOpacity,
+  InteractionManager,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
 } from 'react-native';
 import type { ListRenderItem } from 'react-native';
-import { radii, elevation, getColors } from '../theme/designTokens';
+import { radii, getColors } from '../theme/designTokens';
 
 const WINDOW = Dimensions.get('window');
 
@@ -26,46 +29,68 @@ type Props = {
 };
 
 export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
-  const listRef = useRef<FlatList>(null);
+  const listRef = useRef<FlatList<Slide> | null>(null);
   const indexRef = useRef(0);
   const [isAuto, setIsAuto] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const autoTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = getColors(isDark);
 
+  // Clear any scheduled timer
+  const clearTimer = () => {
+    if (autoTimer.current) {
+      clearTimeout(autoTimer.current as any);
+      autoTimer.current = null;
+    }
+  };
+
+  // Schedule the next auto-advance using setTimeout (avoids overlapping intervals)
+  const scheduleNext = () => {
+    clearTimer();
+    if (!isAuto || slides.length <= 1) return;
+
+    // Use InteractionManager to avoid scheduling during active transitions
+    InteractionManager.runAfterInteractions(() => {
+      if (!isAuto || slides.length <= 1) return;
+      autoTimer.current = setTimeout(() => {
+        const next = (indexRef.current + 1) % slides.length;
+        scrollToIndex(next);
+      }, autoAdvanceMs);
+    });
+  };
+
   useEffect(() => {
-    startTimer();
+    // schedule when component mounts/updates
+    scheduleNext();
     return () => {
-      stopTimer();
-      // clear any pending resume timeout when unmounting
+      clearTimer();
       if (resumeTimeoutRef.current) {
         clearTimeout(resumeTimeoutRef.current as any);
         resumeTimeoutRef.current = null;
       }
     };
+    // deliberately include slides and isAuto so scheduling restarts when needed
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slides, autoAdvanceMs, isAuto]);
 
-  const startTimer = () => {
-    // Be idempotent: clear any existing timer directly (don't call stopTimer to avoid implicit behavior)
-    if (autoTimer.current) {
-      clearInterval(autoTimer.current as any);
-      autoTimer.current = null;
-    }
-    if (!isAuto || slides.length <= 1) return;
-    autoTimer.current = setInterval(() => {
-      const next = (indexRef.current + 1) % slides.length;
-      scrollToIndex(next);
-    }, autoAdvanceMs);
+  const stopAuto = () => {
+    setIsAuto(false);
+    clearTimer();
   };
 
-  const stopTimer = () => {
-    if (autoTimer.current) {
-      clearInterval(autoTimer.current as any);
-      autoTimer.current = null;
+  const resumeAuto = (delay = Math.min(autoAdvanceMs, 800)) => {
+    // Small resume delay so user-initiated interactions feel natural
+    if (resumeTimeoutRef.current) {
+      clearTimeout(resumeTimeoutRef.current as any);
+      resumeTimeoutRef.current = null;
     }
+    resumeTimeoutRef.current = setTimeout(() => {
+      setIsAuto(true);
+      resumeTimeoutRef.current = null;
+    }, delay);
   };
 
   // Safely scroll to an index: clamp desired index and gracefully handle FlatList layout errors
@@ -77,23 +102,23 @@ export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: P
 
     if (!listRef.current) {
       // If the list isn't ready, bail; the effect will restart when layout/data changes
-      // Accessibility announcement still happens below
     } else {
       try {
-        listRef.current.scrollToIndex({ index: target, animated: true });
+        // Use scrollToOffset instead of scrollToIndex where possible since we provide getItemLayout
+        const offset = WINDOW.width * target;
+        listRef.current.scrollToOffset({ offset, animated: true });
       } catch (err) {
-        // Fallback: try scrollToOffset to a computed position or reset to 0
+        // If that fails, fallback to scrollToIndex
         try {
-          const offset = WINDOW.width * target;
-          listRef.current.scrollToOffset({ offset, animated: true });
+          listRef.current.scrollToIndex({ index: target, animated: true, viewPosition: 0.5 });
         } catch (_err) {
-          // Last resort: try index 0
+          // Last resort: go to 0
           try {
             listRef.current.scrollToIndex({ index: 0, animated: false });
             indexRef.current = 0;
             setCurrentIndex(0);
           } catch (finalErr) {
-            // give up silently; avoid throwing to keep UI responsive
+            // Give up silently to avoid crashes
           }
         }
       }
@@ -104,13 +129,17 @@ export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: P
     if (Platform.OS === 'ios' || Platform.OS === 'android') {
       AccessibilityInfo.announceForAccessibility(message);
     }
+
+    // Reset the auto timer so the next advance is scheduled relative to this programmatic scroll
+    clearTimer();
+    // Small defer to ensure scrolling animation starts before scheduling next
+    InteractionManager.runAfterInteractions(() => {
+      scheduleNext();
+    });
   };
 
-  const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const onScrollBeginDrag = () => {
-    setIsAuto(false);
-    stopTimer();
+    stopAuto();
     if (resumeTimeoutRef.current) {
       clearTimeout(resumeTimeoutRef.current as any);
       resumeTimeoutRef.current = null;
@@ -118,23 +147,18 @@ export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: P
   };
 
   const onScrollEndDrag = () => {
-    // Resume auto-advance after a delay derived from autoAdvanceMs so timing scales with config
-    const resumeDelayMs = Math.min(autoAdvanceMs, 1000);
-    if (resumeTimeoutRef.current) {
-      clearTimeout(resumeTimeoutRef.current as any);
-      resumeTimeoutRef.current = null;
-    }
-    resumeTimeoutRef.current = setTimeout(() => {
-      setIsAuto(true);
-      resumeTimeoutRef.current = null;
-    }, resumeDelayMs);
+    // Resume auto-advance after a short delay derived from autoAdvanceMs so timing scales
+    resumeAuto();
   };
 
-  const onMomentumScrollEnd = (event: any) => {
+  const onMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / WINDOW.width);
     indexRef.current = index;
     setCurrentIndex(index);
+
+    // Ensure we schedule next only after momentum ended
+    scheduleNext();
   };
 
   const renderItem: ListRenderItem<Slide> = ({ item }) => {
@@ -148,7 +172,7 @@ export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: P
   return (
     <View style={styles.container}>
       <FlatList
-        ref={listRef}
+        ref={(r) => { listRef.current = r; }}
         data={slides}
         horizontal
         pagingEnabled
@@ -159,12 +183,16 @@ export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: P
         onScrollEndDrag={onScrollEndDrag}
         onMomentumScrollEnd={onMomentumScrollEnd}
         initialNumToRender={1}
+        maxToRenderPerBatch={1}
         windowSize={2}
+        removeClippedSubviews={false}
+        scrollEventThrottle={16}
         getItemLayout={(data, index) => ({
           length: WINDOW.width,
           offset: WINDOW.width * index,
           index,
         })}
+        // prevent unnecessary re-renders by avoiding changing inline props
       />
       {/* Pagination dots */}
       {slides.length > 1 && (
@@ -180,9 +208,8 @@ export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: P
               style={[
                 styles.dot,
                 {
-                  // 3-dot pagination: primary color for active, muted for inactive
                   backgroundColor: index === currentIndex ? colors.primary : colors.muted,
-                  opacity: index === currentIndex ? 1 : 0.4, // slightly increased opacity for better visibility
+                  opacity: index === currentIndex ? 1 : 0.4,
                 },
               ]}
             />
@@ -199,19 +226,20 @@ const styles = StyleSheet.create({
   },
   slideContainer: {
     width: WINDOW.width,
+    overflow: 'hidden',
   },
   pagination: {
     position: 'absolute',
-    bottom: 16, // increased from 12 for better visibility
+    bottom: 16,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8, // increased from 6 for better spacing
+    gap: 8,
   },
   dot: {
-    width: 8, // dot size for 3-dot pagination indicator
+    width: 8,
     height: 8,
     borderRadius: radii.round,
   },
