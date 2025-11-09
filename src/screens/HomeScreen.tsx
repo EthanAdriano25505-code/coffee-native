@@ -323,7 +323,8 @@ const HomeScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Mini-player - Visual-only: FAB-style circular play button with progress bar */}      {currentSong ? (
+      {/* Mini-player - Visual-only: FAB-style circular play button with progress bar */}
+      {currentSong ? (
         <Pressable
           onPress={() => {
             (hookNav ?? navigation)?.navigate('Player' as any, { song: currentSong });
