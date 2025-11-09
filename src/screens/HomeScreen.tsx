@@ -265,7 +265,7 @@ const HomeScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }, isDark && styles.safeDark, { position: 'relative' }]} edges={['left', 'right', 'bottom']}>
       {/* Top app header - Visual-only: Header positioned close to status bar to match screenshot */}
-      <View style={[styles.header, isDark && styles.headerDark, { paddingTop: 6 }]}>
+      <View style={[styles.header, isDark && styles.headerDark, { paddingTop: insets.top + 3 }]}>
         <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>Music</Text>
         <View style={styles.headerActions}>
           {/* Visual-only: Expanded SearchBar component */}
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   // Visual-only: Modern header positioned close to status bar
   header: {
     paddingTop: 6, // small top offset to avoid notch while matching screenshot
-    paddingBottom: 8, // reduced from 10 for tighter spacing
+    paddingBottom: 3, // reduced from 10 for tighter spacing
     paddingHorizontal: BASE_PADDING,
     flexDirection: 'row',
     alignItems: 'center',
@@ -430,8 +430,8 @@ const styles = StyleSheet.create({
   // Visual-only: Banner with tighter spacing
   bannerWrapper: { 
     marginHorizontal: BASE_PADDING, 
-    marginTop: spacing.sm, // tighter top margin
-    marginBottom: spacing.sm, // reduced from spacing.sm
+    marginTop: spacing.md, // tighter top margin
+    marginBottom: spacing.xs, // reduced from spacing.sm
   },
   bannerCard: { 
     flex: 1, 
@@ -443,14 +443,14 @@ const styles = StyleSheet.create({
     ...elevation.low,
   },
 
-  sectionHeaderCompact: { 
-    marginHorizontal: BASE_PADDING, 
-    marginTop: spacing.sm, // reduced for tighter spacing
-    marginBottom: spacing.xs, // added bottom margin for better balance
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center',
-  },
+sectionHeaderCompact: { 
+  marginHorizontal: BASE_PADDING, 
+  marginTop: 2,         // tiny top gap so SongList header is very close
+  marginBottom: spacing.xs, 
+  flexDirection: 'row', 
+  justifyContent: 'space-between', 
+  alignItems: 'center',
+},
   sectionTitle: { 
     fontSize: isLargeScreen ? 20 : 18, 
     fontWeight: '700',
@@ -461,12 +461,12 @@ const styles = StyleSheet.create({
 
   // Visual-only: Modern album cards with tighter spacing
   albumRow: {
-    flexDirection: 'row',
-    marginTop: spacing.sm, // reduced from 10
-    marginBottom: spacing.sm, // reduced from 6 for consistency
-    paddingHorizontal: BASE_PADDING,
-    justifyContent: 'space-between',
-  },
+  flexDirection: 'row',
+  marginTop: spacing.sm,
+  marginBottom: 0,      // removed bottom gap so SongList moves up
+  paddingHorizontal: BASE_PADDING,
+  justifyContent: 'space-between',
+},
   albumCard: { width: (width - BASE_PADDING * 2 - 16) / 3 },
   albumThumb: { 
     height: CARD, 
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   albumTitleDark: { color: '#fff' },
   albumArtist: { color: '#777', marginTop: 2 },
 
-  rowSeparator: { height: 10, backgroundColor: '#f7f7f8' },
+  rowSeparator: { height: 0, backgroundColor: '#f7f7f8' },
 
   // Visual-only: Mini-player bar anchored to bottom with modern FAB
   playerBar: { 
