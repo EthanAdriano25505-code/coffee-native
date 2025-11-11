@@ -29,16 +29,18 @@ export default function SongCard({ song, onPress, onMorePress }: Props) {
           <Text numberOfLines={1} style={[styles.title, isDark && styles.titleDark]}>{song.title}</Text>
           <Text numberOfLines={1} style={[styles.artist, isDark && styles.artistDark]}>{song.artist}</Text>
         </View>
-        {/* Trailing action icon for more options. Wrapped in a touchable so it can be interactive. */}
-        <TouchableOpacity
-          onPress={onMorePress}
-          accessibilityRole="button"
-          accessibilityLabel="More options"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={styles.actionIcon}
-        >
-          <Feather name="more-vertical" size={20} color={isDark ? '#aaa' : '#666'} />
-        </TouchableOpacity>
+        {/* Trailing action icon for more options. Only render if an action handler is provided. */}
+        {onMorePress ? (
+          <TouchableOpacity
+            onPress={onMorePress}
+            accessibilityRole="button"
+            accessibilityLabel="More options"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.actionIcon}
+          >
+            <Feather name="more-vertical" size={20} color={isDark ? '#aaa' : '#666'} />
+          </TouchableOpacity>
+        ) : null}
       </Animated.View>
     </Pressable>
   );
