@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -29,14 +29,23 @@ export default function RemoteImage({
   imageProps,
   placeholderText = 'Image',
 }: Props) {
-  const [loading, setLoading] = useState(false);
+  // initialize error/loading sensibly from incoming props to avoid flicker
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState<boolean>(!!uri && !error);
+
+  // reset error/loading when uri changes so a previously failed image doesn't block a new one
+  useEffect(() => {
+    setError(false);
+    setLoading(!!uri);
+  }, [uri]);
 
   // compute container style with either explicit width/height or aspect ratio
   const containerStyle: ViewStyle = {
     width: width ?? '100%',
     height: height ?? undefined,
-    aspectRatio: width || height ? undefined : aspectRatio,
+    // Apply aspectRatio when an explicit height is NOT provided. If height is present,
+    // allow the caller to control the height directly and disable aspectRatio.
+    aspectRatio: height ? undefined : aspectRatio,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',

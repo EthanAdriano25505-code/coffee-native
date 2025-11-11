@@ -263,9 +263,9 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
           minimumValue={0}
           maximumValue={durationMillis || 0}
           value={localPos}
-          minimumTrackTintColor={tokens.light.colors.primary}
+          minimumTrackTintColor={isDark ? tokens.dark.colors.primary : tokens.light.colors.primary}
           maximumTrackTintColor={isDark ? '#333' : '#ddd'}
-          thumbTintColor={tokens.light.colors.primary}
+          thumbTintColor={isDark ? tokens.dark.colors.primary : tokens.light.colors.primary}
           onValueChange={onValueChange}
           onSlidingComplete={onSlidingComplete}
         />
