@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -11,6 +11,7 @@ import {
   InteractionManager,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  LayoutChangeEvent,
 } from 'react-native';
 import type { ListRenderItem } from 'react-native';
 import { radii, getColors } from '../theme/designTokens';
@@ -28,16 +29,39 @@ type Props = {
   height?: number;
 };
 
-export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
+// New memoized slide child — avoids re-rendering slide content during scrolling
+const MemoSlide = React.memo(function MemoSlide({
+  component,
+  width,
+  height,
+}: {
+  component: React.ReactNode;
+  width: number;
+  height?: number;
+}) {
+  return (
+    <View style={[styles.slideContainer, { width }, height ? { height } : undefined]}>
+      {component}
+    </View>
+  );
+});
+
+// replace component declaration to be plain function (will be memoized at export)
+function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
   const listRef = useRef<FlatList<Slide> | null>(null);
   const indexRef = useRef(0);
   const [isAuto, setIsAuto] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // track whether the list is currently being interacted with (dragging/momentum)
+  const isInteractingRef = useRef(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = getColors(isDark);
+
+  // NEW: measured width of one slide (may differ from WINDOW.width if container has margins/padding)
+  const [itemWidth, setItemWidth] = useState<number>(WINDOW.width);
 
   // Clear any scheduled timer
   const clearTimer = () => {
@@ -52,10 +76,19 @@ export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: P
     clearTimer();
     if (!isAuto || slides.length <= 1) return;
 
-    // Use InteractionManager to avoid scheduling during active transitions
+    // Use InteractionManager to avoid scheduling during active transitions.
+    // When the timeout fires, if the user is interacting we retry shortly rather
+    // than performing an animated programmatic scroll that could fight native momentum.
     InteractionManager.runAfterInteractions(() => {
       if (!isAuto || slides.length <= 1) return;
-      autoTimer.current = setTimeout(() => {
+      autoTimer.current = setTimeout(function tick() {
+        if (!isAuto || slides.length <= 1) return;
+        // If user is interacting (dragging or momentum), postpone the auto-advance
+        if (isInteractingRef.current) {
+          // retry after a short backoff
+          autoTimer.current = setTimeout(tick, 300);
+          return;
+        }
         const next = (indexRef.current + 1) % slides.length;
         scrollToIndex(next);
       }, autoAdvanceMs);
@@ -74,7 +107,7 @@ export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: P
     };
     // deliberately include slides and isAuto so scheduling restarts when needed
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slides, autoAdvanceMs, isAuto]);
+  }, [slides, autoAdvanceMs, isAuto, itemWidth]);
 
   const stopAuto = () => {
     setIsAuto(false);
@@ -105,8 +138,10 @@ export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: P
     } else {
       try {
         // Use scrollToOffset instead of scrollToIndex where possible since we provide getItemLayout
-        const offset = WINDOW.width * target;
-        listRef.current.scrollToOffset({ offset, animated: true });
+        const offset = itemWidth * target;
+        // Avoid animated programmatic scrolls while native momentum/interaction is active
+        const animated = !isInteractingRef.current;
+        listRef.current.scrollToOffset({ offset, animated });
       } catch (err) {
         // If that fails, fallback to scrollToIndex
         try {
@@ -138,61 +173,116 @@ export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: P
     });
   };
 
+  // Add / replace these handlers in the file
+
+  // Add onScrollBeginDrag to stop auto when the user starts interacting
   const onScrollBeginDrag = () => {
+    // Stop auto and clear any pending resume timeout so we don't resume during drag
     stopAuto();
     if (resumeTimeoutRef.current) {
       clearTimeout(resumeTimeoutRef.current as any);
       resumeTimeoutRef.current = null;
     }
+    isInteractingRef.current = true;
   };
 
+  // Replace onScrollEndDrag with:
   const onScrollEndDrag = () => {
-    // Resume auto-advance after a short delay derived from autoAdvanceMs so timing scales
-    resumeAuto();
+    // Stop auto and wait for momentum end to resume to avoid conflicts
+    stopAuto();
+    if (resumeTimeoutRef.current) {
+      clearTimeout(resumeTimeoutRef.current as any);
+      resumeTimeoutRef.current = null;
+    }
+    // do NOT clear isInteractingRef here since momentum may start after drag
   };
 
+  // Add onScroll to update the visible dot (rounded) but only when it changes
+  const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const floatIndex = offsetX / itemWidth;
+    const rounded = Math.round(floatIndex);
+    // Update only when the rounded index changes to avoid excess renders
+    if (rounded !== indexRef.current) {
+      indexRef.current = rounded;
+      setCurrentIndex(rounded);
+    }
+  };
+
+  // Replace onMomentumScrollEnd with this snapping + resume logic:
   const onMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / WINDOW.width);
+    const index = Math.round(offsetX / itemWidth);
+
+    // Just update index state — do NOT trigger another programmatic scroll here.
     indexRef.current = index;
     setCurrentIndex(index);
 
-    // Ensure we schedule next only after momentum ended
+    // Schedule next auto advance now that the user interaction finished.
     scheduleNext();
+
+    // Resume auto after a short delay so auto doesn't fight immediate interactions.
+    // clear interaction flag and then resume
+    isInteractingRef.current = false;
+    resumeAuto(Math.min(autoAdvanceMs, 500));
   };
 
-  const renderItem: ListRenderItem<Slide> = ({ item }) => {
-    return (
-      <View style={[styles.slideContainer, height ? { height } : undefined]}>
-        {item.component}
-      </View>
-    );
+  // Add momentum begin to ensure we stop timers early
+  const onMomentumScrollBegin = () => {
+    stopAuto();
+    if (resumeTimeoutRef.current) {
+      clearTimeout(resumeTimeoutRef.current as any);
+      resumeTimeoutRef.current = null;
+    }
+    isInteractingRef.current = true;
   };
+
+  // NEW: measure actual width of the FlatList container
+  const onContainerLayout = (e: LayoutChangeEvent) => {
+    const w = e.nativeEvent.layout.width;
+    if (w && Math.abs(w - itemWidth) > 1) {
+      setItemWidth(w);
+      // if the layout changed, ensure the list aligned to the current index
+      // perform a non-animated jump to the correct offset to avoid flicker
+      if (listRef.current) {
+        try {
+          listRef.current.scrollToOffset({ offset: indexRef.current * w, animated: false });
+        } catch {}
+      }
+    }
+  };
+
+  // Replace current renderItem with a memoized callback that returns MemoSlide
+  const renderItem = useCallback<ListRenderItem<Slide>>(({ item }) => {
+    return <MemoSlide component={item.component} width={itemWidth} height={height} />;
+  }, [itemWidth, height]);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={onContainerLayout}>
       <FlatList
         ref={(r) => { listRef.current = r; }}
         data={slides}
         horizontal
         pagingEnabled
+        decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
         keyExtractor={(i) => i.id}
         renderItem={renderItem}
         onScrollBeginDrag={onScrollBeginDrag}
         onScrollEndDrag={onScrollEndDrag}
+        onMomentumScrollBegin={onMomentumScrollBegin}
         onMomentumScrollEnd={onMomentumScrollEnd}
-        initialNumToRender={1}
-        maxToRenderPerBatch={1}
-        windowSize={2}
-        removeClippedSubviews={false}
+        onScroll={onScroll}
         scrollEventThrottle={16}
-        getItemLayout={(data, index) => ({
-          length: WINDOW.width,
-          offset: WINDOW.width * index,
+        initialNumToRender={1}
+        maxToRenderPerBatch={3}
+        windowSize={3}
+        removeClippedSubviews={false}
+        getItemLayout={(_, index) => ({
+          length: itemWidth,
+          offset: itemWidth * index,
           index,
         })}
-        // prevent unnecessary re-renders by avoiding changing inline props
       />
       {/* Pagination dots */}
       {slides.length > 1 && (
@@ -202,9 +292,7 @@ export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: P
               key={index}
               onPress={() => scrollToIndex(index)}
               accessibilityRole="button"
-              accessibilityLabel={`Slide ${index + 1} of ${slides.length}${
-                index === currentIndex ? ', current' : ''
-              }`}
+              accessibilityLabel={`Slide ${index + 1} of ${slides.length}${index === currentIndex ? ', current' : ''}`}
               style={[
                 styles.dot,
                 {
@@ -225,7 +313,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   slideContainer: {
-    width: WINDOW.width,
+    // width is now set dynamically from itemWidth
     overflow: 'hidden',
   },
   pagination: {
@@ -244,3 +332,5 @@ const styles = StyleSheet.create({
     borderRadius: radii.round,
   },
 });
+
+export default React.memo(BannerSlider);
