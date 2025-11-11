@@ -140,8 +140,9 @@ const HomeScreen: React.FC = () => {
   };
 
   const ListHeader = () => {
-    // Visual-only: Create slides for BannerSlider with 3-dot pagination
-    const bannerSlides = [
+    // Visual-only: Memoize banner slides to prevent re-creation during audio playback
+    // This prevents banner slider glitches when positionMillis updates cause re-renders
+    const bannerSlides = React.useMemo(() => [
       {
         id: 'banner-1',
         component: (
@@ -167,7 +168,7 @@ const HomeScreen: React.FC = () => {
         ),
       },
       // When Supabase banner data is available, fetch and map here
-    ];
+    ], []); // Empty dependency array since banners are static
 
     return (
       <View>

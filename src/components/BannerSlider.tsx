@@ -28,7 +28,8 @@ type Props = {
   height?: number;
 };
 
-export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
+// Memoize component to prevent re-renders when parent re-renders during audio playback
+const BannerSlider = React.memo(function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
   const listRef = useRef<FlatList<Slide> | null>(null);
   const indexRef = useRef(0);
   const [isAuto, setIsAuto] = useState(true);
@@ -218,7 +219,10 @@ export default function BannerSlider({ slides, autoAdvanceMs = 5000, height }: P
       )}
     </View>
   );
-}
+});
+
+// Export the memoized component
+export default BannerSlider;
 
 const styles = StyleSheet.create({
   container: {
