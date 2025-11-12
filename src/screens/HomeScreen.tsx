@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,15 +24,19 @@ import BannerIllustration from '../assets/BannerIllustration'; // Visual-only: S
 import BannerSlider from '../components/BannerSlider'; // Visual-only: Auto-advancing banner slider
 import SearchBar from '../components/SearchBar'; // Visual-only: Expanded search bar
 import RemoteImage from '../components/RemoteImage'; // standardized remote image wrapper
-import GlassDrawer from '../components/GlassDrawer'; // Liquid glass drawer for navigation menu
 import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens'; // Visual-only: Design tokens
 import { tokens } from '../theme/designTokens';
+import { Image } from 'react-native';
 
+// ensure Dimensions is imported at the top: import { Dimensions } from 'react-native';
 const { width, height } = Dimensions.get('window');
 const isLargeScreen = Math.max(width, height) >= 768;
-const BANNER_HEIGHT = Math.round(width * (isLargeScreen ? 0.35 : 0.45));
-const PLAYER_HEIGHT = isLargeScreen ? 88 : 72;
-const BASE_PADDING = spacing.md; // Use design token
+const PLAYER_HEIGHT = isLargeScreen ? 88 : 72; // keep your existing player height logic if used elsewhere
+
+const SCREEN_WIDTH = width;
+const BASE_PADDING = spacing.md; // use your design token
+const BANNER_HEIGHT = Math.round(SCREEN_WIDTH * (isLargeScreen ? 0.35 : 0.45));
+const SLIDE_WIDTH = Math.round(SCREEN_WIDTH - BASE_PADDING * 2);
 
 type HomeNavProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -47,7 +51,7 @@ type Song = {
 
 const HomeScreen: React.FC = () => {
   console.log('HomeScreen loaded: src/screens/HomeScreen.tsx');
-  
+
   const hookNav = useNavigation<HomeNavProp>();
   const navigation = useNavigation<any>();
   const colorScheme = useColorScheme();
@@ -56,11 +60,10 @@ const HomeScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   const { currentSong: ctxSong, isPlaying: ctxPlaying, positionMillis, durationMillis, play, pause, next, prev, togglePlay } = usePlayback();
-  
+
   const [songs, setSongs] = useState<Song[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>((ctxSong as Song) ?? null);
   const [isPlaying, setIsPlaying] = useState<boolean>(!!ctxPlaying);
-  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false); // Glass drawer state
 
   useEffect(() => setCurrentSong((ctxSong as Song) ?? null), [ctxSong]);
   useEffect(() => setIsPlaying(!!ctxPlaying), [ctxPlaying]);
@@ -89,7 +92,7 @@ const HomeScreen: React.FC = () => {
         .select('id,title,artist,audio_url,cover_url,teaser_url,is_available,created_at,popularity')
         .order('created_at', { ascending: false })
         .limit(30);
-      
+
       console.log('HomeScreen fetch result:', { data, error });
 
       if (error) {
@@ -141,42 +144,103 @@ const HomeScreen: React.FC = () => {
     }
   };
 
-  const ListHeader = () => {
-    // Visual-only: Memoize banner slides to prevent re-creation during audio playback
-    // This prevents banner slider glitches when positionMillis updates cause re-renders
-    const bannerSlides = React.useMemo(() => [
-      {
-        id: 'banner-1',
-        component: (
-          <View style={styles.bannerCard}>
-            <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
-          </View>
-        ),
-      },
-      {
-        id: 'banner-2',
-        component: (
-          <View style={styles.bannerCard}>
-            <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
-          </View>
-        ),
-      },
-      {
-        id: 'banner-3',
-        component: (
-          <View style={styles.bannerCard}>
-            <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
-          </View>
-        ),
-      },
-      // When Supabase banner data is available, fetch and map here
-    ], []); // Empty dependency array since banners are static
+  // -------------------------
+  // TASK 1: Fetch banners from Supabase (state + effect)
+  // -------------------------
+  type BannerRow = { id: string | number; image_url?: string | null; title?: string | null; href?: string | null };
+  const [banners, setBanners] = React.useState<BannerRow[]>([]);
 
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        // Replace 'banners' with your actual table name and column names if different
+        const { data, error } = await supabase
+          .from('banners')
+          .select('id, image_url, title, href, created_at')
+          .order('created_at', { ascending: false })
+          .limit(10); // adjust as needed
+
+        if (error) {
+          console.warn('fetch banners error:', error);
+        } else if (mounted && Array.isArray(data)) {
+          setBanners(data as BannerRow[]);
+        }
+      } catch (err) {
+        console.warn('fetch banners exception:', err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // -------------------------
+  // TASK 1 (continued) + TASK 2 prep: build memoized slides for BannerSlider
+  // We build slides from DB banners and memoize so reference is stable across renders.
+  // -------------------------
+  const bannerSlides = useMemo(() => {
+    // If DB returned none, fall back to three static illustration slides (keeps UX stable)
+    if (!banners || banners.length === 0) {
+      return [
+        {
+          id: 'banner-1',
+          component: (
+            <View style={styles.bannerCard}>
+              <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+            </View>
+          ),
+        },
+        {
+          id: 'banner-2',
+          component: (
+            <View style={styles.bannerCard}>
+              <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+            </View>
+          ),
+        },
+        {
+          id: 'banner-3',
+          component: (
+            <View style={styles.bannerCard}>
+              <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+            </View>
+          ),
+        },
+      ];
+    }
+
+    // Map DB banners to slides. RemoteImage ensures consistent sizing and avoids layout jumps.
+    const slides = banners.map((b) => ({
+  id: String(b.id),
+  component: (
+    <View style={{ borderRadius: 12, overflow: 'hidden', backgroundColor: '#f0f0f0' }}>
+      <RemoteImage
+        uri={b.image_url ?? null}
+        width={SLIDE_WIDTH}           // <- exact slide width
+        height={BANNER_HEIGHT}       // <- exact banner height (remove the -24)
+        placeholderText={b.title ?? 'Banner'}
+        imageProps={{ resizeMode: 'cover' } as any} // ensure it fills the box
+      />
+    </View>
+  ),
+}));
+
+    // ensure we return the mapped slides so the hook always returns a Slide[] (not undefined)
+    return slides;
+    // dependencies: only re-create slides when the underlying banner data or layout values change
+  }, [banners, width, BASE_PADDING, BANNER_HEIGHT]);
+
+  // -------------------------
+  // MEMOIZE THE ENTIRE LIST HEADER so FlatList receives a stable element
+  // This prevents the header (and BannerSlider) being re-created on each parent re-render.
+  // -------------------------
+  const listHeaderElement = useMemo(() => {
     return (
       <View>
-        {/* Banner - Visual-only: Auto-advancing BannerSlider every 5 seconds */}
+        {/* Banner - Auto-advancing BannerSlider, will handle looping internally */}
         <View style={[styles.bannerWrapper, { height: BANNER_HEIGHT }]}>
-          <BannerSlider slides={bannerSlides} autoAdvanceMs={5000} height={BANNER_HEIGHT} />
+          <BannerSlider slides={bannerSlides} autoAdvanceMs={6000} height={BANNER_HEIGHT} />
         </View>
 
         {/* New Albums row */}
@@ -255,7 +319,11 @@ const HomeScreen: React.FC = () => {
         </View>
       </View>
     );
-  };
+  }, [bannerSlides, isDark, BANNER_HEIGHT, hookNav]);
+
+  // -------------------------
+  // END BANNER-related code
+  // -------------------------
 
   const onCardPress = (song: Song) => {
     // start playback quickly (do not await so navigation feels instant)
@@ -291,13 +359,23 @@ const HomeScreen: React.FC = () => {
             }}
             placeholder="Search songs, artists..."
           />
-          
-          {/* Visual-only: Menu icon opens glass drawer */}
+
+          {/* Visual-only: Filter icon replaces avatar/settings */}
           <TouchableOpacity
             style={styles.iconButton}
             accessibilityLabel="Open menu"
             accessibilityHint="Open navigation menu"
-            onPress={() => setIsDrawerOpen(true)}
+            onPress={() => {
+              // Toggle the navigation drawer if available; fall back to a safe navigation action
+              if (typeof navigation?.toggleDrawer === 'function') {
+                navigation.toggleDrawer();
+              } else if (typeof (hookNav as any)?.toggleDrawer === 'function') {
+                (hookNav as any).toggleDrawer();
+              } else {
+                // Feature not available: navigate to FullSongs as a fallback
+                hookNav.navigate('FullSongs');
+              }
+            }}
           >
             <Feather name="menu" size={22} color={isDark ? '#fff' : '#111'} />
           </TouchableOpacity>
@@ -308,7 +386,7 @@ const HomeScreen: React.FC = () => {
         data={songs}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderSongItem}
-        ListHeaderComponent={ListHeader}
+        ListHeaderComponent={listHeaderElement}
         ListEmptyComponent={null}
         ListFooterComponent={listFooter}
         contentContainerStyle={{ backgroundColor: isDark ? '#000' : '#f7f7f8' }}
@@ -317,6 +395,7 @@ const HomeScreen: React.FC = () => {
       />
 
       {/* Mini-player - Visual-only: FAB-style circular play button with progress bar */}
+      {/* Move the conditional to its own line, avoid stray text nodes (already fixed) */}
       {currentSong ? (
         <Pressable
           onPress={() => {
@@ -389,18 +468,6 @@ const HomeScreen: React.FC = () => {
           </View>
         </Pressable>
       ) : null}
-
-      {/* Glass drawer - liquid glassmorphism navigation menu */}
-      <GlassDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        onNavigate={(screen) => {
-          console.log('Navigate to:', screen);
-          // TODO: Implement navigation to Profile, Settings, About screens
-          // For now, navigate to FullSongs as fallback
-          hookNav.navigate('FullSongs');
-        }}
-      />
     </SafeAreaView>
   );
 };
@@ -423,22 +490,22 @@ const styles = StyleSheet.create({
     gap: spacing.sm, // reduced from spacing.md for tighter layout
   },
   headerDark: { backgroundColor: '#121212' },
-  headerTitle: { 
-    fontSize: isLargeScreen ? 30 : 24, 
-    fontWeight: '800', 
+  headerTitle: {
+    fontSize: isLargeScreen ? 30 : 24,
+    fontWeight: '800',
     letterSpacing: 0.5,
     color: '#111',
   },
   headerTitleDark: { color: '#fff' },
-  headerActions: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
     flex: 1,
     justifyContent: 'flex-end',
   },
-  
-  iconButton: { 
+
+  iconButton: {
     padding: spacing.sm,
     minWidth: sizes.touchTarget,
     minHeight: sizes.touchTarget,
@@ -447,31 +514,31 @@ const styles = StyleSheet.create({
   },
 
   // Visual-only: Banner with tighter spacing
-  bannerWrapper: { 
-    marginHorizontal: BASE_PADDING, 
+  bannerWrapper: {
+    marginHorizontal: BASE_PADDING,
     marginTop: spacing.md, // tighter top margin
     marginBottom: spacing.xs, // reduced from spacing.sm
   },
-  bannerCard: { 
-    flex: 1, 
-    borderRadius: radii.normal, 
+  bannerCard: {
+    flex: 1,
+    borderRadius: radii.normal,
     backgroundColor: '#fff',
-    alignItems: 'center', 
+    alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.md,
     ...elevation.low,
   },
 
-sectionHeaderCompact: { 
-  marginHorizontal: BASE_PADDING, 
-  marginTop: 2,         // tiny top gap so SongList header is very close
-  marginBottom: spacing.xs, 
-  flexDirection: 'row', 
-  justifyContent: 'space-between', 
-  alignItems: 'center',
-},
-  sectionTitle: { 
-    fontSize: isLargeScreen ? 20 : 18, 
+  sectionHeaderCompact: {
+    marginHorizontal: BASE_PADDING,
+    marginTop: 2, // tiny top gap so SongList header is very close
+    marginBottom: spacing.xs,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: isLargeScreen ? 20 : 18,
     fontWeight: '700',
     color: '#111',
   },
@@ -480,25 +547,25 @@ sectionHeaderCompact: {
 
   // Visual-only: Modern album cards with tighter spacing
   albumRow: {
-  flexDirection: 'row',
-  marginTop: spacing.sm,
-  marginBottom: 0,      // removed bottom gap so SongList moves up
-  paddingHorizontal: BASE_PADDING,
-  justifyContent: 'space-between',
-},
+    flexDirection: 'row',
+    marginTop: spacing.sm,
+    marginBottom: 0, // removed bottom gap so SongList moves up
+    paddingHorizontal: BASE_PADDING,
+    justifyContent: 'space-between',
+  },
   albumCard: { width: (width - BASE_PADDING * 2 - 16) / 3 },
-  albumThumb: { 
-    height: CARD, 
-    borderRadius: radii.normal, 
+  albumThumb: {
+    height: CARD,
+    borderRadius: radii.normal,
     backgroundColor: '#e6eaff',
-    alignItems: 'center', 
+    alignItems: 'center',
     justifyContent: 'center',
     ...elevation.medium,
   },
   albumThumbDark: { backgroundColor: '#1a1a2e' },
   albumThumbText: { color: '#667', fontWeight: '700' },
-  albumTitle: { 
-    marginTop: 10, 
+  albumTitle: {
+    marginTop: 10,
     fontWeight: '700',
     color: '#111',
   },
@@ -508,80 +575,80 @@ sectionHeaderCompact: {
   rowSeparator: { height: 0, backgroundColor: '#f7f7f8' },
 
   // Visual-only: Mini-player bar anchored to bottom with modern FAB
-  playerBar: { 
-    position: 'absolute', 
-    left: 0, 
-    right: 0, 
-    paddingHorizontal: BASE_PADDING, 
+  playerBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    paddingHorizontal: BASE_PADDING,
     zIndex: 20,
   },
-  playerInner: { 
-    height: PLAYER_HEIGHT - 8, 
-    backgroundColor: '#111', 
+  playerInner: {
+    height: PLAYER_HEIGHT - 8,
+    backgroundColor: '#111',
     borderRadius: tokens.radii.normal,
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingHorizontal: spacing.md, 
-    shadowColor: '#000', 
-    shadowOpacity: 0.2, 
-    shadowRadius: 12, 
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 8,
   },
   playerInnerDark: { backgroundColor: '#121212' },
   playerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
 
-  playerArt: { 
-    width: 48, 
-    height: 48, 
-    borderRadius: spacing.sm, 
-    backgroundColor: '#2a2a2a', 
-    alignItems: 'center', 
+  playerArt: {
+    width: 48,
+    height: 48,
+    borderRadius: spacing.sm,
+    backgroundColor: '#2a2a2a',
+    alignItems: 'center',
     justifyContent: 'center',
   },
   playerArtText: { color: '#6b6b6b' },
-  playerArtImage: { 
-    width: 48, 
-    height: 48, 
-    borderRadius: spacing.sm, 
+  playerArtImage: {
+    width: 48,
+    height: 48,
+    borderRadius: spacing.sm,
     backgroundColor: '#2a2a2a',
   },
 
   playerMeta: { marginLeft: spacing.md, flex: 1 },
   playerTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
   playerArtist: { color: '#ccc', fontSize: 12, marginTop: 2 },
-  
+
   // Visual-only: FAB-style circular play button with Feather icons
   playerControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  controlBtn: { 
+  controlBtn: {
     padding: spacing.sm,
     minWidth: sizes.touchTarget,
     minHeight: sizes.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  playFab: { 
+  playFab: {
     backgroundColor: '#ffd166', // accent color
     width: sizes.fabMini,
     height: sizes.fabMini,
     borderRadius: sizes.fabMini / 2,
-    alignItems: 'center', 
+    alignItems: 'center',
     justifyContent: 'center',
     ...elevation.medium,
   },
-  
-  progressContainer: { 
-    height: 4, 
-    backgroundColor: 'rgba(255,255,255,0.12)', 
-    borderRadius: 2, 
-    overflow: 'hidden', 
-    marginTop: spacing.sm, 
+
+  progressContainer: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: spacing.sm,
     alignSelf: 'stretch',
   },
-  progressFill: { 
-    height: '100%', 
+  progressFill: {
+    height: '100%',
     backgroundColor: '#2f6dfd', // primary color
-    borderRadius: 2, 
+    borderRadius: 2,
     width: '0%',
   },
 });
