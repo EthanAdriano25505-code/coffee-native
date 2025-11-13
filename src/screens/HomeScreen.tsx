@@ -24,6 +24,7 @@ import BannerIllustration from '../assets/BannerIllustration'; // Visual-only: S
 import BannerSlider from '../components/BannerSlider'; // Visual-only: Auto-advancing banner slider
 import SearchBar from '../components/SearchBar'; // Visual-only: Expanded search bar
 import RemoteImage from '../components/RemoteImage'; // standardized remote image wrapper
+import GlassDrawer from '../components/GlassDrawer'; // Liquid glass drawer for navigation menu
 import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens'; // Visual-only: Design tokens
 import { tokens } from '../theme/designTokens';
 
@@ -59,6 +60,7 @@ const HomeScreen: React.FC = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>((ctxSong as Song) ?? null);
   const [isPlaying, setIsPlaying] = useState<boolean>(!!ctxPlaying);
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false); // Glass drawer state
 
   useEffect(() => setCurrentSong((ctxSong as Song) ?? null), [ctxSong]);
   useEffect(() => setIsPlaying(!!ctxPlaying), [ctxPlaying]);
@@ -290,22 +292,12 @@ const HomeScreen: React.FC = () => {
             placeholder="Search songs, artists..."
           />
           
-          {/* Visual-only: Filter icon replaces avatar/settings */}
+          {/* Visual-only: Menu icon opens glass drawer */}
           <TouchableOpacity
             style={styles.iconButton}
             accessibilityLabel="Open menu"
             accessibilityHint="Open navigation menu"
-            onPress={() => {
-              // Toggle the navigation drawer if available; fall back to a safe navigation action
-              if (typeof navigation?.toggleDrawer === 'function') {
-                navigation.toggleDrawer();
-              } else if (typeof (hookNav as any)?.toggleDrawer === 'function') {
-                (hookNav as any).toggleDrawer();
-              } else {
-                // Feature not available: navigate to FullSongs as a fallback
-                hookNav.navigate('FullSongs');
-              }
-            }}
+            onPress={() => setIsDrawerOpen(true)}
           >
             <Feather name="menu" size={22} color={isDark ? '#fff' : '#111'} />
           </TouchableOpacity>
@@ -397,6 +389,18 @@ const HomeScreen: React.FC = () => {
           </View>
         </Pressable>
       ) : null}
+
+      {/* Glass drawer - liquid glassmorphism navigation menu */}
+      <GlassDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onNavigate={(screen) => {
+          console.log('Navigate to:', screen);
+          // TODO: Implement navigation to Profile, Settings, About screens
+          // For now, navigate to FullSongs as fallback
+          hookNav.navigate('FullSongs');
+        }}
+      />
     </SafeAreaView>
   );
 };
