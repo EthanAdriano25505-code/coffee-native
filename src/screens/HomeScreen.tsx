@@ -21,7 +21,7 @@ import { supabase } from '../utils/supabase';
 import SongCard from '../components/SongCard';
 import { Feather } from '@expo/vector-icons'; // Visual-only: Feather icons for modern UI
 import BannerIllustration from '../assets/BannerIllustration'; // Visual-only: SVG illustration for banner
-import BannerSlider from '../components/BannerSlider'; // Visual-only: Auto-advancing banner slider  
+import BannerSlider from '../components/BannerSlider'; // Visual-only: Auto-advancing banner slider
 import SearchBar from '../components/SearchBar'; // Visual-only: Expanded search bar
 import RemoteImage from '../components/RemoteImage'; // standardized remote image wrapper
 import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens'; // Visual-only: Design tokens
@@ -84,7 +84,7 @@ const HomeScreen: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('songs')
-        .select('id,title,artist,audio_url,cover_url,teaser_url,is_available,created_at,popularity') 
+        .select('id,title,artist,audio_url,cover_url,teaser_url,is_available,created_at,popularity')
         .order('created_at', { ascending: false })
         .limit(30);
 
@@ -140,47 +140,99 @@ const HomeScreen: React.FC = () => {
   };
 
   // -------------------------
-  // MEMOIZED BANNER + HEADER
+  // TASK 1: Fetch banners from Supabase (state + effect)
   // -------------------------
-  // Memoize banner slides so their reference doesn't change on every HomeScreen render
-  const bannerSlides = useMemo(
-    () => [
-      {
-        id: 'banner-1',
-        component: (
-          <View style={styles.bannerCard}>
-            <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
-          </View>
-        ),
-      },
-      {
-        id: 'banner-2',
-        component: (
-          <View style={styles.bannerCard}>
-            <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
-          </View>
-        ),
-      },
-      {
-        id: 'banner-3',
-        component: (
-          <View style={styles.bannerCard}>
-            <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
-          </View>
-        ),
-      },
-    ],
-    // include anything that affects banner layout
-    [width, BASE_PADDING, BANNER_HEIGHT]
-  );
+  type BannerRow = { id: string | number; image_url?: string | null; title?: string | null; href?: string | null };
+  const [banners, setBanners] = React.useState<BannerRow[]>([]);
 
-  // Memoize the entire header element so FlatList sees a stable element prop
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        // Replace 'banners' with your actual table name and column names if different
+        const { data, error } = await supabase
+          .from('banners')
+          .select('id, image_url, title, href, created_at')
+          .order('created_at', { ascending: false })
+          .limit(10); // adjust as needed
+
+        if (error) {
+          console.warn('fetch banners error:', error);
+        } else if (mounted && Array.isArray(data)) {
+          setBanners(data as BannerRow[]);
+        }
+      } catch (err) {
+        console.warn('fetch banners exception:', err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // -------------------------
+  // TASK 1 (continued) + TASK 2 prep: build memoized slides for BannerSlider
+  // We build slides from DB banners and memoize so reference is stable across renders.
+  // -------------------------
+  const bannerSlides = useMemo(() => {
+    // If DB returned none, fall back to three static illustration slides (keeps UX stable)
+    if (!banners || banners.length === 0) {
+      return [
+        {
+          id: 'banner-1',
+          component: (
+            <View style={styles.bannerCard}>
+              <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+            </View>
+          ),
+        },
+        {
+          id: 'banner-2',
+          component: (
+            <View style={styles.bannerCard}>
+              <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+            </View>
+          ),
+        },
+        {
+          id: 'banner-3',
+          component: (
+            <View style={styles.bannerCard}>
+              <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+            </View>
+          ),
+        },
+      ];
+    }
+
+    // Map DB banners to slides. RemoteImage ensures consistent sizing and avoids layout jumps.
+    return banners.map((b) => ({
+      id: String(b.id),
+      component: (
+        <View style={styles.bannerCard}>
+          <RemoteImage
+            uri={b.image_url ?? null}
+            width={width - BASE_PADDING * 2}
+            height={BANNER_HEIGHT - 24}
+            placeholderText={b.title ?? 'Banner'}
+            imageProps={{ resizeMode: 'cover' } as any}
+          />
+        </View>
+      ),
+    }));
+    // dependencies: only re-create slides when the underlying banner data or layout values change
+  }, [banners, width, BASE_PADDING, BANNER_HEIGHT]);
+
+  // -------------------------
+  // MEMOIZE THE ENTIRE LIST HEADER so FlatList receives a stable element
+  // This prevents the header (and BannerSlider) being re-created on each parent re-render.
+  // -------------------------
   const listHeaderElement = useMemo(() => {
     return (
       <View>
-        {/* Banner - Visual-only: Auto-advancing BannerSlider every 5 seconds */}
+        {/* Banner - Auto-advancing BannerSlider, will handle looping internally */}
         <View style={[styles.bannerWrapper, { height: BANNER_HEIGHT }]}>
-          <BannerSlider slides={bannerSlides} autoAdvanceMs={5000} height={BANNER_HEIGHT} />
+          <BannerSlider slides={bannerSlides} autoAdvanceMs={7000} height={BANNER_HEIGHT} />
         </View>
 
         {/* New Albums row */}
@@ -259,11 +311,10 @@ const HomeScreen: React.FC = () => {
         </View>
       </View>
     );
-    // include dynamic deps that would require the header to re-create
   }, [bannerSlides, isDark, BANNER_HEIGHT, hookNav]);
 
   // -------------------------
-  // END MEMOIZED BANNER + HEADER
+  // END BANNER-related code
   // -------------------------
 
   const onCardPress = (song: Song) => {
@@ -289,7 +340,7 @@ const HomeScreen: React.FC = () => {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }, isDark && styles.safeDark, { position: 'relative' }]} edges={['left', 'right', 'bottom']}>
       {/* Top app header - Visual-only: Header positioned close to status bar to match screenshot */}
-      <View style={[styles.header, isDark && styles.headerDark, { paddingTop: insets.top + 3 }]}>    
+      <View style={[styles.header, isDark && styles.headerDark, { paddingTop: insets.top + 3 }]}>
         <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>Music</Text>
         <View style={styles.headerActions}>
           {/* Visual-only: Expanded SearchBar component */}
@@ -307,7 +358,7 @@ const HomeScreen: React.FC = () => {
             accessibilityLabel="Open menu"
             accessibilityHint="Open navigation menu"
             onPress={() => {
-              // Toggle the navigation drawer if available; fall back to a safe navigation action    
+              // Toggle the navigation drawer if available; fall back to a safe navigation action
               if (typeof navigation?.toggleDrawer === 'function') {
                 navigation.toggleDrawer();
               } else if (typeof (hookNav as any)?.toggleDrawer === 'function') {
@@ -335,13 +386,14 @@ const HomeScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* Mini-player - Visual-only: FAB-style circular play button with progress bar */}  
-          {currentSong ? (
+      {/* Mini-player - Visual-only: FAB-style circular play button with progress bar */}
+      {/* Move the conditional to its own line, avoid stray text nodes (already fixed) */}
+      {currentSong ? (
         <Pressable
           onPress={() => {
             (hookNav ?? navigation)?.navigate('Player' as any, { song: currentSong });
           }}
-          style={[styles.playerBar, { height: PLAYER_HEIGHT, bottom: (insets.bottom ?? 0) + 6 }]}    
+          style={[styles.playerBar, { height: PLAYER_HEIGHT, bottom: (insets.bottom ?? 0) + 6 }]}
           pointerEvents="box-none"
         >
           <View style={[styles.playerInner, isDark && styles.playerInnerDark]}>
@@ -355,7 +407,7 @@ const HomeScreen: React.FC = () => {
               />
 
               <View style={styles.playerMeta}>
-                <Text style={styles.playerTitle} numberOfLines={1}>{currentSong?.title ?? ''}</Text> 
+                <Text style={styles.playerTitle} numberOfLines={1}>{currentSong?.title ?? ''}</Text>
                 <Text style={styles.playerArtist}>{currentSong?.artist ?? ''}</Text>
 
                 {/* Visual-only: Progress bar above controls */}
@@ -469,14 +521,14 @@ const styles = StyleSheet.create({
     ...elevation.low,
   },
 
-sectionHeaderCompact: {
-  marginHorizontal: BASE_PADDING,
-  marginTop: 2,         // tiny top gap so SongList header is very close
-  marginBottom: spacing.xs,
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-},
+  sectionHeaderCompact: {
+    marginHorizontal: BASE_PADDING,
+    marginTop: 2, // tiny top gap so SongList header is very close
+    marginBottom: spacing.xs,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   sectionTitle: {
     fontSize: isLargeScreen ? 20 : 18,
     fontWeight: '700',
@@ -487,12 +539,12 @@ sectionHeaderCompact: {
 
   // Visual-only: Modern album cards with tighter spacing
   albumRow: {
-  flexDirection: 'row',
-  marginTop: spacing.sm,
-  marginBottom: 0,      // removed bottom gap so SongList moves up
-  paddingHorizontal: BASE_PADDING,
-  justifyContent: 'space-between',
-},
+    flexDirection: 'row',
+    marginTop: spacing.sm,
+    marginBottom: 0, // removed bottom gap so SongList moves up
+    paddingHorizontal: BASE_PADDING,
+    justifyContent: 'space-between',
+  },
   albumCard: { width: (width - BASE_PADDING * 2 - 16) / 3 },
   albumThumb: {
     height: CARD,
