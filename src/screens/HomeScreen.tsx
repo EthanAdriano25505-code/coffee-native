@@ -26,12 +26,17 @@ import SearchBar from '../components/SearchBar'; // Visual-only: Expanded search
 import RemoteImage from '../components/RemoteImage'; // standardized remote image wrapper
 import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens'; // Visual-only: Design tokens
 import { tokens } from '../theme/designTokens';
+import { Image } from 'react-native';
 
+// ensure Dimensions is imported at the top: import { Dimensions } from 'react-native';
 const { width, height } = Dimensions.get('window');
 const isLargeScreen = Math.max(width, height) >= 768;
-const BANNER_HEIGHT = Math.round(width * (isLargeScreen ? 0.35 : 0.45));
-const PLAYER_HEIGHT = isLargeScreen ? 88 : 72;
-const BASE_PADDING = spacing.md; // Use design token
+const PLAYER_HEIGHT = isLargeScreen ? 88 : 72; // keep your existing player height logic if used elsewhere
+
+const SCREEN_WIDTH = width;
+const BASE_PADDING = spacing.md; // use your design token
+const BANNER_HEIGHT = Math.round(SCREEN_WIDTH * (isLargeScreen ? 0.35 : 0.45));
+const SLIDE_WIDTH = Math.round(SCREEN_WIDTH - BASE_PADDING * 2);
 
 type HomeNavProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -206,20 +211,23 @@ const HomeScreen: React.FC = () => {
     }
 
     // Map DB banners to slides. RemoteImage ensures consistent sizing and avoids layout jumps.
-    return banners.map((b) => ({
-      id: String(b.id),
-      component: (
-        <View style={styles.bannerCard}>
-          <RemoteImage
-            uri={b.image_url ?? null}
-            width={width - BASE_PADDING * 2}
-            height={BANNER_HEIGHT - 24}
-            placeholderText={b.title ?? 'Banner'}
-            imageProps={{ resizeMode: 'cover' } as any}
-          />
-        </View>
-      ),
-    }));
+    const slides = banners.map((b) => ({
+  id: String(b.id),
+  component: (
+    <View style={{ borderRadius: 12, overflow: 'hidden', backgroundColor: '#f0f0f0' }}>
+      <RemoteImage
+        uri={b.image_url ?? null}
+        width={SLIDE_WIDTH}           // <- exact slide width
+        height={BANNER_HEIGHT}       // <- exact banner height (remove the -24)
+        placeholderText={b.title ?? 'Banner'}
+        imageProps={{ resizeMode: 'cover' } as any} // ensure it fills the box
+      />
+    </View>
+  ),
+}));
+
+    // ensure we return the mapped slides so the hook always returns a Slide[] (not undefined)
+    return slides;
     // dependencies: only re-create slides when the underlying banner data or layout values change
   }, [banners, width, BASE_PADDING, BANNER_HEIGHT]);
 
@@ -232,7 +240,7 @@ const HomeScreen: React.FC = () => {
       <View>
         {/* Banner - Auto-advancing BannerSlider, will handle looping internally */}
         <View style={[styles.bannerWrapper, { height: BANNER_HEIGHT }]}>
-          <BannerSlider slides={bannerSlides} autoAdvanceMs={7000} height={BANNER_HEIGHT} />
+          <BannerSlider slides={bannerSlides} autoAdvanceMs={6000} height={BANNER_HEIGHT} />
         </View>
 
         {/* New Albums row */}

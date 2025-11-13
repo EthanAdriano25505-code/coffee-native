@@ -29,7 +29,7 @@ type Props = {
   height?: number;
 };
 
-// New memoized slide child — avoids re-rendering slide content during scrolling
+// Memoized slide child — avoids re-rendering slide content during scrolling
 const MemoSlide = React.memo(function MemoSlide({
   component,
   width,
@@ -48,21 +48,20 @@ const MemoSlide = React.memo(function MemoSlide({
 
 function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
   const listRef = useRef<FlatList<Slide> | null>(null);
-  // For looped data we'll work with 'looped' which may be [last, ...slides, first]
+
+  // For looping we use a cloned array [last, ...slides, first]
   const looped = useMemo(() => {
     if (!slides || slides.length <= 1) return slides;
     return [slides[slides.length - 1], ...slides, slides[0]];
   }, [slides]);
 
-  // indexRef points into the looped array
   const indexRef = useRef<number>(looped && looped.length > 1 ? 1 : 0);
   const [currentLoopIndex, setCurrentLoopIndex] = useState<number>(indexRef.current);
 
-  // Expose a "real" index (0..N-1) for UI (dots)
+  // real slide count (0..N-1)
   const realCount = slides ? slides.length : 0;
   const getRealIndex = (loopIndex: number) => {
     if (realCount <= 1) return loopIndex;
-    // loopIndex 1..N maps to 0..N-1
     return ((loopIndex - 1) % realCount + realCount) % realCount;
   };
 
@@ -70,9 +69,10 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
   const isDark = colorScheme === 'dark';
   const colors = getColors(isDark);
 
-  const [itemWidth, setItemWidth] = useState<number>(Math.round(WINDOW.width - spacing.md * 2)); // match HomeScreen padding
+  // itemWidth should match the slide width used by HomeScreen; default to window minus padding
+  const [itemWidth, setItemWidth] = useState<number>(Math.round(WINDOW.width - spacing.md * 2));
 
-  // timers and interaction tracking
+  // timers & interaction flags
   const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInteractingRef = useRef(false);
   const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,7 +84,6 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
     }
   };
 
-  // Schedule auto-advance to always move right (looping)
   const scheduleNext = useCallback(
     (delay = autoAdvanceMs) => {
       clearAutoTimer();
@@ -94,22 +93,18 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
       InteractionManager.runAfterInteractions(() => {
         if (!autoAdvanceMs || autoAdvanceMs <= 0) return;
         autoTimer.current = setTimeout(function tick() {
-          // If user interacting, retry shortly
           if (isInteractingRef.current) {
             autoTimer.current = setTimeout(tick, 300);
             return;
           }
           const next = indexRef.current + 1;
-          // animate to next in looped dataset
           try {
             listRef.current?.scrollToOffset({ offset: next * itemWidth, animated: true });
-            // optimistic update
             indexRef.current = next;
             setCurrentLoopIndex(next);
           } catch {
             // ignore
           }
-          // schedule next after this tick
           autoTimer.current = setTimeout(tick, autoAdvanceMs);
         }, delay);
       });
@@ -117,7 +112,6 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
     [autoAdvanceMs, looped, itemWidth]
   );
 
-  // clear on unmount
   useEffect(() => {
     return () => {
       clearAutoTimer();
@@ -128,11 +122,9 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
     };
   }, []);
 
-  // Start/Restart timer when slides or widths change
   useEffect(() => {
-    // Position to the initial loop index (1) when we have multiple slides
+    // position to initial loop index after layout
     if (listRef.current && looped && looped.length > 1) {
-      // ensure layout exists before non-animated jump
       setTimeout(() => {
         try {
           listRef.current?.scrollToOffset({ offset: indexRef.current * itemWidth, animated: false });
@@ -145,7 +137,6 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
         } catch {}
       }, 0);
     }
-    // Reset timer
     clearAutoTimer();
     scheduleNext();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -169,7 +160,6 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
     [autoAdvanceMs, scheduleNext]
   );
 
-  // Safe scroll to an index in the looped dataset
   const scrollToLoopIndex = useCallback(
     (loopIndex: number) => {
       const max = Math.max(0, (looped || []).length - 1);
@@ -178,16 +168,12 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
       setCurrentLoopIndex(target);
       try {
         listRef.current?.scrollToOffset({ offset: target * itemWidth, animated: true });
-      } catch {
-        // ignore
-      }
-      // announce
+      } catch {}
       const real = getRealIndex(target);
       const message = `Banner ${real + 1} of ${realCount}`;
       if (Platform.OS === 'ios' || Platform.OS === 'android') {
         AccessibilityInfo.announceForAccessibility(message);
       }
-      // reset timer
       clearAutoTimer();
       InteractionManager.runAfterInteractions(() => {
         scheduleNext();
@@ -196,7 +182,7 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
     [itemWidth, looped, realCount, scheduleNext]
   );
 
-  // Handlers for user interaction
+  // interaction handlers
   const onScrollBeginDrag = () => {
     isInteractingRef.current = true;
     stopAuto();
@@ -216,7 +202,6 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
   };
 
   const onScrollEndDrag = () => {
-    // don't clear interacting here; momentum may follow
     stopAuto();
   };
 
@@ -232,18 +217,14 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
       return;
     }
 
-    // If reached cloned first (at looped.length - 1), jump to real first (index 1)
     if (rawIndex === looped.length - 1) {
       const jumpTo = 1;
-      // immediate jump without animation
       try {
         listRef.current?.scrollToOffset({ offset: jumpTo * itemWidth, animated: false });
       } catch {}
       indexRef.current = jumpTo;
       setCurrentLoopIndex(jumpTo);
-    }
-    // If reached cloned last (index 0), jump to real last (looped.length - 2)
-    else if (rawIndex === 0) {
+    } else if (rawIndex === 0) {
       const jumpTo = looped.length - 2;
       try {
         listRef.current?.scrollToOffset({ offset: jumpTo * itemWidth, animated: false });
@@ -255,7 +236,6 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
       setCurrentLoopIndex(rawIndex);
     }
 
-    // Schedule next auto and resume after short delay
     isInteractingRef.current = false;
     resumeAuto(Math.min(autoAdvanceMs || 500, 500));
   };
@@ -274,7 +254,6 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
     const w = e.nativeEvent.layout.width;
     if (w && Math.abs(w - itemWidth) > 1) {
       setItemWidth(w);
-      // reposition to current index immediately to avoid visual jump
       setTimeout(() => {
         try {
           listRef.current?.scrollToOffset({ offset: indexRef.current * w, animated: false });
@@ -283,29 +262,42 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
     }
   };
 
-  // renderItem uses MemoSlide
   const renderItem = useCallback<ListRenderItem<Slide>>(
     ({ item }) => <MemoSlide component={item.component} width={itemWidth} height={height} />,
     [itemWidth, height]
   );
 
-  // pagination real index for UI
+  // Map currentLoopIndex -> current real slide
   const currentReal = getRealIndex(currentLoopIndex);
 
-  // handle dot press (go to a real index -> loopIndex = real + 1)
-  const onDotPress = (realIdx: number) => {
-    const loopIdx = realIdx + (looped && looped.length > 1 ? 1 : 0);
-    scrollToLoopIndex(loopIdx);
+  // --- Pagination: always show up to 3 dots (1..3) even when there are more slides ---
+  const dotCount = Math.max(1, Math.min(3, realCount)); // 1..3
+  // map real index into 0..(dotCount-1)
+  const currentDot = realCount <= 1 ? 0 : Math.floor((currentReal * dotCount) / realCount);
+
+  const onDotPress = (dotIdx: number) => {
+    if (realCount <= 0) return;
+    if (dotCount === 1) {
+      // go to first real slide
+      const loopIdx = looped && looped.length > 1 ? 1 : 0;
+      scrollToLoopIndex(loopIdx);
+      return;
+    }
+    // map dot to a target real index (start/mid/end mapping)
+    const realTarget = Math.round((dotIdx / Math.max(1, dotCount - 1)) * (realCount - 1));
+    const loopIndex = Math.min(
+      Math.max(0, realTarget + (looped && looped.length > 1 ? 1 : 0)),
+      (looped || []).length - 1
+    );
+    scrollToLoopIndex(loopIndex);
   };
 
-  // getItemLayout uses itemWidth
   const getItemLayout = (_: any, index: number) => ({
     length: itemWidth,
     offset: itemWidth * index,
     index,
   });
 
-  // key extractor must include index because looped clones may share ids
   const keyExtractor = (_: Slide, idx: number) => `${(looped && looped[idx] ? looped[idx].id : idx)}-${idx}`;
 
   return (
@@ -332,9 +324,7 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
         windowSize={3}
         removeClippedSubviews={false}
         getItemLayout={getItemLayout}
-        // maintain current position if content size changes
         onContentSizeChange={() => {
-          // ensure we're aligned (useful after images load)
           setTimeout(() => {
             try {
               listRef.current?.scrollToOffset({ offset: indexRef.current * itemWidth, animated: false });
@@ -342,20 +332,21 @@ function BannerSlider({ slides, autoAdvanceMs = 5000, height }: Props) {
           }, 0);
         }}
       />
-      {/* Pagination dots based on real slides count */}
-      {realCount > 1 && (
+
+      {/* Compact fixed 3-dot pagination (or fewer if slides < 3) */}
+      {realCount > 0 && (
         <View style={styles.pagination}>
-          {Array.from({ length: realCount }).map((_, index) => (
+          {Array.from({ length: dotCount }).map((_, i) => (
             <TouchableOpacity
-              key={index}
-              onPress={() => onDotPress(index)}
+              key={i}
+              onPress={() => onDotPress(i)}
               accessibilityRole="button"
-              accessibilityLabel={`Slide ${index + 1} of ${realCount}${index === currentReal ? ', current' : ''}`}
+              accessibilityLabel={`Banner group ${i + 1} of ${dotCount}${i === currentDot ? ', current' : ''}`}
               style={[
                 styles.dot,
                 {
-                  backgroundColor: index === currentReal ? colors.primary : colors.muted,
-                  opacity: index === currentReal ? 1 : 0.5,
+                  backgroundColor: i === currentDot ? colors.primary : colors.muted,
+                  opacity: i === currentDot ? 1 : 0.7,
                 },
               ]}
             />
@@ -371,24 +362,23 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   slideContainer: {
-    // width is now set dynamically from itemWidth
     overflow: 'hidden',
   },
   pagination: {
     position: 'absolute',
-    bottom: 16,
+    bottom: 12, // slightly closer to the banner
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: radii.round,
-    marginHorizontal: 4,
+    marginHorizontal: 6,
   },
 });
 
