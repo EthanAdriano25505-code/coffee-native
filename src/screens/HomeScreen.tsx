@@ -24,6 +24,8 @@ import { usePlayback } from '../contexts/PlaybackContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../utils/supabase';
 import SongCard from '../components/SongCard';
+import CenterMiniPill from '../components/CenterMiniPill';
+import MiniPlayerOverlay from '../components/MiniPlayerOverlay';
 import { Feather } from '@expo/vector-icons';
 import BannerIllustration from '../assets/BannerIllustration';
 import BannerSlider from '../components/BannerSlider';
@@ -74,6 +76,7 @@ const HomeScreen: React.FC = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>((ctxSong as Song) ?? null);
   const [isPlaying, setIsPlaying] = useState<boolean>(!!ctxPlaying);
+  const [activeFilter, setActiveFilter] = useState<string>('all');
 
   // Drawer state (local, animated with React Native Animated — no reanimated)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -227,12 +230,34 @@ const HomeScreen: React.FC = () => {
     }));
   }, [banners]);
 
+  const pillFilterItems = [
+    { id: 'all', label: 'All' },
+    { id: 'playlists', label: 'Playlists' },
+    { id: 'liked', label: 'Liked Songs' },
+    { id: 'downloaded', label: 'Downloaded' },
+    { id: 'recent', label: 'Recent' },
+  ];
+
+  const handleFilterSelect = useCallback((filterId: string) => {
+    setActiveFilter(filterId);
+    // Here you could add logic to filter songs based on the selected filter
+    if (__DEV__) console.log('Filter selected:', filterId);
+  }, []);
+
   const listHeaderElement = useMemo(() => {
     return (
       <View>
         <View style={[styles.bannerWrapper, { height: BANNER_HEIGHT }]}>
           <BannerSlider slides={bannerSlides} autoAdvanceMs={6000} height={BANNER_HEIGHT} />
         </View>
+
+        {/* Glass pill filter bar */}
+        <CenterMiniPill
+          items={pillFilterItems}
+          activeId={activeFilter}
+          onSelect={handleFilterSelect}
+          style={{ marginVertical: spacing.sm }}
+        />
 
         <View style={styles.sectionHeaderCompact}>
           <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>New Albums</Text>
@@ -308,7 +333,7 @@ const HomeScreen: React.FC = () => {
         </View>
       </View>
     );
-  }, [bannerSlides, isDark, hookNav]);
+  }, [bannerSlides, isDark, hookNav, activeFilter, handleFilterSelect]);
 
   const onCardPress = useCallback((song: Song) => {
     const payload = {
@@ -439,69 +464,21 @@ const HomeScreen: React.FC = () => {
         removeClippedSubviews={true}
       />
 
-      {/* Mini-player */}
-      {currentSong ? (
-        <Pressable
-          onPress={() => {
-            (hookNav ?? navigation)?.navigate('Player' as any, { song: currentSong });
-          }}
-          style={[styles.playerBar, { height: PLAYER_HEIGHT, bottom: (insets.bottom ?? 0) + 6 }]}
-          pointerEvents="box-none"
-        >
-          <View style={[styles.playerInner, isDark && styles.playerInnerDark]}>
-            <View style={styles.playerLeft}>
-              <RemoteImage
-                uri={currentSong?.cover_url ?? null}
-                width={48}
-                height={48}
-                style={styles.playerArtImage}
-                placeholderText="Art"
-              />
-
-              <View style={styles.playerMeta}>
-                <Text style={styles.playerTitle} numberOfLines={1}>{currentSong?.title ?? ''}</Text>
-                <Text style={styles.playerArtist}>{currentSong?.artist ?? ''}</Text>
-
-                <View style={styles.progressContainer}>
-                  <Animated.View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: progressAnim.interpolate({
-                          inputRange: [0, 100],
-                          outputRange: ['0%', '100%'],
-                          extrapolate: 'clamp',
-                        }),
-                      },
-                    ]}
-                  />
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.playerControls}>
-              <TouchableOpacity onPress={() => prev()} style={styles.controlBtn} accessibilityLabel="Previous">
-                <Feather name="skip-back" size={20} color="#fff" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => {
-                  setIsPlaying((p) => !p);
-                  togglePlay();
-                }}
-                style={styles.playFab}
-                accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-              >
-                <Feather name={isPlaying ? 'pause' : 'play'} size={24} color="#111" />
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => next()} style={styles.controlBtn} accessibilityLabel="Next">
-                <Feather name="skip-forward" size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Pressable>
-      ) : null}
+      {/* Glass Mini-player Overlay */}
+      <MiniPlayerOverlay
+        song={currentSong}
+        isPlaying={isPlaying}
+        progressPercent={durationMillis && durationMillis > 0 ? (positionMillis / durationMillis) * 100 : 0}
+        onPress={() => {
+          (hookNav ?? navigation)?.navigate('Player' as any, { song: currentSong });
+        }}
+        onPlayPause={() => {
+          setIsPlaying((p) => !p);
+          togglePlay();
+        }}
+        onNext={() => next()}
+        onPrev={() => prev()}
+      />
 
       {/* Animated glass drawer (implemented inline so we avoid reanimated/worklets) */}
       {/*
