@@ -6,7 +6,8 @@ import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/types';
 import { useFocusEffect } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons'; // Visual-only: Feather icons for modern UI
-import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens'; // Visual-only: Design tokens
+import GlassView from '../components/GlassView';
+import { spacing, radii, sizes, elevation, getColors, glass } from '../theme/designTokens'; // Visual-only: Design tokens
 import { tokens } from '../theme/designTokens'; 
 
 const { width } = Dimensions.get('window');
@@ -234,26 +235,39 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
       <Text style={[styles.title, isDark && styles.titleDark]}>{song?.title}</Text>
       <Text style={[styles.artist, isDark && styles.artistDark]}>{song?.artist}</Text>
 
-      {/* Visual-only: Modern controls with Feather icons and circular FAB */}
-      <View style={styles.controls}>
-        <TouchableOpacity onPress={prev} accessibilityLabel="Previous">
-          <Feather name="skip-back" size={32} color={isDark ? '#fff' : '#111'} />
-        </TouchableOpacity>
+      {/* Glass controls with modern Feather icons and circular FAB */}
+      <GlassView
+        intensity={glass.intensityIOS * 0.6}
+        tint={isDark ? 'dark' : 'light'}
+        style={[
+          styles.glassControls,
+          {
+            backgroundColor: isDark
+              ? 'rgba(25, 25, 25, 0.7)'
+              : 'rgba(255, 255, 255, 0.7)',
+          },
+        ]}
+      >
+        <View style={styles.controls}>
+          <TouchableOpacity onPress={prev} accessibilityLabel="Previous">
+            <Feather name="skip-back" size={32} color={isDark ? '#fff' : '#111'} />
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => {
-            togglePlay();
-          }}
-          style={styles.playFab}
-          accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-        >
-          <Feather name={isPlaying ? 'pause' : 'play'} size={32} color="#fff" />
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              togglePlay();
+            }}
+            style={styles.playFab}
+            accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+          >
+            <Feather name={isPlaying ? 'pause' : 'play'} size={32} color="#fff" />
+          </TouchableOpacity>
 
-        <TouchableOpacity onPress={next} accessibilityLabel="Next">
-          <Feather name="skip-forward" size={32} color={isDark ? '#fff' : '#111'} />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity onPress={next} accessibilityLabel="Next">
+            <Feather name="skip-forward" size={32} color={isDark ? '#fff' : '#111'} />
+          </TouchableOpacity>
+        </View>
+      </GlassView>
 
       <View style={styles.progressRow}>
         <Text style={[styles.time, isDark && styles.timeDark]}>{formatMillis(seekingRef.current ? localPosRef.current : positionMillis)}</Text>
@@ -272,15 +286,28 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
         <Text style={[styles.time, isDark && styles.timeDark]}>{formatMillis(durationMillis)}</Text>
       </View>
 
-      {/* Visual-only: Extra controls with Feather icons */}
-      <View style={styles.extraRow}>
-        <TouchableOpacity style={[styles.smallBtn, isDark && styles.smallBtnDark]} accessibilityLabel="Repeat">
-          <Feather name="repeat" size={20} color={isDark ? '#aaa' : '#666'} />
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.smallBtn, isDark && styles.smallBtnDark]} accessibilityLabel="Shuffle">
-          <Feather name="shuffle" size={20} color={isDark ? '#aaa' : '#666'} />
-        </TouchableOpacity>
-      </View>
+      {/* Glass extra controls with Feather icons */}
+      <GlassView
+        intensity={glass.intensityIOS * 0.5}
+        tint={isDark ? 'dark' : 'light'}
+        style={[
+          styles.glassExtraRow,
+          {
+            backgroundColor: isDark
+              ? 'rgba(25, 25, 25, 0.6)'
+              : 'rgba(255, 255, 255, 0.6)',
+          },
+        ]}
+      >
+        <View style={styles.extraRow}>
+          <TouchableOpacity style={[styles.smallBtn, isDark && styles.smallBtnDark]} accessibilityLabel="Repeat">
+            <Feather name="repeat" size={20} color={isDark ? '#aaa' : '#666'} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.smallBtn, isDark && styles.smallBtnDark]} accessibilityLabel="Shuffle">
+            <Feather name="shuffle" size={20} color={isDark ? '#aaa' : '#666'} />
+          </TouchableOpacity>
+        </View>
+      </GlassView>
     </View>
   );
 }
@@ -303,6 +330,14 @@ const styles = StyleSheet.create({
   artist: { color: '#666', marginTop: 6 },
   artistDark: { color: '#aaa' },
   controls: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg, gap: spacing.lg },
+  glassControls: {
+    borderRadius: radii.normal,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    ...elevation.medium,
+  },
   
   // Visual-only: Circular FAB play button matching mini-player aesthetic
   playFab: { 
@@ -319,6 +354,14 @@ const styles = StyleSheet.create({
   time: { width: 44, textAlign: 'center', color: '#666', fontSize: 12 },
   timeDark: { color: '#aaa' },
   extraRow: { flexDirection: 'row', marginTop: spacing.lg, alignItems: 'center', gap: spacing.md },
+  glassExtraRow: {
+    borderRadius: radii.normal,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    ...elevation.low,
+  },
   smallBtn: { 
     padding: spacing.md, 
     backgroundColor: '#f3f3f3', 
