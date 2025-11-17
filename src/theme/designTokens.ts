@@ -11,6 +11,7 @@ export const radii = {
   small: 8,
   normal: 14,
   round: 999,
+  pill: 24,
 };
 
 export const sizes = {
@@ -43,6 +44,18 @@ export const elevation = {
   },
 };
 
+// Glass/Blur design tokens
+export const glass = {
+  bgLight: 'rgba(255, 255, 255, 0.75)',
+  bgDark: 'rgba(25, 25, 25, 0.75)',
+  borderLight: 'rgba(255, 255, 255, 0.2)',
+  borderDark: 'rgba(255, 255, 255, 0.1)',
+  intensityIOS: 80,
+  intensityAndroid: 40,
+  pillHeight: 50,
+  miniPlayerHeight: 72,
+};
+
 export const light = {
   colors: {
     primary: '#2F6DFD',
@@ -71,7 +84,7 @@ export const dark = {
   },
 };
 
-export const tokens = { spacing, radii, sizes, elevation, light, dark };
+export const tokens = { spacing, radii, sizes, elevation, glass, light, dark };
 
 // Helper to get colors based on color scheme
 export function getColors(isDark: boolean) {
