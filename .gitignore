@@ -33,6 +33,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+# local supabase config (never commit secrets)
+/src/config/supabaseLocal.ts
+
 # typescript
 *.tsbuildinfo
 
