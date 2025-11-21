@@ -1,8 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { v4 as uuidv4 } from 'uuid';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const DEVICE_KEY = 'deviceId';
+
+/**
+ * Generate a simple UUID v4 without external dependencies
+ */
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 /**
  * Return a stable actor id:
@@ -34,7 +44,7 @@ export async function getActorId(supabaseClient?: SupabaseClient | any): Promise
     // Fallback to persistent device id
     let deviceId: string | null = await AsyncStorage.getItem(DEVICE_KEY);
     if (!deviceId) {
-      const newId = uuidv4();
+      const newId = generateUUID();
       // store the generated id (guaranteed string)
       await AsyncStorage.setItem(DEVICE_KEY, newId);
       deviceId = newId;
