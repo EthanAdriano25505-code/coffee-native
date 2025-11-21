@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   StyleSheet,
@@ -10,22 +9,41 @@ import {
   FlatList,
   ListRenderItem,
   Animated,
-  Image,
   Pressable,
+  Easing,
+  Platform,
+  TouchableWithoutFeedback,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import HamburgerButton from '../components/HamburgerButton';
+
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation';
+import type { RootStackParamList } from '../navigation/types';
 import { usePlayback } from '../contexts/PlaybackContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../utils/supabase';
 import SongCard from '../components/SongCard';
+import CenterMiniPill from '../components/CenterMiniPill';
+import MiniPlayerOverlay from '../components/MiniPlayerOverlay';
+import { Feather } from '@expo/vector-icons';
+import BannerIllustration from '../assets/BannerIllustration';
+import BannerSlider from '../components/BannerSlider';
+import SearchBar from '../components/SearchBar';
+import RemoteImage from '../components/RemoteImage';
+import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens';
+import { tokens } from '../theme/designTokens';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 const isLargeScreen = Math.max(width, height) >= 768;
-const BANNER_HEIGHT = Math.round(width * (isLargeScreen ? 0.35 : 0.45));
 const PLAYER_HEIGHT = isLargeScreen ? 88 : 72;
-const BASE_PADDING = 16;
+
+const SCREEN_WIDTH = width;
+const BASE_PADDING = spacing.md;
+const BANNER_HEIGHT = Math.round(SCREEN_WIDTH * (isLargeScreen ? 0.35 : 0.45));
+const SLIDE_WIDTH = Math.round(SCREEN_WIDTH - BASE_PADDING * 2);
 
 type HomeNavProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -38,38 +56,49 @@ type Song = {
   created_at?: string | null;
 };
 
+const DRAWER_WIDTH_PERCENT = 0.75;
+const DRAWER_WIDTH = Math.round(SCREEN_WIDTH * DRAWER_WIDTH_PERCENT);
+const BLUR_INTENSITY_IOS = 90;
+const BLUR_INTENSITY_ANDROID = 30;
+
 const HomeScreen: React.FC = () => {
-  console.log('HomeScreen loaded: src/screens/HomeScreen.tsx');
-  
+  if (__DEV__) console.log('HomeScreen loaded: src/screens/HomeScreen.tsx');
+
   const hookNav = useNavigation<HomeNavProp>();
   const navigation = useNavigation<any>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const colors = getColors(isDark);
   const insets = useSafeAreaInsets();
 
   const { currentSong: ctxSong, isPlaying: ctxPlaying, positionMillis, durationMillis, play, pause, next, prev, togglePlay } = usePlayback();
-  
+
   const [songs, setSongs] = useState<Song[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>((ctxSong as Song) ?? null);
   const [isPlaying, setIsPlaying] = useState<boolean>(!!ctxPlaying);
+  const [activeFilter, setActiveFilter] = useState<string>('all');
+
+  // Drawer state (local, animated with React Native Animated — no reanimated)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const drawerTranslateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => setCurrentSong((ctxSong as Song) ?? null), [ctxSong]);
   useEffect(() => setIsPlaying(!!ctxPlaying), [ctxPlaying]);
 
-  // Log whenever currentSong changes (so we can see the cover_url in Metro)
   useEffect(() => {
-    console.log('player cover_url:', currentSong?.cover_url);
+    if (__DEV__) console.log('player cover_url:', currentSong?.cover_url);
   }, [currentSong]);
 
-  // Animated progress ref for mini-player
+  // mini-player progress animation
   const progressAnim = React.useRef(new Animated.Value(0)).current;
-
   React.useEffect(() => {
     const progressPercent = durationMillis && durationMillis > 0 ? (positionMillis / durationMillis) * 100 : 0;
     Animated.timing(progressAnim, {
       toValue: progressPercent,
-      duration: 300, // small smoothing
-      useNativeDriver: false, // width can't use native driver
+      duration: 300,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
     }).start();
   }, [positionMillis, durationMillis, progressAnim]);
 
@@ -80,8 +109,8 @@ const HomeScreen: React.FC = () => {
         .select('id,title,artist,audio_url,cover_url,teaser_url,is_available,created_at,popularity')
         .order('created_at', { ascending: false })
         .limit(30);
-      
-      console.log('HomeScreen fetch result:', { data, error });
+
+      if (__DEV__) console.log('HomeScreen fetch result:', { data, error });
 
       if (error) {
         console.warn('fetchSongs error:', error);
@@ -99,14 +128,9 @@ const HomeScreen: React.FC = () => {
     fetchSongs();
   }, [fetchSongs]);
 
-  const handlePressSong = async (song: Song) => {
-    // update local UI immediately so the list shows the selected song
+  const handlePressSong = useCallback(async (song: Song) => {
     setCurrentSong(song);
-
-    // prepare uri (use audio if available, otherwise undefined)
     const uri = song.audio_url ? { uri: song.audio_url } : undefined;
-
-    // IMPORTANT: include cover_url so PlaybackContext.currentSong keeps artwork
     const payload = {
       id: song.id,
       title: song.title,
@@ -115,9 +139,9 @@ const HomeScreen: React.FC = () => {
       uri,
     };
     await play(payload);
-  };
+  }, [play]);
 
-  const handlePlayPause = async () => {
+  const handlePlayPause = useCallback(async () => {
     if (isPlaying) await pause();
     else if (currentSong) {
       const uri = currentSong.audio_url ? { uri: currentSong.audio_url } : undefined;
@@ -130,55 +154,188 @@ const HomeScreen: React.FC = () => {
       };
       await play(payload);
     }
-  };
+  }, [isPlaying, pause, play, currentSong]);
 
-  const ListHeader = () => (
-    <View>
-      {/* Banner */}
-      <View style={[styles.bannerWrapper, { height: BANNER_HEIGHT }]}>
-        <View style={styles.bannerPlaceholder}><Text style={styles.bannerText}>Banner Placeholder</Text></View>
-      </View>
+  // Banners
+  type BannerRow = { id: string | number; image_url?: string | null; title?: string | null; href?: string | null };
+  const [banners, setBanners] = React.useState<BannerRow[]>([]);
 
-      {/* New Albums row */}
-      <View style={styles.sectionHeaderCompact}>
-        <Text style={styles.sectionTitle}>New Albums</Text>
-        <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
-          <Text style={styles.seeAll}>See all</Text>
-        </TouchableOpacity>
-      </View>
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('banners')
+          .select('id, image_url, title, href, created_at')
+          .order('created_at', { ascending: false })
+          .limit(10);
 
-      <View style={styles.albumRow}>
-        <View style={styles.albumCard}>
-          <View style={styles.albumThumb}><Text style={styles.albumThumbText}>Album</Text></View>
-          <Text style={styles.albumTitle}>Free songs</Text>
-          <Text style={styles.albumArtist}> </Text>
+        if (error) {
+          console.warn('fetch banners error:', error);
+        } else if (mounted && Array.isArray(data)) {
+          setBanners(data as BannerRow[]);
+        }
+      } catch (err) {
+        console.warn('fetch banners exception:', err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const bannerSlides = useMemo(() => {
+    if (!banners || banners.length === 0) {
+      return [
+        {
+          id: 'banner-1',
+          component: (
+            <View style={styles.bannerCard}>
+              <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+            </View>
+          ),
+        },
+        {
+          id: 'banner-2',
+          component: (
+            <View style={styles.bannerCard}>
+              <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+            </View>
+          ),
+        },
+        {
+          id: 'banner-3',
+          component: (
+            <View style={styles.bannerCard}>
+              <BannerIllustration width={width - BASE_PADDING * 2} height={BANNER_HEIGHT - 24} />
+            </View>
+          ),
+        },
+      ];
+    }
+
+    return banners.map((b) => ({
+      id: String(b.id),
+      component: (
+        <View style={{ borderRadius: 12, overflow: 'hidden', backgroundColor: '#f0f0f0' }}>
+          <RemoteImage
+            uri={b.image_url ?? null}
+            width={SLIDE_WIDTH}
+            height={BANNER_HEIGHT}
+            placeholderText={b.title ?? 'Banner'}
+            imageProps={{ resizeMode: 'cover' } as any}
+          />
+        </View>
+      ),
+    }));
+  }, [banners]);
+
+  const pillFilterItems = [
+    { id: 'all', label: 'All' },
+    { id: 'playlists', label: 'Playlists' },
+    { id: 'liked', label: 'Liked Songs' },
+    { id: 'downloaded', label: 'Downloaded' },
+    { id: 'recent', label: 'Recent' },
+  ];
+
+  const handleFilterSelect = useCallback((filterId: string) => {
+    setActiveFilter(filterId);
+    // Here you could add logic to filter songs based on the selected filter
+    if (__DEV__) console.log('Filter selected:', filterId);
+  }, []);
+
+  const listHeaderElement = useMemo(() => {
+    return (
+      <View>
+        <View style={[styles.bannerWrapper, { height: BANNER_HEIGHT }]}>
+          <BannerSlider slides={bannerSlides} autoAdvanceMs={6000} height={BANNER_HEIGHT} />
         </View>
 
-        <View style={styles.albumCard}>
-          <View style={styles.albumThumb}><Text style={styles.albumThumbText}>Album</Text></View>
-          <Text style={styles.albumTitle}>Teasers</Text>
-          <Text style={styles.albumArtist}> </Text>
+        {/* Glass pill filter bar */}
+        <CenterMiniPill
+          items={pillFilterItems}
+          activeId={activeFilter}
+          onSelect={handleFilterSelect}
+          style={{ marginVertical: spacing.sm }}
+        />
+
+        <View style={styles.sectionHeaderCompact}>
+          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>New Albums</Text>
+          <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
+            <Text style={styles.seeAll}>See all</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.albumCard}>
-          <View style={styles.albumThumb}><Text style={styles.albumThumbText}>Album</Text></View>
-          <Text style={styles.albumTitle}>Playlists</Text>
-          <Text style={styles.albumArtist}> </Text>
+        <View style={styles.albumRow}>
+          <TouchableOpacity
+            style={styles.albumCard}
+            accessible
+            accessibilityRole="button"
+            onPress={() => hookNav.navigate('FullSongs')}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <RemoteImage
+              uri={null}
+              width={CARD}
+              height={CARD}
+              style={isDark ? StyleSheet.flatten([styles.albumThumb, styles.albumThumbDark]) : styles.albumThumb}
+              placeholderText="Album"
+            />
+            <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Free songs</Text>
+            <Text style={styles.albumArtist}> </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.albumCard}
+            accessible
+            accessibilityRole="button"
+            onPress={() => hookNav.navigate('FullSongs')}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <RemoteImage
+              uri={null}
+              width={CARD}
+              height={CARD}
+              style={isDark ? StyleSheet.flatten([styles.albumThumb, styles.albumThumbDark]) : styles.albumThumb}
+              placeholderText="Album"
+            />
+            <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Teasers</Text>
+            <Text style={styles.albumArtist}> </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.albumCard}
+            accessible
+            accessibilityRole="button"
+            onPress={() => hookNav.navigate('FullSongs')}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <RemoteImage
+              uri={null}
+              width={CARD}
+              height={CARD}
+              style={isDark ? StyleSheet.flatten([styles.albumThumb, styles.albumThumbDark]) : styles.albumThumb}
+              placeholderText="Album"
+            />
+            <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Playlists</Text>
+            <Text style={styles.albumArtist}> </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.sectionHeaderCompact}>
+          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Song List</Text>
+          <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
+            <Text style={styles.seeAll}>See all</Text>
+          </TouchableOpacity>
         </View>
       </View>
+    );
+  }, [bannerSlides, isDark, hookNav, activeFilter, handleFilterSelect]);
 
-      {/* Song List header */}
-      <View style={[styles.sectionHeaderCompact, { marginTop: 6 }]}>
-        <Text style={styles.sectionTitle}>Song List</Text>
-        <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
-          <Text style={styles.seeAll}>See all</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const onCardPress = (song: Song) => {
-    // start playback quickly (do not await so navigation feels instant)
+  const onCardPress = useCallback((song: Song) => {
     const payload = {
       id: song.id,
       title: song.title,
@@ -187,25 +344,108 @@ const HomeScreen: React.FC = () => {
       uri: song.audio_url ? { uri: song.audio_url } : undefined,
     };
     play(payload);
-
-    // navigate to Player screen and pass song as param
     navigation.navigate('Player', { song });
-  };
+  }, [play, navigation]);
 
-  const renderSongItem: ListRenderItem<Song> = ({ item }) => <SongCard song={item} onPress={() => onCardPress(item)} />;
+  const renderSongItem: ListRenderItem<Song> = useCallback(({ item }) => <SongCard song={item} onPress={() => onCardPress(item)} />, [onCardPress]);
 
-  // Use a footer spacer to reserve space for the player only when items exist.
   const listFooter = songs.length > 0 ? <View style={{ height: PLAYER_HEIGHT + (insets.bottom ?? 0) + 12 }} /> : null;
 
+  // Drawer open / close animations (React Native Animated)
+  const openDrawer = useCallback(() => {
+    setIsDrawerOpen(true);
+    Animated.parallel([
+      Animated.timing(drawerTranslateX, {
+        toValue: 0,
+        duration: 420,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayOpacity, {
+        toValue: 1,
+        duration: 320,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [drawerTranslateX, overlayOpacity]);
+
+  const closeDrawer = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(drawerTranslateX, {
+        toValue: -DRAWER_WIDTH,
+        duration: 340,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 260,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // ensure fully closed after animation
+      setIsDrawerOpen(false);
+    });
+  }, [drawerTranslateX, overlayOpacity]);
+
+  const handleDrawerNavigate = useCallback((screen: string) => {
+    // close then navigate
+    closeDrawer();
+    setTimeout(() => {
+      try {
+        (hookNav ?? navigation)?.navigate(screen as any);
+      } catch (err) {
+        if (__DEV__) console.warn('Navigation from drawer failed', err);
+      }
+    }, 300);
+  }, [closeDrawer, hookNav, navigation]);
+
+  // overlay animated styles
+  const overlayStyle = {
+    opacity: overlayOpacity,
+    backgroundColor: isDark ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.45)',
+  };
+
+  const drawerAnimatedStyle = {
+    transform: [{ translateX: drawerTranslateX }],
+  };
+
+  // menu items (placeholder)
+  const menuItems = [
+    { id: 'home', label: 'Home', icon: 'home', screen: 'Home' },
+    { id: 'profile', label: 'Profile', icon: 'user', screen: 'MusicDetail' },
+    { id: 'settings', label: 'Settings', icon: 'settings', screen: 'FullSongs' },
+    { id: 'about', label: 'About', icon: 'info', screen: 'Player' },
+  ];
+
   return (
-    <SafeAreaView style={[styles.safe, isDark && styles.safeDark, { position: 'relative' }]}>
-      {/* Top app header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Music</Text>
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: colors.background }, isDark && styles.safeDark, { position: 'relative' }]}
+      edges={['left', 'right', 'bottom']}
+    >
+      {/* Header */}
+      <View style={[styles.header, isDark && styles.headerDark, { paddingTop: insets.top + 3 }]}>
+        <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>Music</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconButton}><Text style={styles.iconText}>⚙️</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}><Text style={styles.iconText}>🔍</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.profileButton}><Text style={styles.profileInitials}>JD</Text></TouchableOpacity>
+          <SearchBar
+            onPress={() => {
+              if (__DEV__) console.log('Search tapped');
+            }}
+            placeholder="Search songs, artists..."
+          />
+
+          {/* Hamburger opens our Animated glass drawer (no reanimated dependency) */}
+          <HamburgerButton
+            onPress={() => {
+              // open with animation
+              openDrawer();
+            }}
+            color={isDark ? '#fff' : '#111'}
+          />
+
+          
         </View>
       </View>
 
@@ -213,79 +453,118 @@ const HomeScreen: React.FC = () => {
         data={songs}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderSongItem}
-        ListHeaderComponent={ListHeader}
+        ListHeaderComponent={listHeaderElement}
         ListEmptyComponent={null}
         ListFooterComponent={listFooter}
         contentContainerStyle={{ backgroundColor: isDark ? '#000' : '#f7f7f8' }}
         ItemSeparatorComponent={() => <View style={styles.rowSeparator} />}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={8}
+        windowSize={9}
+        removeClippedSubviews={true}
       />
 
-      {/* Player anchored to bottom (tappable area navigates to Player) */}
-      {currentSong ? (
-        <Pressable
-          onPress={() => {
-            (hookNav ?? navigation)?.navigate('Player' as any, { song: currentSong });
-          }}
-          style={[styles.playerBar, { height: PLAYER_HEIGHT, bottom: (insets.bottom ?? 0) + 6 }]}
-          pointerEvents="box-none"
-        >
-          {/* playerInner remains interactive — child touchables will handle their own presses */}
-          <View style={[styles.playerInner, isDark && styles.playerInnerDark]}>
-            <View style={styles.playerLeft}>
-              {currentSong?.cover_url ? (
-                <Image source={{ uri: currentSong.cover_url }} style={styles.playerArtImage} resizeMode="cover" />
-              ) : (
-                <View style={styles.playerArt}><Text style={styles.playerArtText}>Art</Text></View>
-              )}
+      {/* Glass Mini-player Overlay */}
+      <MiniPlayerOverlay
+        song={currentSong}
+        isPlaying={isPlaying}
+        progressPercent={durationMillis && durationMillis > 0 ? (positionMillis / durationMillis) * 100 : 0}
+        onPress={() => {
+          (hookNav ?? navigation)?.navigate('Player' as any, { song: currentSong });
+        }}
+        onPlayPause={() => {
+          setIsPlaying((p) => !p);
+          togglePlay();
+        }}
+        onNext={() => next()}
+        onPrev={() => prev()}
+      />
 
-              <View style={styles.playerMeta}>
-                <Text style={styles.playerTitle} numberOfLines={1}>{currentSong?.title ?? ''}</Text>
-                <Text style={styles.playerArtist}>{currentSong?.artist ?? ''}</Text>
+      {/* Animated glass drawer (implemented inline so we avoid reanimated/worklets) */}
+      {/*
+        Behavior:
+        - Drawer slides in from left covering ~75% width
+        - Backdrop dims and is pressable to dismiss
+        - Drawer interior uses BlurView + LinearGradient for premium glass look
+      */}
+      {isDrawerOpen ? (
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          {/* Backdrop */}
+          <TouchableWithoutFeedback onPress={closeDrawer}>
+            <Animated.View style={[styles.overlay, overlayStyle]} />
+          </TouchableWithoutFeedback>
 
-                {/* progress bar (existing styles) */}
-                <View style={styles.progressContainer}>
-                  <Animated.View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: progressAnim.interpolate({
-                          inputRange: [0, 100],
-                          outputRange: ['0%', '100%'],
-                          extrapolate: 'clamp',
-                        }),
-                      },
-                    ]}
-                  />
-                </View>
-              </View>
-            </View>
-
-            {/* keep player controls functional; tapping these should not navigate */}
-            <View style={styles.playerControls}>
-              <TouchableOpacity onPress={(e) => { e?.stopPropagation?.(); prev(); }} style={styles.controlBtn}>
-                <Text style={styles.controlText}>⏮</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={(e) => {
-                  e?.stopPropagation?.();
-                  // optimistic UI toggle
-                  setIsPlaying((p) => !p);
-                  // call context toggle quickly (do not await)
-                  togglePlay();
-                }}
-                style={[styles.controlBtn, styles.playControl]}
+          {/* Drawer container */}
+          <Animated.View
+            style={[
+              styles.drawerContainer,
+              drawerAnimatedStyle,
+              { width: DRAWER_WIDTH, top : 0,bottom : 0, backgroundColor: 'transparent' },
+            ]}
+            pointerEvents="box-none"
+          >
+            
+            <BlurView
+              intensity={Platform.OS === 'ios' ? BLUR_INTENSITY_IOS : BLUR_INTENSITY_ANDROID}
+              tint={isDark ? 'dark' : 'light'}
+              style={styles.blur}
+            >
+              <LinearGradient
+                colors={
+                  isDark
+                    ? ['rgba(20,20,20,0.82)', 'rgba(12,12,12,0.95)']
+                    : ['rgba(255,255,255,0.82)', 'rgba(245,245,245,0.95)']
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.gradient}
               >
-                <Text style={styles.controlText}>{isPlaying ? '⏸' : '▶️'}</Text>
-              </TouchableOpacity>
+                <SafeAreaView edges={['top', 'left', 'bottom']} style={styles.drawerSafe}>
+                  <View style={styles.drawerHeader}>
+                    <Text style={[styles.drawerTitle, { color: colors.text }]}>Menu</Text>
+                    <TouchableOpacity onPress={closeDrawer} style={styles.drawerCloseBtn} accessibilityRole="button" accessibilityLabel="Close menu">
+                      <Feather name="x" size={22} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
 
-              <TouchableOpacity onPress={(e) => { e?.stopPropagation?.(); next(); }} style={styles.controlBtn}>
-                <Text style={styles.controlText}>⏭</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Pressable>
+<View style={styles.menuList}>
+  {menuItems.map((it) => (
+    <Pressable
+      key={it.id}
+      onPress={() => handleDrawerNavigate(it.screen)}
+      android_ripple={{ color: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)' }}
+      style={({ pressed }) => [
+        styles.menuItem,
+        {
+          backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+          borderColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+          opacity: pressed ? 0.4 : 1,
+          transform: pressed ? [{ scale: 0.995 }] : [{ scale: 1 }],
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={it.label}
+    >
+      <Feather name={it.icon as any} size={20} color={colors.text} style={styles.menuIcon} />
+      <Text style={[styles.menuLabel, { color: colors.text }]}>{it.label}</Text>
+      <Feather name="chevron-right" size={18} color={colors.muted ?? 'rgba(0,0,0,0.4)'} />
+    </Pressable>
+  ))}
+
+  {/* spacer to separate menu from footer and ensure footer sits at the bottom */}
+  <View style={{ height: spacing.md }} />
+</View>
+                  <View style={styles.drawerFooter}>
+                    <Text style={[styles.footerText, { color: colors.muted }]}>Music App v1.0 {"\n"}by Saw K Za</Text>
+                  </View>
+                </SafeAreaView>
+              </LinearGradient>
+            </BlurView>
+
+            {/* glass edge */}
+            <View pointerEvents="none" style={[styles.glassEdge, { borderRightColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]} />
+          </Animated.View>
+        </View>
       ) : null}
     </SafeAreaView>
   );
@@ -298,77 +577,258 @@ const styles = StyleSheet.create({
   safeDark: { backgroundColor: '#000' },
 
   header: {
-    paddingTop: 12,
-    paddingBottom: 10,
+    paddingTop: 6,
+    paddingBottom: 3,
     paddingHorizontal: BASE_PADDING,
-    height: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#fff',
+    gap: spacing.sm,
   },
-  headerTitle: { fontSize: isLargeScreen ? 30 : 24, fontWeight: '800', letterSpacing: 0.5 },
-  headerActions: { flexDirection: 'row', alignItems: 'center' },
-  iconButton: { paddingHorizontal: 8, paddingVertical: 6, marginLeft: 8 },
-  iconText: { fontSize: 18 },
+  headerDark: { backgroundColor: '#121212' },
+  headerTitle: {
+    fontSize: isLargeScreen ? 30 : 24,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    color: '#111',
+  },
+  headerTitleDark: { color: '#fff' },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+
+  iconButton: {
+    padding: spacing.sm,
+    minWidth: sizes.touchTarget,
+    minHeight: sizes.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   profileButton: { marginLeft: 10, width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   profileInitials: { fontSize: 12, fontWeight: '700', color: '#111' },
 
-  bannerWrapper: { marginHorizontal: BASE_PADDING, marginTop: 8, marginBottom: 12 },
-  bannerPlaceholder: { flex: 1, borderRadius: 14, backgroundColor: '#e9e7e5', alignItems: 'center', justifyContent: 'center' },
-  bannerText: { color: '#666', fontSize: isLargeScreen ? 18 : 16 },
+  bannerWrapper: {
+    marginHorizontal: BASE_PADDING,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  bannerCard: {
+    flex: 1,
+    borderRadius: radii.normal,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.md,
+    ...elevation.low,
+  },
 
-  sectionHeaderCompact: { marginHorizontal: BASE_PADDING, marginTop: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { fontSize: isLargeScreen ? 20 : 18, fontWeight: '700' },
+  sectionHeaderCompact: {
+    marginHorizontal: BASE_PADDING,
+    marginTop: 2,
+    marginBottom: spacing.xs,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: isLargeScreen ? 20 : 18,
+    fontWeight: '700',
+    color: '#111',
+  },
+  sectionTitleDark: { color: '#fff' },
   seeAll: { color: '#999', fontSize: 13 },
 
   albumRow: {
     flexDirection: 'row',
-    marginTop: 10,
-    marginBottom: 6,
+    marginTop: spacing.sm,
+    marginBottom: 0,
     paddingHorizontal: BASE_PADDING,
     justifyContent: 'space-between',
   },
-  albumCard: { width: (width - BASE_PADDING * 2 - 16) / 3, },
-  albumThumb: { height: CARD, borderRadius: 14, backgroundColor: '#e6eaff', alignItems: 'center', justifyContent: 'center' },
+  albumCard: { width: (width - BASE_PADDING * 2 - 16) / 3 },
+  albumThumb: {
+    height: CARD,
+    borderRadius: radii.normal,
+    backgroundColor: '#e6eaff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...elevation.medium,
+  },
+  albumThumbDark: { backgroundColor: '#1a1a2e' },
   albumThumbText: { color: '#667', fontWeight: '700' },
-  albumTitle: { marginTop: 10, fontWeight: '700' },
+  albumTitle: {
+    marginTop: 10,
+    fontWeight: '700',
+    color: '#111',
+  },
+  albumTitleDark: { color: '#fff' },
   albumArtist: { color: '#777', marginTop: 2 },
 
-  topSongList: { marginTop: 6, marginHorizontal: BASE_PADDING },
-  songRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: BASE_PADDING, paddingVertical: 14, backgroundColor: '#fff',
+  rowSeparator: { height: 0, backgroundColor: '#f7f7f8' },
+
+  playerBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    paddingHorizontal: BASE_PADDING,
+    zIndex: 20,
   },
-  rowSeparator: { height: 10, backgroundColor: '#f7f7f8' },
-
-  // image for list thumbnail
-  songThumbImage: { width: 48, height: 48, borderRadius: 10, backgroundColor: '#f3e6ff', marginRight: 12 },
-
-  songMeta: { flex: 1 },
-  songTitle: { fontSize: 16, fontWeight: '700' },
-  songArtist: { fontSize: 13, color: '#666', marginTop: 4 },
-  playLink: { color: '#2f6dfd', fontWeight: '700' },
-
-  playerBar: { position: 'absolute', left: 0, right: 0, paddingHorizontal: BASE_PADDING, zIndex: 20 },
-  playerInner: { height: PLAYER_HEIGHT - 8, backgroundColor: '#111', borderRadius: 18, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, elevation: 6 },
+  playerInner: {
+    height: PLAYER_HEIGHT - 8,
+    backgroundColor: '#111',
+    borderRadius: tokens.radii.normal,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
   playerInnerDark: { backgroundColor: '#121212' },
   playerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
 
-  // player image
-  playerArt: { width: 48, height: 48, borderRadius: 8, backgroundColor: '#2a2a2a', alignItems: 'center', justifyContent: 'center' },
+  playerArt: {
+    width: 48,
+    height: 48,
+    borderRadius: spacing.sm,
+    backgroundColor: '#2a2a2a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   playerArtText: { color: '#6b6b6b' },
-  playerArtImage: { width: 48, height: 48, borderRadius: 8, backgroundColor: '#2a2a2a' },
+  playerArtImage: {
+    width: 48,
+    height: 48,
+    borderRadius: spacing.sm,
+    backgroundColor: '#2a2a2a',
+  },
 
-  playerMeta: { marginLeft: 12, flex: 1 },
+  playerMeta: { marginLeft: spacing.md, flex: 1 },
   playerTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
   playerArtist: { color: '#ccc', fontSize: 12, marginTop: 2 },
-  playerControls: { flexDirection: 'row', alignItems: 'center' },
-  controlBtn: { paddingHorizontal: 8 },
-  playControl: { backgroundColor: '#fff', borderRadius: 24, padding: 8, marginHorizontal: 6 },
-  controlText: { fontSize: 18, color: '#111' },
-  progressContainer: { height: 4, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 2, overflow: 'hidden', marginTop: 8, alignSelf: 'stretch', },
-  progressFill: { height: '100%', backgroundColor: '#2f6dfd', borderRadius: 2, width: '0%', },
+
+  playerControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  controlBtn: {
+    padding: spacing.sm,
+    minWidth: sizes.touchTarget,
+    minHeight: sizes.touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playFab: {
+    backgroundColor: '#ffd166',
+    width: sizes.fabMini,
+    height: sizes.fabMini,
+    borderRadius: sizes.fabMini / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...elevation.medium,
+  },
+
+  progressContainer: {
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: spacing.sm,
+    alignSelf: 'stretch',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#2f6dfd',
+    borderRadius: 2,
+    width: '0%',
+  },
+
+  /* Drawer styles */
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    // opacity animated inline
+  },
+  drawerContainer: {
+  position: 'absolute',
+  left: 0,
+  top: 0,
+  bottom: 0,               // <--- add this line
+  overflow: 'hidden',
+  shadowColor: '#000',
+  shadowOffset: { width: 4, height: 0 },
+  shadowRadius: 18,
+  elevation: 28,
+},
+  blur: {
+    flex: 1,
+    height,
+    overflow: 'hidden',
+  },
+  gradient: {
+    flex: 1,
+  },
+  drawerSafe: {
+    flex: 1,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  drawerTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  drawerCloseBtn: {
+    padding: spacing.sm,
+    borderRadius: 16,
+  },
+  menuList: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    minHeight: 56,
+  },
+  menuIcon: {
+    marginRight: spacing.md,
+  },
+  menuLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  drawerFooter: {
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 13,
+  },
+  glassEdge: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: -1,
+    width: 1,
+    borderRightWidth: 1,
+    opacity: 0.9,
+  },
 });
 
 export default HomeScreen;
