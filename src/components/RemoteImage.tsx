@@ -3,14 +3,13 @@ import React, { useState } from 'react';
 import { Image, View, Text, StyleSheet, ImageStyle, StyleProp, ViewStyle } from 'react-native';
 import { getColors, radii } from '../theme/designTokens';
 
-const colors = getColors(false); // Default to light theme
-
 type RemoteImageProps = {
   uri: string;
   width?: number;
   height?: number;
   style?: StyleProp<ImageStyle>;
   placeholderText?: string;
+  isDark?: boolean;
 };
 
 /**
@@ -23,9 +22,11 @@ export default function RemoteImage({
   height = 100,
   style,
   placeholderText = '?',
+  isDark = false,
 }: RemoteImageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const colors = getColors(isDark);
 
   const handleLoadStart = () => {
     setLoading(true);
@@ -42,13 +43,23 @@ export default function RemoteImage({
   };
 
   const imageStyle = [{ width, height }, style];
-  const placeholderStyle = [styles.placeholder, { width, height }, style];
+  const placeholderStyle: StyleProp<ViewStyle> = [
+    { 
+      width, 
+      height,
+      backgroundColor: colors.surfaceAlt,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: radii.md,
+    }, 
+    style
+  ];
 
   // Show placeholder while loading or on error
   if (loading || error || !uri) {
     return (
       <View style={placeholderStyle}>
-        <Text style={styles.placeholderText}>{placeholderText}</Text>
+        <Text style={[styles.placeholderText, { color: colors.muted }]}>{placeholderText}</Text>
       </View>
     );
   }
@@ -66,15 +77,8 @@ export default function RemoteImage({
 }
 
 const styles = StyleSheet.create({
-  placeholder: {
-    backgroundColor: colors.surfaceAlt,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: radii.md,
-  },
   placeholderText: {
     fontSize: 24,
-    color: colors.muted,
     fontWeight: '600',
   },
 });
