@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable, Animated, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, useColorScheme } from 'react-native';
 import GlassView from './GlassView';
 import RemoteImage from './RemoteImage';
 import { spacing, radii, glass, getColors } from '../theme/designTokens';

@@ -19,6 +19,13 @@ export default function CenterMiniPill({ items, onSelectItem }: Props) {
   const colors = getColors(isDark);
   const [selectedId, setSelectedId] = useState(items[0]?.id || '');
 
+  // Reset selected ID if items change and current selection is invalid
+  React.useEffect(() => {
+    if (items.length > 0 && !items.some(item => item.id === selectedId)) {
+      setSelectedId(items[0].id);
+    }
+  }, [items, selectedId]);
+
   const handlePress = (id: string) => {
     setSelectedId(id);
     onSelectItem?.(id);

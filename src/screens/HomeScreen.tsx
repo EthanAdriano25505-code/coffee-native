@@ -21,11 +21,11 @@ import SearchBar from '../components/SearchBar';
 import GlassDrawer from '../components/GlassDrawer';
 import CenterMiniPill from '../components/CenterMiniPill';
 import MiniPlayerOverlay from '../components/MiniPlayerOverlay';
+import { glass } from '../theme/designTokens';
 
 const { width, height } = Dimensions.get('window');
 const isLargeScreen = Math.max(width, height) >= 768;
 const BANNER_HEIGHT = Math.round(width * (isLargeScreen ? 0.35 : 0.45));
-const PLAYER_HEIGHT = isLargeScreen ? 88 : 72;
 const BASE_PADDING = 16;
 
 type HomeNavProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
@@ -195,7 +195,7 @@ const HomeScreen: React.FC = () => {
   const renderSongItem: ListRenderItem<Song> = ({ item }) => <SongCard song={item} onPress={() => onCardPress(item)} />;
 
   // Use a footer spacer to reserve space for the player only when items exist.
-  const listFooter = songs.length > 0 ? <View style={{ height: PLAYER_HEIGHT + (insets.bottom ?? 0) + 12 }} /> : null;
+  const listFooter = songs.length > 0 ? <View style={{ height: glass.miniPlayerHeight + (insets.bottom ?? 0) + 12 }} /> : null;
 
   return (
     <SafeAreaView style={[styles.safe, isDark && styles.safeDark, { position: 'relative' }]}>

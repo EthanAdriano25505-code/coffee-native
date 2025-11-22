@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Platform, ViewProps } from 'react-native';
+import { View, StyleSheet, Platform, ViewProps, useColorScheme } from 'react-native';
 import { BlurView } from 'expo-blur';
 
 interface GlassViewProps extends ViewProps {
@@ -8,9 +8,12 @@ interface GlassViewProps extends ViewProps {
 }
 
 export default function GlassView({ intensity = 50, tint = 'default', style, children, ...props }: GlassViewProps) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  
   if (Platform.OS === 'android') {
     return (
-      <View style={[styles.androidGlass, style]} {...props}>
+      <View style={[isDark ? styles.androidGlassDark : styles.androidGlass, style]} {...props}>
         {children}
       </View>
     );
@@ -26,6 +29,11 @@ const styles = StyleSheet.create({
   androidGlass: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+  },
+  androidGlassDark: {
+    backgroundColor: 'rgba(26, 26, 26, 0.95)',
+    borderColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
   },
 });
