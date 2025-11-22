@@ -1,6 +1,9 @@
 // src/components/RemoteImage.tsx
 import React, { useState } from 'react';
 import { Image, View, Text, StyleSheet, ImageStyle, StyleProp, ViewStyle } from 'react-native';
+import { getColors, radii } from '../theme/designTokens';
+
+const colors = getColors(false); // Default to light theme
 
 type RemoteImageProps = {
   uri: string;
@@ -12,7 +15,7 @@ type RemoteImageProps = {
 
 /**
  * RemoteImage component that handles loading and error states for remote images
- * Provides a placeholder view when image is loading or fails to load
+ * Provides a placeholder view when image is loading, fails to load, or uri is not provided
  */
 export default function RemoteImage({
   uri,
@@ -64,14 +67,14 @@ export default function RemoteImage({
 
 const styles = StyleSheet.create({
   placeholder: {
-    backgroundColor: '#e0e0e0',
+    backgroundColor: colors.surfaceAlt,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: radii.md,
   },
   placeholderText: {
     fontSize: 24,
-    color: '#999',
+    color: colors.muted,
     fontWeight: '600',
   },
 });
