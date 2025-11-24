@@ -177,20 +177,53 @@ const GlassDrawer: React.FC<Props> = ({
                   {menuItems.map((item) => (
                     <TouchableOpacity
                       key={item.id}
-                      style={[
-                        styles.menuItem,
-                        {
-                          backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                          borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                        },
-                      ]}
+                      style={{
+                        marginBottom: spacing.sm,
+                        borderRadius: 14,
+                        // Shadow for the "lifted" glass look
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: isDark ? 0.4 : 0.1,
+                        shadowRadius: 8,
+                        elevation: 4,
+                        backgroundColor: 'transparent',
+                      }}
                       onPress={() => handleNavigate(item.screen)}
                       accessibilityLabel={item.label}
                       activeOpacity={0.75}
                     >
-                      <Feather name={item.icon as any} size={20} color={colors.text} style={styles.menuIcon} />
-                      <Text style={[styles.menuLabel, { color: colors.text }]}>{item.label}</Text>
-                      <Feather name="chevron-right" size={18} color={colors.muted ?? 'rgba(0,0,0,0.4)'} />
+                      <BlurView
+                        intensity={Platform.OS === 'ios' ? 80 : 40}
+                        tint={isDark ? 'dark' : 'default'}
+                        style={{
+                          borderRadius: 14,
+                          overflow: 'hidden',
+                          borderWidth: 1,
+                          borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.6)',
+                          backgroundColor: 'transparent',
+                        }}
+                      >
+                        <LinearGradient
+                          colors={
+                            isDark
+                              ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']
+                              : ['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.1)']
+                          }
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 0, y: 1 }}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            paddingVertical: spacing.md,
+                            paddingHorizontal: spacing.sm,
+                            minHeight: 56,
+                          }}
+                        >
+                          <Feather name={item.icon as any} size={20} color={colors.text} style={styles.menuIcon} />
+                          <Text style={[styles.menuLabel, { color: colors.text }]}>{item.label}</Text>
+                          <Feather name="chevron-right" size={18} color={colors.muted ?? 'rgba(0,0,0,0.4)'} />
+                        </LinearGradient>
+                      </BlurView>
                     </TouchableOpacity>
                   ))}
                 </View>

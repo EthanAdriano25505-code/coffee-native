@@ -13,6 +13,7 @@ import {
   Easing,
   Platform,
   TouchableWithoutFeedback,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -56,8 +57,8 @@ type Song = {
 
 const DRAWER_WIDTH_PERCENT = 0.75;
 const DRAWER_WIDTH = Math.round(SCREEN_WIDTH * DRAWER_WIDTH_PERCENT);
-const BLUR_INTENSITY_IOS = 90;
-const BLUR_INTENSITY_ANDROID = 30;
+const BLUR_INTENSITY_IOS = 95;
+const BLUR_INTENSITY_ANDROID = 40;
 
 const HomeScreen: React.FC = () => {
   if (__DEV__) console.log('HomeScreen loaded: src/screens/HomeScreen.tsx');
@@ -74,6 +75,7 @@ const HomeScreen: React.FC = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>((ctxSong as Song) ?? null);
   const [isPlaying, setIsPlaying] = useState<boolean>(!!ctxPlaying);
+  const [activeFilter, setActiveFilter] = useState('All');
 
   // Drawer state (local, animated with React Native Animated — no reanimated)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -234,71 +236,77 @@ const HomeScreen: React.FC = () => {
           <BannerSlider slides={bannerSlides} autoAdvanceMs={6000} height={BANNER_HEIGHT} />
         </View>
 
-        <View style={styles.sectionHeaderCompact}>
-          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>New Albums</Text>
-          <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
-            <Text style={styles.seeAll}>See all</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.albumRow}>
-          <TouchableOpacity
-            style={styles.albumCard}
-            accessible
-            accessibilityRole="button"
-            onPress={() => hookNav.navigate('FullSongs')}
-            activeOpacity={0.8}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <RemoteImage
-              uri={null}
-              width={CARD}
-              height={CARD}
-              style={isDark ? StyleSheet.flatten([styles.albumThumb, styles.albumThumbDark]) : styles.albumThumb}
-              placeholderText="Album"
-            />
-            <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Free songs</Text>
-            <Text style={styles.albumArtist}> </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.albumCard}
-            accessible
-            accessibilityRole="button"
-            onPress={() => hookNav.navigate('FullSongs')}
-            activeOpacity={0.8}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <RemoteImage
-              uri={null}
-              width={CARD}
-              height={CARD}
-              style={isDark ? StyleSheet.flatten([styles.albumThumb, styles.albumThumbDark]) : styles.albumThumb}
-              placeholderText="Album"
-            />
-            <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Teasers</Text>
-            <Text style={styles.albumArtist}> </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.albumCard}
-            accessible
-            accessibilityRole="button"
-            onPress={() => hookNav.navigate('FullSongs')}
-            activeOpacity={0.8}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <RemoteImage
-              uri={null}
-              width={CARD}
-              height={CARD}
-              style={isDark ? StyleSheet.flatten([styles.albumThumb, styles.albumThumbDark]) : styles.albumThumb}
-              placeholderText="Album"
-            />
-            <Text style={[styles.albumTitle, isDark && styles.albumTitleDark]}>Playlists</Text>
-            <Text style={styles.albumArtist}> </Text>
-          </TouchableOpacity>
-        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.md, paddingTop: spacing.xs }}
+          style={{ flexGrow: 0 }}
+        >
+          {['All', 'Playlists', 'Albums', 'Downloaded'].map((filter) => {
+            const isActive = activeFilter === filter;
+            return (
+              <TouchableOpacity
+                key={filter}
+                onPress={() => setActiveFilter(filter)}
+                activeOpacity={0.7}
+                style={{
+                  marginRight: spacing.sm,
+                  borderRadius: radii.round,
+                  // Shadow for the "lifted" glass look
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: isDark ? 0.4 : 0.1,
+                  shadowRadius: 8,
+                  elevation: 4,
+                  backgroundColor: 'transparent',
+                }}
+              >
+                <BlurView
+                  intensity={Platform.OS === 'ios' ? 80 : 40}
+                  tint={isDark ? 'dark' : 'default'}
+                  style={{
+                    borderRadius: radii.round,
+                    overflow: 'hidden',
+                    borderWidth: 1,
+                    borderColor: isActive
+                      ? (isDark ? '#2F6DFD' : '#2F6DFD')
+                      : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.6)'),
+                    backgroundColor: 'transparent',
+                  }}
+                >
+                  <LinearGradient
+                    colors={
+                      isDark 
+                        ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)'] 
+                        : ['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.1)']
+                    }
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={{
+                      paddingHorizontal: spacing.lg,
+                      paddingVertical: 10,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: isActive
+                          ? '#2F6DFD'
+                          : (isDark ? '#E6EEF8' : '#111'),
+                        fontWeight: isActive ? '700' : '600',
+                        fontSize: 14,
+                      }}
+                    >
+                      {filter}
+                    </Text>
+                  </LinearGradient>
+                </BlurView>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
         <View style={styles.sectionHeaderCompact}>
           <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Song List</Text>
@@ -308,7 +316,7 @@ const HomeScreen: React.FC = () => {
         </View>
       </View>
     );
-  }, [bannerSlides, isDark, hookNav]);
+  }, [bannerSlides, isDark, hookNav, activeFilter]);
 
   const onCardPress = useCallback((song: Song) => {
     const payload = {
@@ -552,26 +560,55 @@ const HomeScreen: React.FC = () => {
 
 <View style={styles.menuList}>
   {menuItems.map((it) => (
-    <Pressable
+    <TouchableOpacity
       key={it.id}
       onPress={() => handleDrawerNavigate(it.screen)}
-      android_ripple={{ color: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)' }}
-      style={({ pressed }) => [
-        styles.menuItem,
-        {
-          backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-          borderColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
-          opacity: pressed ? 0.4 : 1,
-          transform: pressed ? [{ scale: 0.995 }] : [{ scale: 1 }],
-        },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={it.label}
+      activeOpacity={0.7}
+      style={{
+        marginBottom: spacing.sm,
+        borderRadius: 14,
+        // Shadow for the "lifted" glass look
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: isDark ? 0.4 : 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+        backgroundColor: 'transparent',
+      }}
     >
-      <Feather name={it.icon as any} size={20} color={colors.text} style={styles.menuIcon} />
-      <Text style={[styles.menuLabel, { color: colors.text }]}>{it.label}</Text>
-      <Feather name="chevron-right" size={18} color={colors.muted ?? 'rgba(0,0,0,0.4)'} />
-    </Pressable>
+      <BlurView
+        intensity={Platform.OS === 'ios' ? 80 : 40}
+        tint={isDark ? 'dark' : 'default'}
+        style={{
+          borderRadius: 14,
+          overflow: 'hidden',
+          borderWidth: 1,
+          borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.6)',
+          backgroundColor: 'transparent',
+        }}
+      >
+        <LinearGradient
+          colors={
+            isDark
+              ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']
+              : ['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.1)']
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: spacing.md,
+            paddingHorizontal: spacing.sm,
+            minHeight: 56,
+          }}
+        >
+          <Feather name={it.icon as any} size={20} color={isDark ? colors.text : '#111'} style={{ marginRight: spacing.md, opacity: 0.95 }} />
+          <Text style={{ fontSize: 16, fontWeight: '700', flex: 1, color: isDark ? colors.text : '#111' }}>{it.label}</Text>
+          <Feather name="chevron-right" size={18} color={isDark ? colors.muted : 'rgba(0,0,0,0.4)'} />
+        </LinearGradient>
+      </BlurView>
+    </TouchableOpacity>
   ))}
 
   {/* spacer to separate menu from footer and ensure footer sits at the bottom */}
