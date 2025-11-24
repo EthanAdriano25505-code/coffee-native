@@ -263,7 +263,7 @@ const HomeScreen: React.FC = () => {
               >
                 <BlurView
                   intensity={Platform.OS === 'ios' ? 80 : 40}
-                  tint={isDark ? 'dark' : 'default'}
+                  tint={isDark ? 'dark' : 'light'}
                   style={{
                     borderRadius: radii.round,
                     overflow: 'hidden',
@@ -278,7 +278,7 @@ const HomeScreen: React.FC = () => {
                     colors={
                       isDark 
                         ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)'] 
-                        : ['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.1)']
+                        : ['rgba(255,255,255,0.7)', 'rgba(255,255,255,0.3)']
                     }
                     start={{ x: 0, y: 0 }}
                     end={{ x: 0, y: 1 }}
@@ -578,7 +578,7 @@ const HomeScreen: React.FC = () => {
     >
       <BlurView
         intensity={Platform.OS === 'ios' ? 80 : 40}
-        tint={isDark ? 'dark' : 'default'}
+        tint={isDark ? 'dark' : 'light'}
         style={{
           borderRadius: 14,
           overflow: 'hidden',
@@ -591,7 +591,7 @@ const HomeScreen: React.FC = () => {
           colors={
             isDark
               ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']
-              : ['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.1)']
+              : ['rgba(255,255,255,0.7)', 'rgba(255,255,255,0.3)']
           }
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}

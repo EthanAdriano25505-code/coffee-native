@@ -194,7 +194,7 @@ const GlassDrawer: React.FC<Props> = ({
                     >
                       <BlurView
                         intensity={Platform.OS === 'ios' ? 80 : 40}
-                        tint={isDark ? 'dark' : 'default'}
+                        tint={isDark ? 'dark' : 'light'}
                         style={{
                           borderRadius: 14,
                           overflow: 'hidden',
@@ -207,7 +207,7 @@ const GlassDrawer: React.FC<Props> = ({
                           colors={
                             isDark
                               ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']
-                              : ['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.1)']
+                              : ['rgba(255,255,255,0.7)', 'rgba(255,255,255,0.3)']
                           }
                           start={{ x: 0, y: 0 }}
                           end={{ x: 0, y: 1 }}
