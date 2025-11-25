@@ -330,7 +330,11 @@ const HomeScreen: React.FC = () => {
     navigation.navigate('Player', { song });
   }, [play, navigation]);
 
-  const renderSongItem: ListRenderItem<Song> = useCallback(({ item }) => <SongCard song={item} onPress={() => onCardPress(item)} />, [onCardPress]);
+  const renderSongItem: ListRenderItem<Song> = useCallback(({ item }) => (
+    <View style={{ paddingHorizontal: spacing.sm }}>
+      <SongCard song={item} onPress={() => onCardPress(item)} />
+    </View>
+  ), [onCardPress]);
 
   const listFooter = songs.length > 0 ? <View style={{ height: PLAYER_HEIGHT + (insets.bottom ?? 0) + 12 }} /> : null;
 
@@ -691,7 +695,7 @@ const styles = StyleSheet.create({
   sectionHeaderCompact: {
     marginHorizontal: BASE_PADDING,
     marginTop: 2,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -730,7 +734,7 @@ const styles = StyleSheet.create({
   albumTitleDark: { color: '#fff' },
   albumArtist: { color: '#777', marginTop: 2 },
 
-  rowSeparator: { height: 0, backgroundColor: '#f7f7f8' },
+  rowSeparator: { height: 7, backgroundColor: 'transparent' },
 
   playerBar: {
     position: 'absolute',

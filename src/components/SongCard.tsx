@@ -1,76 +1,134 @@
 // src/components/SongCard.tsx
 // Visual-only: Modern song card with rounded thumbnail and trailing action icon
 import React from 'react';
-import { Animated, Pressable, Text, View, Image, StyleSheet, useColorScheme, TouchableOpacity } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Animated, Pressable, Text, View, Image, StyleSheet, useColorScheme, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type Song = { id: string | number; title: string; artist?: string | null; cover_url?: string | null };
 
 type Props = { song: Song; onPress: () => void; onMorePress?: () => void };
 
-export default function SongCard({ song, onPress, onMorePress }: Props) {
+export default function SongCard({ song, onPress }: Props) {
   const scale = React.useRef(new Animated.Value(1)).current;
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   
-  const onPressIn = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true }).start();
+  const onPressIn = () => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true }).start();
   const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start();
 
   return (
-    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} android_ripple={{ color: 'rgba(0,0,0,0.05)' }}>
-      <Animated.View style={[styles.card, isDark && styles.cardDark, { transform: [{ scale }] }]}>
-        {/* Visual-only: Rounded thumbnail image with consistent styling */}
-        {song.cover_url ? (
-          <Image source={{ uri: String(song.cover_url) }} style={styles.thumb} />
-        ) : (
-          <View style={[styles.thumb, styles.thumbPlaceholder]} />
-        )}
-        <View style={styles.meta}>
-          <Text numberOfLines={1} style={[styles.title, isDark && styles.titleDark]}>{song.title}</Text>
-          <Text numberOfLines={1} style={[styles.artist, isDark && styles.artistDark]}>{song.artist}</Text>
-        </View>
-        {/* Trailing action icon for more options. Only render if an action handler is provided. */}
-        {onMorePress ? (
-          <TouchableOpacity
-            onPress={onMorePress}
-            accessibilityRole="button"
-            accessibilityLabel="More options"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={styles.actionIcon}
+    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
+      <Animated.View style={[styles.container, { transform: [{ scale }] }]}>
+        <BlurView
+          intensity={Platform.OS === 'ios' ? 80 : 40}
+          tint={isDark ? 'dark' : 'light'}
+          style={[
+            styles.blurContainer,
+            { borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.6)' }
+          ]}
+        >
+          <LinearGradient
+            colors={
+              isDark
+                ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']
+                : ['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.5)']
+            }
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.gradient}
           >
-            <Feather name="more-vertical" size={20} color={isDark ? '#aaa' : '#666'} />
-          </TouchableOpacity>
-        ) : null}
+            {/* Album Art */}
+            <Image 
+              source={{ uri: song.cover_url || 'https://via.placeholder.com/150' }} 
+              style={styles.art} 
+            />
+
+            {/* Meta */}
+            <View style={styles.meta}>
+              <Text numberOfLines={1} style={[styles.title, isDark && styles.textDark]}>
+                {song.title}
+              </Text>
+              <Text numberOfLines={1} style={[styles.artist, isDark && styles.textDarkSecondary]}>
+                {song.artist || 'Unknown Artist'}
+              </Text>
+            </View>
+
+            {/* Right Action */}
+            <View style={styles.rightSection}>
+              <View style={[styles.playButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+                 <Ionicons name="play" size={14} color={isDark ? '#fff' : '#555'} style={{ marginLeft: 2 }} />
+              </View>
+              <Text style={[styles.duration, isDark && styles.textDarkSecondary]}>3:45</Text>
+            </View>
+          </LinearGradient>
+        </BlurView>
       </Animated.View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingVertical: 12, 
-    paddingHorizontal: 16, 
-    backgroundColor: '#fff',
-    minHeight: 72, // Visual-only: Ensure minimum touch target size
+  container: {
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    backgroundColor: 'transparent',
   },
-  cardDark: { backgroundColor: '#121212' },
-  thumb: { 
-    width: 48, 
-    height: 48, 
-    borderRadius: 12, // Visual-only: Consistent rounded corners
-    backgroundColor: '#eee', 
-    marginRight: 12,
+  blurContainer: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
   },
-  thumbPlaceholder: { backgroundColor: '#f3e6ff' },
-  meta: { flex: 1 },
-  title: { fontSize: 16, fontWeight: '700', color: '#111' },
-  titleDark: { color: '#fff' },
-  artist: { fontSize: 13, color: '#666', marginTop: 4 },
-  artistDark: { color: '#aaa' },
-  actionIcon: { 
-    padding: 8, // Visual-only: Increase touch target
-    marginLeft: 4,
+  gradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    minHeight: 80,
+  },
+  art: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#000000ff',
+  },
+  meta: {
+    flex: 1,
+    marginLeft: 16,
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 4,
+  },
+  artist: {
+    fontSize: 14,
+    color: '#666',
+  },
+  textDark: { color: '#fff' },
+  textDarkSecondary: { color: '#aaa' },
+  rightSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  playButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  duration: {
+    fontSize: 11,
+    color: '#888',
+    fontWeight: '500',
   },
 });
