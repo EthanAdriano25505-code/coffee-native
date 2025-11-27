@@ -8,7 +8,10 @@ import {
   Button,
   RefreshControl,
   ListRenderItem,
+  TouchableOpacity,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { usePlayback } from '../contexts/PlaybackContext';
 import { supabase } from '../utils/supabase';
 
 type Song = {
@@ -27,6 +30,8 @@ type Props = {
 export default function FullSongsScreen({ embedded = false }: Props): JSX.Element {
   console.log('FullSongsScreen loaded: src/screens/FullSongsScreen.tsx');
   
+  const navigation = useNavigation<any>();
+  const { play } = usePlayback();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,10 +85,23 @@ export default function FullSongsScreen({ embedded = false }: Props): JSX.Elemen
   useEffect(() => { fetchFullSongs(); }, [fetchFullSongs]);
 
   const renderSongItem: ListRenderItem<Song> = ({ item }) => (
-    <View style={styles.songItem}>
+    <TouchableOpacity
+      style={styles.songItem}
+      onPress={async () => {
+        const payload = {
+          id: item.id,
+          title: item.title,
+          artist: item.artist ?? undefined,
+          cover_url: item.cover_url ?? undefined,
+          uri: item.audio_url ? { uri: item.audio_url } : undefined,
+        };
+        await play(payload);
+        navigation.navigate('Player', { song: payload });
+      }}
+    >
       <Text style={styles.songTitle}>{item.title}</Text>
       <Text style={styles.songArtist}>{item.artist}</Text>
-    </View>
+    </TouchableOpacity>
   );
 
   if (loading) {

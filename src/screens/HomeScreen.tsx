@@ -138,7 +138,8 @@ const HomeScreen: React.FC = () => {
       uri,
     };
     await play(payload);
-  }, [play]);
+    navigation.navigate('Player', { song });
+  }, [play, navigation]);
 
   const handlePlayPause = useCallback(async () => {
     if (isPlaying) await pause();
@@ -242,7 +243,7 @@ const HomeScreen: React.FC = () => {
           contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.md, paddingTop: spacing.xs }}
           style={{ flexGrow: 0 }}
         >
-          {['All', 'Playlists', 'Albums', 'Downloaded'].map((filter) => {
+          {['All','Playlists','Albums','Downloaded', 'Favorites' ].map((filter) => {
             const isActive = activeFilter === filter;
             return (
               <TouchableOpacity

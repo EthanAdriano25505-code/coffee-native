@@ -58,7 +58,7 @@ export default function SongCard({ song, onPress }: Props) {
             {/* Right Action */}
             <View style={styles.rightSection}>
               <View style={[styles.playButton, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
-                 <Ionicons name="play" size={14} color={isDark ? '#fff' : '#555'} style={{ marginLeft: 2 }} />
+                 <Ionicons name="play" size={14} color={isDark ? '#ffffffff' : '#555'} style={{ marginLeft: 2 }} />
               </View>
               <Text style={[styles.duration, isDark && styles.textDarkSecondary]}>3:45</Text>
             </View>
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   blurContainer: {
     borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 1,
+    borderWidth: 0,
   },
   gradient: {
     flexDirection: 'row',
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: '#000000ff',
+    backgroundColor:  'transparent',
   },
   meta: {
     flex: 1,

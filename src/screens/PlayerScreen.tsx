@@ -1,292 +1,164 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, useColorScheme } from 'react-native';
-import Slider from '@react-native-community/slider';
-import { usePlayback } from '../contexts/PlaybackContext';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Dimensions, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { RouteProp } from '@react-navigation/native';
-import type { RootStackParamList } from '../navigation/types';
 import { useFocusEffect } from '@react-navigation/native';
-import { Feather } from '@expo/vector-icons'; // Visual-only: Feather icons for modern UI
-import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens'; // Visual-only: Design tokens
-import { tokens } from '../theme/designTokens'; 
+import { usePlayback } from '../contexts/PlaybackContext';
+import AppBackground from '../components/common/AppBackground';
+import GlassCard from '../components/common/GlassCard';
+import PlayButton from '../components/player/PlayButton';
+import Waveform from '../components/player/Waveform';
+import ProgressBar from '../components/player/ProgressBar';
+import MiniPlayer from '../components/player/MiniPlayer';
+import { colors, spacing, radii, typography } from '../design/tokens';
+import { Search, Shuffle, SkipBack, SkipForward, Repeat, Heart, List, Download, MessageCircle } from 'lucide-react-native';
+import type { RootStackParamList } from '../navigation/types';
 
 const { width } = Dimensions.get('window');
 
-export default function PlayerScreen({ route }: { route: RouteProp<RootStackParamList, 'Player'> }) {
-  const paramSong = route.params?.song;
-  const { currentSong, isPlaying, positionMillis, durationMillis, play, pause, next, prev, seek, togglePlay } = usePlayback();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+type RepeatMode = 'off' | 'all' | 'one';
 
-  // Ensure playback started if navigated with a param and it's different
+export default function PlayerScreen({ route }: { route: RouteProp<RootStackParamList, 'Player'> }) {
+  const navSong: any = route.params?.song;
+  const { currentSong, isPlaying, positionMillis, durationMillis, play, next, prev, seek, togglePlay } = usePlayback();
+
+  // Ensure the clicked song is loaded and playing (no dummy data)
   useFocusEffect(
     useCallback(() => {
-      if (paramSong && currentSong?.id !== paramSong.id) {
-        const payload = {
-          id: paramSong.id,
-          title: paramSong.title,
-          artist: paramSong.artist ?? undefined,
-          cover_url: paramSong.cover_url ?? undefined,
-          uri: paramSong.audio_url ? { uri: paramSong.audio_url } : undefined,
-        };
-        // fire-and-forget; PlaybackContext is race-protected
-        play(payload);
+      if (navSong && currentSong?.id !== navSong.id) {
+        play({
+          id: navSong.id,
+          title: navSong.title,
+          artist: navSong.artist ?? null,
+          cover_url: navSong.artworkUrl ?? navSong.cover_url ?? null,
+          uri: navSong.streamUrl ? { uri: navSong.streamUrl } : navSong.uri,
+        } as any);
       }
-    }, [paramSong?.id, currentSong?.id])
+    }, [navSong?.id, currentSong?.id])
   );
 
-  const song = currentSong ?? paramSong;
+  const song = useMemo(() => currentSong ?? navSong, [currentSong, navSong]);
 
-  // Local slider state for smooth UI (labels and final thumb sync)
-  const [seeking, setSeeking] = useState(false);
-  const [localPos, setLocalPos] = useState<number>(positionMillis ?? 0);
+  // Controls local state
+  const [shuffle, setShuffle] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>('off');
+  const [liked, setLiked] = useState(false);
 
-  // Fast refs & RAFs for smooth updates without re-rendering on every drag
-  const sliderRef = useRef<any>(null); // slider native ref — used with setNativeProps
-  const seekingRef = useRef<boolean>(false); // track active drag without re-rendering
-  const localPosRef = useRef<number>(positionMillis ?? 0); // fast current value
-  const rafRef = useRef<number | null>(null); // interpolation RAF for non-seeking playback
-  const labelRafRef = useRef<number | null>(null); // RAF used to throttle label updates during drag
-  const lastContextPosRef = useRef<number>(positionMillis ?? 0);
-  const lastLabelUpdateRef = useRef<number>(0);
+  const progressPercent = durationMillis ? Math.min(100, Math.max(0, (positionMillis / durationMillis) * 100)) : 0;
 
-  const RAF_INTERPOLATION_FACTOR = 0.25; // smoothing factor: closer to 1 = faster follow
-  const RAF_MIN_DIFF = 0.5; // px/ms threshold to stop raf
-  const LABEL_UPDATE_THROTTLE_MS = 50; // 20fps label update (tunable)
-
-  // When context position updates, update the ref (throttled from PlaybackContext)
-  useEffect(() => {
-    lastContextPosRef.current = positionMillis ?? 0;
-
-    // If not seeking, start the smooth RAF loop
-    if (!seekingRef.current) {
-      startRafLoop();
-    }
-
-    // If paused and close to target, snap immediately
-    if (!isPlaying && Math.abs(localPosRef.current - lastContextPosRef.current) < 1) {
-      localPosRef.current = lastContextPosRef.current;
-      // ensure UI labels reflect exact value
-      setLocalPos(lastContextPosRef.current);
-      cancelInterpolationRaf();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [positionMillis, isPlaying]);
-
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      cancelAllRafs();
-    };
-  }, []);
-
-  // Cancel only the interpolation RAF
-  const cancelInterpolationRaf = () => {
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
+  const onRepeatCycle = () => {
+    setRepeatMode((m) => (m === 'off' ? 'all' : m === 'all' ? 'one' : 'off'));
   };
 
-  // Cancel label RAF used during dragging
-  const cancelLabelRaf = () => {
-    if (labelRafRef.current != null) {
-      cancelAnimationFrame(labelRafRef.current);
-      labelRafRef.current = null;
-    }
-  };
-
-  const cancelAllRafs = () => {
-    cancelInterpolationRaf();
-    cancelLabelRaf();
-  };
-
-  // Interpolation RAF: smoothly chase lastContextPosRef when not seeking.
-  // We update localPosRef every frame but throttle setLocalPos() to LABEL_UPDATE_THROTTLE_MS.
-  const startRafLoop = () => {
-    cancelInterpolationRaf();
-
-    // avoid starting while user is interacting
-    if (seekingRef.current) return;
-
-    const step = () => {
-      // If user started seeking, stop interpolation loop
-      if (seekingRef.current) {
-        cancelInterpolationRaf();
-        return;
-      }
-
-      const target = lastContextPosRef.current;
-      const prev = localPosRef.current;
-      const diff = target - prev;
-
-      if (Math.abs(diff) <= RAF_MIN_DIFF) {
-        // close enough; snap and stop
-        localPosRef.current = target;
-        // ensure labels show exact value
-        const now = Date.now();
-        if (now - lastLabelUpdateRef.current >= LABEL_UPDATE_THROTTLE_MS) {
-          lastLabelUpdateRef.current = now;
-          setLocalPos(target);
-        } else {
-          // if we can't update label now, still schedule a small timeout to ensure eventual sync
-          setTimeout(() => setLocalPos(target), LABEL_UPDATE_THROTTLE_MS);
-        }
-        cancelInterpolationRaf();
-        return;
-      }
-
-      // Interpolate towards target for smooth 60fps movement
-      const next = prev + diff * RAF_INTERPOLATION_FACTOR;
-      localPosRef.current = next;
-
-      const now = Date.now();
-      if (now - lastLabelUpdateRef.current >= LABEL_UPDATE_THROTTLE_MS) {
-        lastLabelUpdateRef.current = now;
-        setLocalPos(next);
-      }
-
-      rafRef.current = requestAnimationFrame(step);
-    };
-
-    // Only start if there's meaningful difference
-    if (Math.abs(localPosRef.current - lastContextPosRef.current) > 0.5) {
-      rafRef.current = requestAnimationFrame(step);
-    }
-  };
-
-  // Lightweight label update scheduler during dragging:
-  const scheduleLabelUpdate = () => {
-    // Only one scheduled frame at a time
-    if (labelRafRef.current) return;
-    labelRafRef.current = requestAnimationFrame(() => {
-      labelRafRef.current = null;
-      const now = Date.now();
-      if (now - lastLabelUpdateRef.current >= LABEL_UPDATE_THROTTLE_MS) {
-        lastLabelUpdateRef.current = now;
-        setLocalPos(localPosRef.current);
-      }
-    });
-  };
-
-  // Slider handlers
-  const onValueChange = (v: number) => {
-    // When user starts dragging, mark seeking (once) to stop interpolation.
-    if (!seekingRef.current) {
-      seekingRef.current = true;
-      setSeeking(true); // keep existing seeking state semantics for other hooks
-      // cancel interpolation RAF immediately so native updates are authoritative
-      cancelInterpolationRaf();
-    }
-
-    // Update fast ref and move native thumb instantly via setNativeProps
-    localPosRef.current = v;
-    if (sliderRef.current && sliderRef.current.setNativeProps) {
-      // (A) Use setNativeProps to avoid re-rendering on every drag move.
-      sliderRef.current.setNativeProps({ value: v });
-    }
-
-    // Throttle label updates — schedule an RAF that will update React state at most ~20fps
-    scheduleLabelUpdate();
-  };
-
-  const onSlidingComplete = async (value: number) => {
-    // User released the thumb
-    seekingRef.current = false;
-    setSeeking(false);
-    // Ensure any pending label RAF is canceled (we will set final state explicitly)
-    cancelLabelRaf();
-
-    // cancel interpolation and let after-seek logic restart it
-    cancelInterpolationRaf();
-
-    // perform seek and sync state -> keep optimistic UI elsewhere intact
-    if (seek) {
-      const finalValue = Math.round(value);
-      await seek(finalValue);
-      // After seek, update refs and ensure UI labels and native thumb reflect final value.
-      lastContextPosRef.current = finalValue;
-      localPosRef.current = finalValue;
-      // (D) Ensure native thumb snaps to final value
-      if (sliderRef.current && sliderRef.current.setNativeProps) {
-        sliderRef.current.setNativeProps({ value: finalValue });
-      }
-      // Update React state once so labels/text/misc re-render (throttled one-off)
-      setLocalPos(finalValue);
-      // restart interpolation to follow context if needed
-      startRafLoop();
-    }
-  };
-
-  useEffect(() => {
-    if (seekingRef.current) {
-      // while seeking, cancel the interpolation RAF so the thumb exactly follows finger
-      cancelInterpolationRaf();
-    } else {
-      // when user stops seeking, ensure we follow context
-      startRafLoop();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seeking]);
+  const formattedLeft = formatMillis(positionMillis);
+  const formattedRight = formatMillis(durationMillis);
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
-      <Image source={song?.cover_url ? { uri: String(song.cover_url) } : undefined} style={styles.cover} />
-      <Text style={[styles.title, isDark && styles.titleDark]}>{song?.title}</Text>
-      <Text style={[styles.artist, isDark && styles.artistDark]}>{song?.artist}</Text>
+    <AppBackground>
+      <View style={styles.screen}>
+        {/* Header card */}
+        <GlassCard radius={radii.card24} intensity={24} style={styles.headerCard}>
+          <View style={styles.headerRow}>
+            <Text style={styles.nowPlaying}>Now Playing</Text>
+            <Pressable accessibilityLabel="Search" style={({ pressed }) => [styles.iconGlass, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+              <Search color={colors.textPrimary} size={18} />
+            </Pressable>
+          </View>
+        </GlassCard>
 
-      {/* Visual-only: Modern controls with Feather icons and circular FAB */}
-      <View style={styles.controls}>
-        <TouchableOpacity onPress={prev} accessibilityLabel="Previous">
-          <Feather name="skip-back" size={32} color={isDark ? '#fff' : '#111'} />
-        </TouchableOpacity>
+        {/* Album banner card */}
+        <GlassCard radius={radii.card28} intensity={26} style={styles.albumCard}>
+          <View style={styles.albumInner}>
+            {/* Subtle radial accent behind artwork */}
+            <View style={styles.accentGlow} />
+            <Image source={song?.cover_url ? { uri: String(song.cover_url) } : undefined} style={styles.albumArt} />
+          </View>
+        </GlassCard>
 
-        <TouchableOpacity
-          onPress={() => {
-            togglePlay();
-          }}
-          style={styles.playFab}
-          accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-        >
-          <Feather name={isPlaying ? 'pause' : 'play'} size={32} color="#fff" />
-        </TouchableOpacity>
+        {/* Main player card */}
+        <GlassCard radius={radii.card24} intensity={24} style={styles.mainCard} borderOpacity={0.25}>
+          <View style={{ gap: spacing.x16 }}>
+            <View>
+              <Text style={styles.title}>{song?.title ?? ''}</Text>
+              <Text style={styles.artist}>{song?.artist ?? ''}</Text>
+            </View>
 
-        <TouchableOpacity onPress={next} accessibilityLabel="Next">
-          <Feather name="skip-forward" size={32} color={isDark ? '#fff' : '#111'} />
-        </TouchableOpacity>
+            <Waveform bars={40} progressPercent={progressPercent} isPlaying={!!isPlaying} />
+
+            <View style={{ gap: spacing.x8 }}>
+              <ProgressBar progress={progressPercent} buffered={Math.min(100, progressPercent + 10)} onSeek={(p) => {
+                if (!durationMillis) return;
+                const target = Math.round((p / 100) * durationMillis);
+                seek(target);
+              }} />
+              <View style={styles.timeRow}>
+                <Text style={styles.time}>{formattedLeft}</Text>
+                <Text style={styles.time}>{formattedRight}</Text>
+              </View>
+            </View>
+
+            {/* Controls row */}
+            <View style={styles.controlsRow}>
+              <Pressable accessibilityLabel="Toggle shuffle" onPress={() => setShuffle((s) => !s)} style={({ pressed }) => [styles.ctrlBtn, { transform: [{ scale: pressed ? 0.96 : 1 }], opacity: shuffle ? 1 : 0.9 }]}>
+                <Shuffle color={colors.textPrimary} size={22} />
+              </Pressable>
+
+              <Pressable accessibilityLabel="Previous" onPress={prev} style={({ pressed }) => [styles.ctrlBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+                <SkipBack color={colors.textPrimary} size={22} />
+              </Pressable>
+
+              <PlayButton size={80} isPlaying={!!isPlaying} onToggle={() => togglePlay(song as any)} accessibilityLabel={isPlaying ? 'Pause' : 'Play'} />
+
+              <Pressable accessibilityLabel="Next" onPress={next} style={({ pressed }) => [styles.ctrlBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+                <SkipForward color={colors.textPrimary} size={22} />
+              </Pressable>
+
+              <Pressable accessibilityLabel={`Repeat ${repeatMode}`} onPress={onRepeatCycle} style={({ pressed }) => [styles.ctrlBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }] }>
+                <View>
+                  <Repeat color={colors.textPrimary} size={22} />
+                  {repeatMode === 'one' && <View style={styles.repeatBadge}><Text style={styles.repeatBadgeText}>1</Text></View>}
+                </View>
+              </Pressable>
+            </View>
+
+            {/* Bottom actions */}
+            <View style={styles.actionsRow}>
+              <Pressable accessibilityLabel="Queue" style={({ pressed }) => [styles.actionBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+                <List color={colors.textPrimary} size={18} />
+              </Pressable>
+              <Pressable accessibilityLabel="Like" onPress={() => setLiked((l) => !l)} style={({ pressed }) => [styles.actionBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+                <Heart color={liked ? colors.primaryBlue : colors.textPrimary} fill={liked ? colors.primaryBlue : 'none'} size={18} />
+              </Pressable>
+              <Pressable accessibilityLabel="Download" style={({ pressed }) => [styles.actionBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+                <Download color={colors.textPrimary} size={18} />
+              </Pressable>
+              <Pressable accessibilityLabel="Comments" style={({ pressed }) => [styles.actionBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+                <MessageCircle color={colors.textPrimary} size={18} />
+              </Pressable>
+            </View>
+          </View>
+        </GlassCard>
+
+        {/* Mini player at bottom */}
+        {song && (
+          <View style={styles.miniContainer}>
+            <MiniPlayer
+              title={song.title}
+              artist={song.artist}
+              artworkUrl={song.cover_url ?? undefined}
+              progress={progressPercent}
+              isPlaying={!!isPlaying}
+              onToggle={() => togglePlay(song as any)}
+              onNext={next}
+            />
+          </View>
+        )}
       </View>
-
-      <View style={styles.progressRow}>
-        <Text style={[styles.time, isDark && styles.timeDark]}>{formatMillis(seekingRef.current ? localPosRef.current : positionMillis)}</Text>
-        <Slider
-          ref={sliderRef}
-          style={{ flex: 1 }}
-          minimumValue={0}
-          maximumValue={durationMillis || 0}
-          value={localPos}
-          minimumTrackTintColor={isDark ? tokens.dark.colors.primary : tokens.light.colors.primary}
-          maximumTrackTintColor={isDark ? '#333' : '#ddd'}
-          thumbTintColor={isDark ? tokens.dark.colors.primary : tokens.light.colors.primary}
-          onValueChange={onValueChange}
-          onSlidingComplete={onSlidingComplete}
-        />
-        <Text style={[styles.time, isDark && styles.timeDark]}>{formatMillis(durationMillis)}</Text>
-      </View>
-
-      {/* Visual-only: Extra controls with Feather icons */}
-      <View style={styles.extraRow}>
-        <TouchableOpacity style={[styles.smallBtn, isDark && styles.smallBtnDark]} accessibilityLabel="Repeat">
-          <Feather name="repeat" size={20} color={isDark ? '#aaa' : '#666'} />
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.smallBtn, isDark && styles.smallBtnDark]} accessibilityLabel="Shuffle">
-          <Feather name="shuffle" size={20} color={isDark ? '#aaa' : '#666'} />
-        </TouchableOpacity>
-      </View>
-    </View>
+    </AppBackground>
   );
 }
 
-function formatMillis(ms: number | null | undefined): string {
-  if (!ms) return '0:00';
+function formatMillis(ms?: number | null): string {
+  if (!ms || ms <= 0) return '0:00';
   const s = Math.floor(ms / 1000);
   const m = Math.floor(s / 60);
   const sec = s % 60;
@@ -294,39 +166,121 @@ function formatMillis(ms: number | null | undefined): string {
 }
 
 const COVER = Math.min(width - 48, 420);
+
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', padding: spacing.lg, backgroundColor: '#fff' },
-  containerDark: { backgroundColor: '#000' },
-  cover: { width: COVER, height: COVER, borderRadius: radii.normal, backgroundColor: '#eee' },
-  title: { marginTop: 18, fontSize: 20, fontWeight: '800', color: '#111' },
-  titleDark: { color: '#fff' },
-  artist: { color: '#666', marginTop: 6 },
-  artistDark: { color: '#aaa' },
-  controls: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg, gap: spacing.lg },
-  
-  // Visual-only: Circular FAB play button matching mini-player aesthetic
-  playFab: { 
-    backgroundColor: '#2f6dfd', // primary color
-    width: sizes.fabLarge,
-    height: sizes.fabLarge,
-    borderRadius: sizes.fabLarge / 2,
-    alignItems: 'center', 
-    justifyContent: 'center',
-    ...elevation.high,
+  screen: {
+    flex: 1,
+    padding: spacing.x16,
+    gap: spacing.x16,
   },
-  
-  progressRow: { width: '100%', flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg },
-  time: { width: 44, textAlign: 'center', color: '#666', fontSize: 12 },
-  timeDark: { color: '#aaa' },
-  extraRow: { flexDirection: 'row', marginTop: spacing.lg, alignItems: 'center', gap: spacing.md },
-  smallBtn: { 
-    padding: spacing.md, 
-    backgroundColor: '#f3f3f3', 
-    borderRadius: radii.normal,
-    minWidth: sizes.touchTarget,
-    minHeight: sizes.touchTarget,
+  headerCard: {
+    padding: spacing.x16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  nowPlaying: {
+    ...typography.title,
+    fontSize: 18,
+  },
+  iconGlass: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  smallBtnDark: { backgroundColor: '#1a1a1a' },
+  albumCard: {
+    padding: spacing.x16,
+  },
+  albumInner: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  accentGlow: {
+    position: 'absolute',
+    left: '25%',
+    top: '55%',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: colors.primaryBlue,
+    opacity: 0.18,
+    filter: undefined,
+  },
+  albumArt: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  mainCard: {
+    padding: spacing.x16,
+  },
+  title: {
+    ...typography.title,
+    fontSize: 22,
+  },
+  artist: {
+    ...typography.artist,
+    marginTop: 4,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  time: {
+    ...typography.time,
+  },
+  controlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.x8,
+  },
+  ctrlBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  repeatBadge: {
+    position: 'absolute',
+    right: 4,
+    top: 4,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 2,
+    borderRadius: 8,
+    backgroundColor: colors.primaryBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  repeatBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.x8,
+  },
+  actionBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniContainer: {
+    marginTop: spacing.x16,
+  },
 });

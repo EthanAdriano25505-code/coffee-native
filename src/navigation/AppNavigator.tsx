@@ -7,6 +7,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 import HomeScreen from '../screens/HomeScreen'; // We will create this screen next
 import MusicDetail from '../screens/MusicDetail';
 import FullSongsScreen from '../screens/FullSongsScreen';
+import PlayerScreen from '../screens/PlayerScreen';
 
 export default function AppNavigator() {
   return (
@@ -14,6 +15,7 @@ export default function AppNavigator() {
       <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="MusicDetail" component={MusicDetail} />
       <Stack.Screen name="FullSongs" component={FullSongsScreen} />
+      <Stack.Screen name="Player" component={PlayerScreen} options={{ headerShown: false, presentation: 'modal' }} />
     </Stack.Navigator>
   );
 }
