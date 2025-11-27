@@ -37,6 +37,14 @@ export default function Waveform({
 }: WaveformProps) {
   const { barCount, barWidth, barGap, minHeight, maxHeight } = waveformConfig;
 
+  // Constants for deterministic pseudo-random height generation
+  // These values are used in a common GLSL random pattern (hash function)
+  const HASH_SEED_A = 12.9898;
+  const HASH_SEED_B = 78.233;
+  const HASH_MULTIPLIER = 43758.5453;
+  const HEIGHT_RANGE = 0.7; // Variation range for bar heights
+  const HEIGHT_MIN = 0.3; // Minimum bar height (normalized 0-1)
+
   // Generate deterministic bar heights if not provided
   const barHeights = useMemo(() => {
     if (customBarHeights && customBarHeights.length === barCount) {
@@ -46,8 +54,8 @@ export default function Waveform({
     const heights: number[] = [];
     for (let i = 0; i < barCount; i++) {
       // Use a simple deterministic pattern for visual interest
-      const seed = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
-      const normalized = (seed - Math.floor(seed)) * 0.7 + 0.3; // Range 0.3-1.0
+      const seed = Math.sin(i * HASH_SEED_A + HASH_SEED_B) * HASH_MULTIPLIER;
+      const normalized = (seed - Math.floor(seed)) * HEIGHT_RANGE + HEIGHT_MIN; // Range 0.3-1.0
       heights.push(normalized);
     }
     return heights;

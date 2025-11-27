@@ -114,7 +114,7 @@ export default function MiniPlayer({
               accessibilityRole="button"
               hitSlop={8}
             >
-              <Text style={styles.playIcon}>{isPlaying ? '⏸' : '▶️'}</Text>
+              <Text style={styles.playIcon}>{isPlaying ? '⏸' : '▶'}</Text>
             </Pressable>
 
             <Pressable

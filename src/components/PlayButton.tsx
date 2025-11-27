@@ -75,10 +75,10 @@ export default function PlayButton({
     pressScale.value = withTiming(1, { duration: 150 });
   };
 
-  const iconSize = size * 0.4;
-  const iconStyle = isPlaying
-    ? { fontSize: iconSize, color: colors.textWhite }
-    : { fontSize: iconSize, color: colors.textWhite, marginLeft: size * 0.05 }; // slight offset for play icon visual centering
+  // Icon sizing constants
+  const ICON_SIZE_RATIO = 0.4;
+  const PLAY_ICON_OFFSET_RATIO = 0.05; // Slight offset for play icon visual centering
+  const iconSize = size * ICON_SIZE_RATIO;
 
   return (
     <Pressable
@@ -125,7 +125,7 @@ export default function PlayButton({
                     borderLeftWidth: iconSize * 0.6,
                     borderTopWidth: iconSize * 0.35,
                     borderBottomWidth: iconSize * 0.35,
-                    marginLeft: size * 0.08,
+                    marginLeft: size * PLAY_ICON_OFFSET_RATIO,
                   },
                 ]}
               />
