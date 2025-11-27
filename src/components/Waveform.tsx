@@ -5,7 +5,6 @@ import Animated, {
   useAnimatedStyle,
   interpolate,
   Extrapolation,
-  SharedValue,
 } from 'react-native-reanimated';
 import { colors, gradients, waveform as waveformConfig } from '../utils/tokens';
 
@@ -13,7 +12,7 @@ interface WaveformProps {
   /** Progress from 0 to 1 */
   progress: number;
   /** Optional animated shared value for smoother progress updates */
-  progressValue?: SharedValue<number>;
+  progressValue?: any;
   /** Width of the waveform container */
   width?: number;
   /** Height of the waveform container */
@@ -94,7 +93,7 @@ interface WaveformBarProps {
   isActive: boolean;
   index: number;
   progress: number;
-  progressValue?: SharedValue<number>;
+  progressValue?: any;
   barCount: number;
 }
 
