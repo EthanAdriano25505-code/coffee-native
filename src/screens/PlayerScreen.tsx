@@ -1,16 +1,66 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  ScrollView,
+  Platform,
+} from 'react-native';
 import Slider from '@react-native-community/slider';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+} from 'react-native-reanimated';
 import { usePlayback } from '../contexts/PlaybackContext';
 import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
-const { width } = Dimensions.get('window');
+// Glass UI Components
+import AppBackground from '../components/AppBackground';
+import GlassCard from '../components/GlassCard';
+import PlayButton from '../components/PlayButton';
+import Waveform from '../components/Waveform';
 
-export default function PlayerScreen({ route }: { route: RouteProp<RootStackParamList, 'Player'> }) {
+// Design tokens
+import {
+  colors,
+  spacing,
+  radii,
+  typography,
+  touchTargetMinSize,
+  shadows,
+} from '../utils/tokens';
+
+const { width, height } = Dimensions.get('window');
+
+type PlayerScreenNavProp = NativeStackNavigationProp<RootStackParamList, 'Player'>;
+
+interface PlayerScreenProps {
+  route: RouteProp<RootStackParamList, 'Player'>;
+}
+
+/**
+ * PlayerScreen - Full player with liquid glass UI design
+ * Features gradient background, glass cards, animated play button, and waveform visualization
+ */
+export default function PlayerScreen({ route }: PlayerScreenProps) {
   const paramSong = route.params?.song;
-  const { currentSong, isPlaying, positionMillis, durationMillis, play, pause, next, prev, seek, togglePlay } = usePlayback();
+  const navigation = useNavigation<PlayerScreenNavProp>();
+  const insets = useSafeAreaInsets();
+  const { currentSong, isPlaying, positionMillis, durationMillis, play, next, prev, seek, togglePlay } = usePlayback();
+
+  // Repeat mode state: 'off' | 'all' | 'one'
+  const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
+  // Shuffle state
+  const [shuffleEnabled, setShuffleEnabled] = useState(false);
+  // Like state (for UI demo)
+  const [isLiked, setIsLiked] = useState(false);
 
   // Ensure playback started if navigated with a param and it's different
   useFocusEffect(
@@ -26,55 +76,48 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
         // fire-and-forget; PlaybackContext is race-protected
         play(payload);
       }
-    }, [paramSong?.id, currentSong?.id])
+    }, [paramSong?.id, currentSong?.id, paramSong, currentSong, play])
   );
 
   const song = currentSong ?? paramSong;
 
   // Local slider state for smooth UI (labels and final thumb sync)
-  const [seeking, setSeeking] = useState(false);
   const [localPos, setLocalPos] = useState<number>(positionMillis ?? 0);
 
   // Fast refs & RAFs for smooth updates without re-rendering on every drag
-  const sliderRef = useRef<any>(null); // slider native ref — used with setNativeProps
-  const seekingRef = useRef<boolean>(false); // track active drag without re-rendering
-  const localPosRef = useRef<number>(positionMillis ?? 0); // fast current value
-  const rafRef = useRef<number | null>(null); // interpolation RAF for non-seeking playback
-  const labelRafRef = useRef<number | null>(null); // RAF used to throttle label updates during drag
+  const sliderRef = useRef<any>(null);
+  const seekingRef = useRef<boolean>(false);
+  const localPosRef = useRef<number>(positionMillis ?? 0);
+  const rafRef = useRef<number | null>(null);
+  const labelRafRef = useRef<number | null>(null);
   const lastContextPosRef = useRef<number>(positionMillis ?? 0);
   const lastLabelUpdateRef = useRef<number>(0);
 
-  const RAF_INTERPOLATION_FACTOR = 0.25; // smoothing factor: closer to 1 = faster follow
-  const RAF_MIN_DIFF = 0.5; // px/ms threshold to stop raf
-  const LABEL_UPDATE_THROTTLE_MS = 50; // 20fps label update (tunable)
+  const RAF_INTERPOLATION_FACTOR = 0.25;
+  const RAF_MIN_DIFF = 0.5;
+  const LABEL_UPDATE_THROTTLE_MS = 50;
 
-  // When context position updates, update the ref (throttled from PlaybackContext)
   useEffect(() => {
     lastContextPosRef.current = positionMillis ?? 0;
 
-    // If not seeking, start the smooth RAF loop
     if (!seekingRef.current) {
       startRafLoop();
     }
 
-    // If paused and close to target, snap immediately
     if (!isPlaying && Math.abs(localPosRef.current - lastContextPosRef.current) < 1) {
       localPosRef.current = lastContextPosRef.current;
-      // ensure UI labels reflect exact value
       setLocalPos(lastContextPosRef.current);
       cancelInterpolationRaf();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [positionMillis, isPlaying]);
 
-  // Clean up on unmount
   useEffect(() => {
     return () => {
       cancelAllRafs();
     };
   }, []);
 
-  // Cancel only the interpolation RAF
   const cancelInterpolationRaf = () => {
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current);
@@ -82,7 +125,6 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
     }
   };
 
-  // Cancel label RAF used during dragging
   const cancelLabelRaf = () => {
     if (labelRafRef.current != null) {
       cancelAnimationFrame(labelRafRef.current);
@@ -95,63 +137,52 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
     cancelLabelRaf();
   };
 
-  // Interpolation RAF: smoothly chase lastContextPosRef when not seeking.
-  // We update localPosRef every frame but throttle setLocalPos() to LABEL_UPDATE_THROTTLE_MS.
   const startRafLoop = () => {
     cancelInterpolationRaf();
 
-    // avoid starting while user is interacting
     if (seekingRef.current) return;
 
     const step = () => {
-      // If user started seeking, stop interpolation loop
       if (seekingRef.current) {
         cancelInterpolationRaf();
         return;
       }
 
       const target = lastContextPosRef.current;
-      const prev = localPosRef.current;
-      const diff = target - prev;
+      const prevVal = localPosRef.current;
+      const diff = target - prevVal;
 
       if (Math.abs(diff) <= RAF_MIN_DIFF) {
-        // close enough; snap and stop
         localPosRef.current = target;
-        // ensure labels show exact value
         const now = Date.now();
         if (now - lastLabelUpdateRef.current >= LABEL_UPDATE_THROTTLE_MS) {
           lastLabelUpdateRef.current = now;
           setLocalPos(target);
         } else {
-          // if we can't update label now, still schedule a small timeout to ensure eventual sync
           setTimeout(() => setLocalPos(target), LABEL_UPDATE_THROTTLE_MS);
         }
         cancelInterpolationRaf();
         return;
       }
 
-      // Interpolate towards target for smooth 60fps movement
-      const next = prev + diff * RAF_INTERPOLATION_FACTOR;
-      localPosRef.current = next;
+      const nextVal = prevVal + diff * RAF_INTERPOLATION_FACTOR;
+      localPosRef.current = nextVal;
 
       const now = Date.now();
       if (now - lastLabelUpdateRef.current >= LABEL_UPDATE_THROTTLE_MS) {
         lastLabelUpdateRef.current = now;
-        setLocalPos(next);
+        setLocalPos(nextVal);
       }
 
       rafRef.current = requestAnimationFrame(step);
     };
 
-    // Only start if there's meaningful difference
     if (Math.abs(localPosRef.current - lastContextPosRef.current) > 0.5) {
       rafRef.current = requestAnimationFrame(step);
     }
   };
 
-  // Lightweight label update scheduler during dragging:
   const scheduleLabelUpdate = () => {
-    // Only one scheduled frame at a time
     if (labelRafRef.current) return;
     labelRafRef.current = requestAnimationFrame(() => {
       labelRafRef.current = null;
@@ -163,110 +194,243 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
     });
   };
 
-  // Slider handlers
   const onValueChange = (v: number) => {
-    // When user starts dragging, mark seeking (once) to stop interpolation.
     if (!seekingRef.current) {
       seekingRef.current = true;
-      setSeeking(true); // keep existing seeking state semantics for other hooks
-      // cancel interpolation RAF immediately so native updates are authoritative
       cancelInterpolationRaf();
     }
 
-    // Update fast ref and move native thumb instantly via setNativeProps
     localPosRef.current = v;
     if (sliderRef.current && sliderRef.current.setNativeProps) {
-      // (A) Use setNativeProps to avoid re-rendering on every drag move.
       sliderRef.current.setNativeProps({ value: v });
     }
 
-    // Throttle label updates — schedule an RAF that will update React state at most ~20fps
     scheduleLabelUpdate();
   };
 
   const onSlidingComplete = async (value: number) => {
-    // User released the thumb
     seekingRef.current = false;
-    setSeeking(false);
-    // Ensure any pending label RAF is canceled (we will set final state explicitly)
     cancelLabelRaf();
-
-    // cancel interpolation and let after-seek logic restart it
     cancelInterpolationRaf();
 
-    // perform seek and sync state -> keep optimistic UI elsewhere intact
     if (seek) {
       const finalValue = Math.round(value);
       await seek(finalValue);
-      // After seek, update refs and ensure UI labels and native thumb reflect final value.
       lastContextPosRef.current = finalValue;
       localPosRef.current = finalValue;
-      // (D) Ensure native thumb snaps to final value
       if (sliderRef.current && sliderRef.current.setNativeProps) {
         sliderRef.current.setNativeProps({ value: finalValue });
       }
-      // Update React state once so labels/text/misc re-render (throttled one-off)
       setLocalPos(finalValue);
-      // restart interpolation to follow context if needed
       startRafLoop();
     }
   };
 
-  useEffect(() => {
-    if (seekingRef.current) {
-      // while seeking, cancel the interpolation RAF so the thumb exactly follows finger
-      cancelInterpolationRaf();
-    } else {
-      // when user stops seeking, ensure we follow context
-      startRafLoop();
+  const cycleRepeatMode = () => {
+    setRepeatMode((prev) => {
+      if (prev === 'off') return 'all';
+      if (prev === 'all') return 'one';
+      return 'off';
+    });
+  };
+
+  const getRepeatIcon = () => {
+    switch (repeatMode) {
+      case 'all':
+        return '🔁';
+      case 'one':
+        return '🔂';
+      default:
+        return '🔁';
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seeking]);
+  };
+
+  // Calculate progress for waveform
+  const progress = durationMillis ? localPos / durationMillis : 0;
+
+  // Calculate cover size based on screen dimensions
+  const COVER_SIZE = Math.min(width - spacing.xl * 2 - spacing.lg * 2, 320);
 
   return (
-    <View style={styles.container}>
-      <Image source={song?.cover_url ? { uri: String(song.cover_url) } : undefined} style={styles.cover} />
-      <Text style={styles.title}>{song?.title}</Text>
-      <Text style={styles.artist}>{song?.artist}</Text>
+    <AppBackground>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xxl },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header with back button */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Now Playing</Text>
+          <View style={styles.headerSpacer} />
+        </View>
 
-      <View style={styles.controls}>
-        <TouchableOpacity onPress={prev}><Text style={styles.control}>⏮</Text></TouchableOpacity>
+        {/* Artwork Card with Glass Effect */}
+        <Animated.View entering={FadeInDown.duration(400).delay(100)}>
+          <GlassCard style={[styles.artworkCard, { width: COVER_SIZE + spacing.lg * 2 }]}>
+            {song?.cover_url ? (
+              <Image
+                source={{ uri: String(song.cover_url) }}
+                style={[styles.artwork, { width: COVER_SIZE, height: COVER_SIZE }]}
+                accessibilityLabel={`Album artwork for ${song.title}`}
+              />
+            ) : (
+              <View style={[styles.artwork, styles.artworkPlaceholder, { width: COVER_SIZE, height: COVER_SIZE }]}>
+                <Text style={styles.artworkPlaceholderText}>♪</Text>
+              </View>
+            )}
+          </GlassCard>
+        </Animated.View>
 
-        <TouchableOpacity
-          onPress={() => {
-            // optimistic UI handled in context; call togglePlay without awaiting
-            togglePlay();
-          }}
-          style={styles.playButton}
-        >
-          <Text style={styles.playText}>{isPlaying ? '⏸' : '▶'}</Text>
-        </TouchableOpacity>
+        {/* Song Info */}
+        <Animated.View entering={FadeInDown.duration(400).delay(200)} style={styles.songInfo}>
+          <Text style={styles.title} numberOfLines={1}>
+            {song?.title || 'Unknown Title'}
+          </Text>
+          <Text style={styles.artist} numberOfLines={1}>
+            {song?.artist || 'Unknown Artist'}
+          </Text>
+        </Animated.View>
 
-        <TouchableOpacity onPress={next}><Text style={styles.control}>⏭</Text></TouchableOpacity>
-      </View>
+        {/* Waveform Visualization */}
+        <Animated.View entering={FadeInDown.duration(400).delay(300)} style={styles.waveformContainer}>
+          <Waveform
+            progress={progress}
+            width={width - spacing.xl * 2}
+            height={50}
+          />
+        </Animated.View>
 
-      <View style={styles.progressRow}>
-        <Text style={styles.time}>{formatMillis(seekingRef.current ? localPosRef.current : positionMillis)}</Text>
-        <Slider
-          ref={sliderRef}
-          style={{ flex: 1 }}
-          minimumValue={0}
-          maximumValue={durationMillis || 0}
-          value={localPos} // React-driven, but during drag we move native thumb directly for instant feedback
-          minimumTrackTintColor="#2f6dfd"
-          maximumTrackTintColor="#ddd"
-          thumbTintColor="#2f6dfd"
-          onValueChange={onValueChange}
-          onSlidingComplete={onSlidingComplete}
-        />
-        <Text style={styles.time}>{formatMillis(durationMillis)}</Text>
-      </View>
+        {/* Progress Bar */}
+        <Animated.View entering={FadeInDown.duration(400).delay(350)} style={styles.progressSection}>
+          <View style={styles.progressRow}>
+            <Slider
+              ref={sliderRef}
+              style={styles.slider}
+              minimumValue={0}
+              maximumValue={durationMillis || 1}
+              value={localPos}
+              minimumTrackTintColor={colors.primaryBlue}
+              maximumTrackTintColor={colors.progressTrack}
+              thumbTintColor={colors.textWhite}
+              onValueChange={onValueChange}
+              onSlidingComplete={onSlidingComplete}
+            />
+          </View>
+          <View style={styles.timeRow}>
+            <Text style={styles.time}>{formatMillis(localPos)}</Text>
+            <Text style={styles.time}>{formatMillis(durationMillis)}</Text>
+          </View>
+        </Animated.View>
 
-      <View style={styles.extraRow}>
-        <TouchableOpacity style={styles.smallBtn}><Text>🔁</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.smallBtn}><Text>🔀</Text></TouchableOpacity>
-      </View>
-    </View>
+        {/* Main Controls */}
+        <Animated.View entering={FadeInUp.duration(400).delay(400)} style={styles.controlsContainer}>
+          {/* Shuffle */}
+          <TouchableOpacity
+            onPress={() => setShuffleEnabled(!shuffleEnabled)}
+            style={styles.controlButton}
+            accessibilityLabel={shuffleEnabled ? 'Disable shuffle' : 'Enable shuffle'}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.controlIcon, shuffleEnabled && styles.controlIconActive]}>🔀</Text>
+          </TouchableOpacity>
+
+          {/* Previous */}
+          <TouchableOpacity
+            onPress={prev}
+            style={styles.controlButton}
+            accessibilityLabel="Previous track"
+            accessibilityRole="button"
+          >
+            <Text style={styles.controlIconLarge}>⏮</Text>
+          </TouchableOpacity>
+
+          {/* Play/Pause */}
+          <PlayButton
+            isPlaying={isPlaying}
+            onPress={togglePlay}
+            size={72}
+            accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+          />
+
+          {/* Next */}
+          <TouchableOpacity
+            onPress={next}
+            style={styles.controlButton}
+            accessibilityLabel="Next track"
+            accessibilityRole="button"
+          >
+            <Text style={styles.controlIconLarge}>⏭</Text>
+          </TouchableOpacity>
+
+          {/* Repeat */}
+          <TouchableOpacity
+            onPress={cycleRepeatMode}
+            style={styles.controlButton}
+            accessibilityLabel={`Repeat mode: ${repeatMode}`}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.controlIcon, repeatMode !== 'off' && styles.controlIconActive]}>
+              {getRepeatIcon()}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Bottom Actions Row */}
+        <Animated.View entering={FadeInUp.duration(400).delay(500)}>
+          <GlassCard style={styles.actionsCard}>
+            <View style={styles.actionsRow}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                accessibilityLabel="View queue"
+                accessibilityRole="button"
+              >
+                <Text style={styles.actionIcon}>📃</Text>
+                <Text style={styles.actionLabel}>Queue</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => setIsLiked(!isLiked)}
+                accessibilityLabel={isLiked ? 'Unlike' : 'Like'}
+                accessibilityRole="button"
+              >
+                <Text style={styles.actionIcon}>{isLiked ? '❤️' : '🤍'}</Text>
+                <Text style={styles.actionLabel}>Like</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionButton}
+                accessibilityLabel="Download"
+                accessibilityRole="button"
+              >
+                <Text style={styles.actionIcon}>⬇️</Text>
+                <Text style={styles.actionLabel}>Download</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionButton}
+                accessibilityLabel="Comments"
+                accessibilityRole="button"
+              >
+                <Text style={styles.actionIcon}>💬</Text>
+                <Text style={styles.actionLabel}>Comments</Text>
+              </TouchableOpacity>
+            </View>
+          </GlassCard>
+        </Animated.View>
+      </ScrollView>
+    </AppBackground>
   );
 }
 
@@ -278,18 +442,145 @@ function formatMillis(ms: number | null | undefined): string {
   return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
-const COVER = Math.min(width - 48, 420);
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', padding: 20, backgroundColor: '#fff' },
-  cover: { width: COVER, height: COVER, borderRadius: 12, backgroundColor: '#eee' },
-  title: { marginTop: 18, fontSize: 20, fontWeight: '800' },
-  artist: { color: '#666', marginTop: 6 },
-  controls: { flexDirection: 'row', alignItems: 'center', marginTop: 18 },
-  control: { fontSize: 22, paddingHorizontal: 12 },
-  playButton: { marginHorizontal: 10, backgroundColor: '#2f6dfd', padding: 12, borderRadius: 30 },
-  playText: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  progressRow: { width: '100%', flexDirection: 'row', alignItems: 'center', marginTop: 18 },
-  time: { width: 44, textAlign: 'center', color: '#666', fontSize: 12 },
-  extraRow: { flexDirection: 'row', marginTop: 20, alignItems: 'center' },
-  smallBtn: { padding: 10, marginHorizontal: 8, backgroundColor: '#f3f3f3', borderRadius: 8 },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: spacing.xl,
+  },
+  backButton: {
+    width: touchTargetMinSize,
+    height: touchTargetMinSize,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backIcon: {
+    fontSize: 24,
+    color: colors.textPrimary,
+  },
+  headerTitle: {
+    ...typography.subtitle,
+    color: colors.textSecondary,
+  },
+  headerSpacer: {
+    width: touchTargetMinSize,
+  },
+  artworkCard: {
+    padding: spacing.lg,
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  artwork: {
+    borderRadius: radii.lg,
+    backgroundColor: colors.glassBackground,
+  },
+  artworkPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  artworkPlaceholderText: {
+    fontSize: 64,
+    color: colors.textMuted,
+  },
+  songInfo: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    width: '100%',
+  },
+  title: {
+    ...typography.title,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  artist: {
+    ...typography.subtitle,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
+  waveformContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  progressSection: {
+    width: '100%',
+    marginBottom: spacing.xl,
+  },
+  progressRow: {
+    width: '100%',
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xs,
+  },
+  time: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  controlsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: spacing.xxl,
+    paddingHorizontal: spacing.md,
+  },
+  controlButton: {
+    width: touchTargetMinSize,
+    height: touchTargetMinSize,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controlIcon: {
+    fontSize: 22,
+    color: colors.controlInactive,
+  },
+  controlIconLarge: {
+    fontSize: 28,
+    color: colors.textPrimary,
+  },
+  controlIconActive: {
+    color: colors.primaryBlue,
+  },
+  actionsCard: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    width: width - spacing.xl * 2,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  actionButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: touchTargetMinSize,
+    minHeight: touchTargetMinSize,
+    paddingVertical: spacing.sm,
+  },
+  actionIcon: {
+    fontSize: 22,
+    marginBottom: spacing.xs,
+  },
+  actionLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
 });
