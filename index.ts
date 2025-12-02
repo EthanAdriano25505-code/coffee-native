@@ -1,3 +1,5 @@
+// gesture-handler MUST be imported first for bare/dev-client builds
+import 'react-native-gesture-handler';
 import { registerRootComponent } from 'expo';
 
 import App from './App';

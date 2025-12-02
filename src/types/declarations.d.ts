@@ -1,0 +1,102 @@
+/**
+ * Ambient Module Declarations
+ * Provides TypeScript type declarations for RN-native libraries that may be missing types.
+ * Prefer using properly typed packages (@types/*) when available.
+ */
+
+// Expo vector icons - types should be available via @expo/vector-icons, but add fallback
+declare module '@expo/vector-icons' {
+  import type { ComponentType } from 'react';
+  import type { TextProps } from 'react-native';
+
+  export interface IconProps extends TextProps {
+    name: string;
+    size?: number;
+    color?: string;
+  }
+
+  export const Ionicons: ComponentType<IconProps>;
+  export const MaterialIcons: ComponentType<IconProps>;
+  export const FontAwesome: ComponentType<IconProps>;
+  export const Feather: ComponentType<IconProps>;
+  export const AntDesign: ComponentType<IconProps>;
+}
+
+// Expo LinearGradient
+declare module 'expo-linear-gradient' {
+  import type { ComponentType } from 'react';
+  import type { ViewProps } from 'react-native';
+
+  export interface LinearGradientProps extends ViewProps {
+    colors: string[];
+    start?: { x: number; y: number };
+    end?: { x: number; y: number };
+    locations?: number[];
+  }
+
+  export const LinearGradient: ComponentType<LinearGradientProps>;
+  export default LinearGradient;
+}
+
+// Expo BlurView
+declare module 'expo-blur' {
+  import type { ComponentType } from 'react';
+  import type { ViewProps } from 'react-native';
+
+  export interface BlurViewProps extends ViewProps {
+    intensity?: number;
+    tint?: 'light' | 'dark' | 'default';
+    experimentalBlurMethod?: 'none' | 'dimezisBlurView';
+  }
+
+  export const BlurView: ComponentType<BlurViewProps>;
+  export default BlurView;
+}
+
+// react-native-svg (if not already typed)
+declare module 'react-native-svg' {
+  import type { ComponentType } from 'react';
+  import type { ViewProps } from 'react-native';
+
+  export interface SvgProps extends ViewProps {
+    width?: number | string;
+    height?: number | string;
+    viewBox?: string;
+    preserveAspectRatio?: string;
+  }
+
+  export interface PathProps {
+    d?: string;
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number | string;
+    strokeLinecap?: 'butt' | 'round' | 'square';
+    strokeLinejoin?: 'miter' | 'round' | 'bevel';
+  }
+
+  export interface RectProps {
+    x?: number | string;
+    y?: number | string;
+    width?: number | string;
+    height?: number | string;
+    rx?: number | string;
+    ry?: number | string;
+    fill?: string;
+    stroke?: string;
+  }
+
+  export interface CircleProps {
+    cx?: number | string;
+    cy?: number | string;
+    r?: number | string;
+    fill?: string;
+    stroke?: string;
+  }
+
+  export const Svg: ComponentType<SvgProps>;
+  export const Path: ComponentType<PathProps>;
+  export const Rect: ComponentType<RectProps>;
+  export const Circle: ComponentType<CircleProps>;
+  export const G: ComponentType<{ children?: React.ReactNode }>;
+  export default Svg;
+}
