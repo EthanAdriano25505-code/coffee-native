@@ -1,5 +1,5 @@
 import React from 'react';
-
+import 'react-native-gesture-handler';
 // TEMP DEV HELPER: detect and log when a string/number is passed as a direct child
 // Remove this block after debugging.
 if (__DEV__) {
