@@ -2,7 +2,7 @@
  * Ambient Module Declarations
  * Provides TypeScript type declarations for RN-native libraries that may be missing types.
  * Prefer using properly typed packages (@types/*) when available.
- * 
+ *
  * Note: @expo/vector-icons has proper types and doesn't need declarations here.
  */
 
@@ -38,6 +38,7 @@ declare module 'expo-blur' {
 }
 
 // react-native-svg (if not already typed)
+// We intentionally include common props used in the project such as `fill` and `opacity`.
 declare module 'react-native-svg' {
   import type { ComponentType } from 'react';
   import type { ViewProps } from 'react-native';
@@ -47,6 +48,8 @@ declare module 'react-native-svg' {
     height?: number | string;
     viewBox?: string;
     preserveAspectRatio?: string;
+    fill?: string | undefined;
+    opacity?: number | string | undefined;
   }
 
   export interface PathProps {
@@ -56,6 +59,7 @@ declare module 'react-native-svg' {
     strokeWidth?: number | string;
     strokeLinecap?: 'butt' | 'round' | 'square';
     strokeLinejoin?: 'miter' | 'round' | 'bevel';
+    opacity?: number | string;
   }
 
   export interface RectProps {
@@ -67,6 +71,7 @@ declare module 'react-native-svg' {
     ry?: number | string;
     fill?: string;
     stroke?: string;
+    opacity?: number | string;
   }
 
   export interface CircleProps {
@@ -75,6 +80,7 @@ declare module 'react-native-svg' {
     r?: number | string;
     fill?: string;
     stroke?: string;
+    opacity?: number | string;
   }
 
   export const Svg: ComponentType<SvgProps>;
