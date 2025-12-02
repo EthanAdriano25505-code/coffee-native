@@ -75,6 +75,7 @@ export default function Waveform({
           key={bar.key}
           isAnimating={isAnimating}
           delay={bar.delay}
+          barIndex={index}
           barWidth={barWidth}
           maxHeight={maxHeight * bar.heightVariation}
           minHeight={minHeight}
@@ -90,6 +91,7 @@ export default function Waveform({
 interface WaveformBarProps {
   isAnimating: boolean;
   delay: number;
+  barIndex: number; // Used for deterministic duration variation
   barWidth: number;
   maxHeight: number;
   minHeight: number;
@@ -98,9 +100,20 @@ interface WaveformBarProps {
   style?: object;
 }
 
+/**
+ * Generate deterministic duration variation based on bar index.
+ * Uses a simple sine-based formula for organic-feeling but predictable animation.
+ */
+function getDeterministicDuration(baseMs: number, barIndex: number): number {
+  // Use sine wave for variation (0.8x to 1.2x of base duration)
+  const variation = 0.8 + (Math.sin(barIndex * 1.7) + 1) * 0.2;
+  return Math.round(baseMs * variation);
+}
+
 function WaveformBar({
   isAnimating,
   delay,
+  barIndex,
   barWidth,
   maxHeight,
   minHeight,
@@ -110,6 +123,10 @@ function WaveformBar({
 }: WaveformBarProps) {
   const height = useSharedValue(minHeight);
   const color = useSharedValue(0); // 0 = inactive, 1 = active
+
+  // Calculate deterministic durations based on bar index
+  const upDuration = getDeterministicDuration(350, barIndex);
+  const downDuration = getDeterministicDuration(350, barIndex + 3);
 
   React.useEffect(() => {
     if (isAnimating) {
@@ -121,8 +138,8 @@ function WaveformBar({
         delay,
         withRepeat(
           withSequence(
-            withTiming(maxHeight, { duration: 300 + Math.random() * 200 }),
-            withTiming(minHeight, { duration: 300 + Math.random() * 200 })
+            withTiming(maxHeight, { duration: upDuration }),
+            withTiming(minHeight, { duration: downDuration })
           ),
           -1, // Infinite repeat
           true // Reverse
@@ -134,7 +151,7 @@ function WaveformBar({
       height.value = withTiming(minHeight, { duration: durations.normal });
       color.value = withTiming(0, { duration: durations.normal });
     }
-  }, [isAnimating, delay, maxHeight, minHeight, height, color]);
+  }, [isAnimating, delay, maxHeight, minHeight, upDuration, downDuration, height, color]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     height: height.value,

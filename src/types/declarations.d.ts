@@ -2,25 +2,9 @@
  * Ambient Module Declarations
  * Provides TypeScript type declarations for RN-native libraries that may be missing types.
  * Prefer using properly typed packages (@types/*) when available.
+ * 
+ * Note: @expo/vector-icons has proper types and doesn't need declarations here.
  */
-
-// Expo vector icons - types should be available via @expo/vector-icons, but add fallback
-declare module '@expo/vector-icons' {
-  import type { ComponentType } from 'react';
-  import type { TextProps } from 'react-native';
-
-  export interface IconProps extends TextProps {
-    name: string;
-    size?: number;
-    color?: string;
-  }
-
-  export const Ionicons: ComponentType<IconProps>;
-  export const MaterialIcons: ComponentType<IconProps>;
-  export const FontAwesome: ComponentType<IconProps>;
-  export const Feather: ComponentType<IconProps>;
-  export const AntDesign: ComponentType<IconProps>;
-}
 
 // Expo LinearGradient
 declare module 'expo-linear-gradient' {
