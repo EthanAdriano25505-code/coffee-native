@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View, ViewStyle, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -7,13 +7,21 @@ import Animated, {
   withTiming,
   interpolate,
   Extrapolation,
+  cancelAnimation,
+  Easing,
 } from 'react-native-reanimated';
 import { colors, gradients } from '../utils/tokens';
 
 interface ProgressBarProps {
-  /** Progress from 0 to 1 */
+  /** Current progress (0-1) from source of truth */
   progress: number;
-  /** Buffer progress from 0 to 1 (for streaming) */
+  /** Total duration in ms (needed for smooth interpolation) */
+  durationMillis?: number;
+  /** Whether currently playing (to drive local animation) */
+  isPlaying?: boolean;
+  /** Optional shared value to drive progress without re-rendering */
+  progressShared?: any;
+  /** Buffer progress from 0 to 1 */
   buffered?: number;
   /** Width of the progress bar */
   width?: number;
@@ -25,26 +33,49 @@ const THUMB_HALO_SIZE = 32;
 const TRACK_HEIGHT = 4;
 
 /**
- * ProgressBar - A styled progress bar with buffered track, gradient progress,
- * and a thumb with blue halo. This is a display-only component; for seeking,
- * use the native Slider component in PlayerScreen.
+ * ProgressBar - Optimized for smooth playback.
+ * Uses Reanimated to interpolate progress between updates.
  */
 export default function ProgressBar({
   progress,
+  durationMillis = 0,
+  isPlaying = false,
   buffered = 0,
   width: containerWidth = 300,
+  progressShared,
   style,
 }: ProgressBarProps) {
-  const animatedProgress = useSharedValue(progress);
+  // The animated value driving the UI. Prefer an external shared value
+  // (so we avoid React re-renders) when provided.
+  const internalProgress = useSharedValue(progress);
+  const animatedProgress = progressShared ?? internalProgress;
 
-  // Update animated progress when props change
-  React.useEffect(() => {
-    animatedProgress.value = withTiming(progress, { duration: 100 });
-  }, [progress, animatedProgress]);
+  useEffect(() => {
+    if (progressShared) {
+      // external owner will drive the shared value; do nothing
+      return;
+    }
+
+    cancelAnimation(animatedProgress);
+
+    if (isPlaying && durationMillis > 0) {
+      const remaining = 1 - progress;
+      const dur = Math.max(50, remaining * durationMillis);
+      internalProgress.value = progress;
+      internalProgress.value = withTiming(1, { duration: dur, easing: Easing.linear });
+    } else {
+      internalProgress.value = withTiming(progress, { duration: 100 });
+    }
+  }, [progress, isPlaying, durationMillis, animatedProgress, progressShared, internalProgress]);
 
   const thumbAnimatedStyle = useAnimatedStyle(() => {
     const trackWidth = containerWidth - THUMB_SIZE;
-    const translateX = animatedProgress.value * trackWidth;
+    const translateX = interpolate(
+      animatedProgress.value,
+      [0, 1],
+      [0, trackWidth],
+      Extrapolation.CLAMP
+    );
     return {
       transform: [{ translateX }],
     };

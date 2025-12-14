@@ -1,10 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { StyleSheet, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   interpolate,
   Extrapolation,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  Easing,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { colors, gradients, waveform as waveformConfig } from '../utils/tokens';
 
@@ -20,11 +25,14 @@ interface WaveformProps {
   /** Custom bar heights array (0-1 normalized) */
   barHeights?: number[];
   style?: ViewStyle;
+  /** Whether the audio is currently playing */
+  isPlaying?: boolean;
 }
 
 /**
  * Waveform - Displays a 40-bar audio waveform visualization.
  * The played portion shows a gradient fill, while the unplayed portion is muted.
+ * Bars animate when playing to simulate audio visualization.
  */
 export default function Waveform({
   progress,
@@ -33,8 +41,28 @@ export default function Waveform({
   height = 50,
   barHeights: customBarHeights,
   style,
+  isPlaying = false,
 }: WaveformProps) {
-  const { barCount, barWidth, barGap, minHeight, maxHeight } = waveformConfig;
+  const { barCount, barGap, minHeight, maxHeight } = waveformConfig;
+
+  // NEW: Calculate bar width to fill container
+  const barWidth = (width - (barCount - 1) * barGap) / barCount;
+
+  // Shared value for animation phase (0 to 1)
+  const animationPhase = useSharedValue(0);
+
+  useEffect(() => {
+    if (isPlaying) {
+      animationPhase.value = withRepeat(
+        withTiming(1, { duration: 1000, easing: Easing.linear }),
+        -1,
+        false
+      );
+    } else {
+      cancelAnimation(animationPhase);
+      // Optional: reset or keep current phase
+    }
+  }, [isPlaying, animationPhase]);
 
   // Generate deterministic bar heights if not provided
   const barHeights = useMemo(() => {
@@ -52,32 +80,26 @@ export default function Waveform({
     return heights;
   }, [customBarHeights, barCount]);
 
-  // Calculate which bar index corresponds to current progress
+  // Calculate which bar index corresponds to current progress (fallback)
   const progressBarIndex = Math.floor(progress * barCount);
-
-  // Scale for fitting bars in container
-  const totalBarsWidth = barCount * (barWidth + barGap) - barGap;
-  const scale = width / totalBarsWidth;
 
   return (
     <View style={[styles.container, { width, height }, style]}>
-      <View style={[styles.barsContainer, { transform: [{ scaleX: scale }] }]}>
+      <View style={styles.barsContainer}>
         {barHeights.map((heightRatio, index) => {
-          const barHeight = minHeight + (maxHeight - minHeight) * heightRatio;
-          const isPlayed = index < progressBarIndex;
-          const isActive = index === progressBarIndex;
-
           return (
             <WaveformBar
               key={index}
-              height={barHeight}
+              baseHeightRatio={heightRatio}
+              minHeight={minHeight}
+              maxHeight={maxHeight}
               width={barWidth}
-              isPlayed={isPlayed}
-              isActive={isActive}
               index={index}
               progress={progress}
               progressValue={progressValue}
               barCount={barCount}
+              animationPhase={animationPhase}
+              isPlaying={isPlaying}
             />
           );
         })}
@@ -87,65 +109,85 @@ export default function Waveform({
 }
 
 interface WaveformBarProps {
-  height: number;
+  baseHeightRatio: number;
+  minHeight: number;
+  maxHeight: number;
   width: number;
-  isPlayed: boolean;
-  isActive: boolean;
   index: number;
   progress: number;
   progressValue?: any;
   barCount: number;
+  animationPhase: any;
+  isPlaying: boolean;
 }
 
-function WaveformBar({
-  height,
+function WaveformBarComponent({
+  baseHeightRatio,
+  minHeight,
+  maxHeight,
   width,
-  isPlayed,
-  isActive,
   index,
   progress,
   progressValue,
   barCount,
+  animationPhase,
+  isPlaying,
 }: WaveformBarProps) {
-  // Subtle animation for bars near the progress point
-  const animatedStyle = useAnimatedStyle(() => {
-    if (!progressValue) {
-      return {};
-    }
+  // Random offset for each bar to make animation look organic
+  const randomOffset = useMemo(() => Math.random() * Math.PI * 2, []);
 
-    const currentProgress = progressValue.value;
-    const barProgress = index / barCount;
-    const distance = Math.abs(currentProgress - barProgress);
-
-    // Animate bars within 5% of current progress
-    if (distance < 0.05) {
-      const scaleY = interpolate(
-        distance,
-        [0, 0.05],
-        [1.15, 1],
-        Extrapolation.CLAMP
-      );
-      return {
-        transform: [{ scaleY }],
-      };
-    }
-
-    return {};
-  });
-
+  const barHeight = minHeight + (maxHeight - minHeight) * baseHeightRatio;
   const barStyle = [
     styles.bar,
     {
-      height,
+      height: barHeight,
       width,
-      marginRight: waveformConfig.barGap,
     },
   ];
 
-  if (isPlayed || isActive) {
-    // Gradient bar for played portion
-    return (
-      <Animated.View style={animatedStyle}>
+  // Animated style driven by both the visual audio phase and the progress shared value
+  const animatedStyle = useAnimatedStyle(() => {
+    let scaleY = 1;
+    if (isPlaying) {
+      const phase = animationPhase.value * Math.PI * 2;
+      const wave1 = Math.sin(index * 0.5 + phase + randomOffset);
+      const wave2 = Math.cos(index * 0.3 - phase * 2);
+      const variation = (wave1 + wave2) * 0.12;
+      scaleY = 1 + variation;
+    }
+    return {
+      transform: [{ scaleY }],
+    };
+  });
+
+  const overlayAnimatedStyle = useAnimatedStyle(() => {
+    let playedOpacity = 0;
+    if (progressValue) {
+      const cur = progressValue.value;
+      const barProgress = index / barCount;
+      if (cur >= barProgress + (1 / barCount) * 0.5) {
+        playedOpacity = 1;
+      } else if (cur <= barProgress - (1 / barCount) * 0.5) {
+        playedOpacity = 0;
+      } else {
+        const d = Math.max(0, Math.abs(cur - barProgress));
+        playedOpacity = interpolate(d, [0.0, 0.5], [1, 0], Extrapolation.CLAMP);
+        playedOpacity = 1 - playedOpacity;
+      }
+    } else {
+      const cur = progress;
+      const barProgress = index / barCount;
+      playedOpacity = cur >= barProgress ? 1 : 0;
+    }
+    return { opacity: playedOpacity };
+  });
+
+  // We render both layers: base unplayed and overlay gradient for played portion.
+  // The gradient's visual opacity is pulled via an inner animated view.
+  return (
+    <Animated.View style={animatedStyle}>
+      <View style={[barStyle, styles.unplayedBar]} />
+      <Animated.View style={[StyleSheet.absoluteFill, overlayAnimatedStyle]} pointerEvents="none">
         <LinearGradient
           colors={gradients.waveformPlayed}
           start={{ x: 0, y: 0 }}
@@ -153,16 +195,11 @@ function WaveformBar({
           style={[barStyle, styles.playedBar]}
         />
       </Animated.View>
-    );
-  }
-
-  // Muted bar for unplayed portion
-  return (
-    <Animated.View style={animatedStyle}>
-      <View style={[barStyle, styles.unplayedBar]} />
     </Animated.View>
   );
 }
+
+const WaveformBar = React.memo(WaveformBarComponent);
 
 const styles = StyleSheet.create({
   container: {
@@ -172,7 +209,8 @@ const styles = StyleSheet.create({
   barsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
+    width: '100%',
   },
   bar: {
     borderRadius: 2,

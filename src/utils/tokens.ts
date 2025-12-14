@@ -85,10 +85,10 @@ export const shadows = {
   },
   playButton: {
     shadowColor: colors.primaryBlue,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 32,
+    elevation: 24,
   },
   playButtonGlow: {
     shadowColor: colors.accentBlue,

@@ -9,11 +9,14 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   FadeInDown,
   FadeInUp,
+  useSharedValue,
+  withTiming,
 } from 'react-native-reanimated';
 import { usePlayback } from '../contexts/PlaybackContext';
 import type { RouteProp } from '@react-navigation/native';
@@ -26,6 +29,7 @@ import AppBackground from '../components/AppBackground';
 import GlassCard from '../components/GlassCard';
 import PlayButton from '../components/PlayButton';
 import Waveform from '../components/Waveform';
+import ProgressBar from '../components/ProgressBar';
 
 // Design tokens
 import {
@@ -81,149 +85,68 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
 
   const song = currentSong ?? paramSong;
 
-  // Local slider state for smooth UI (labels and final thumb sync)
-  const [localPos, setLocalPos] = useState<number>(positionMillis ?? 0);
-
-  // Fast refs & RAFs for smooth updates without re-rendering on every drag
+  // Use a shared value to drive progress visuals without forcing React re-renders
+  const progressShared = useSharedValue(0);
+  const [displayPos, setDisplayPos] = useState<number>(positionMillis ?? 0);
+  const [isSeeking, setIsSeeking] = useState(false);
   const sliderRef = useRef<any>(null);
-  const seekingRef = useRef<boolean>(false);
-  const localPosRef = useRef<number>(positionMillis ?? 0);
-  const rafRef = useRef<number | null>(null);
-  const labelRafRef = useRef<number | null>(null);
-  const lastContextPosRef = useRef<number>(positionMillis ?? 0);
-  const lastLabelUpdateRef = useRef<number>(0);
+  const lastUpdateRef = useRef<number>(0);
 
-  const RAF_INTERPOLATION_FACTOR = 0.25;
-  const RAF_MIN_DIFF = 0.5;
-  const LABEL_UPDATE_THROTTLE_MS = 50;
-
+  // Sync shared value from playback context when not seeking
   useEffect(() => {
-    lastContextPosRef.current = positionMillis ?? 0;
+    if (!durationMillis) return;
+    if (!isSeeking) {
+      const pos = positionMillis ?? 0;
+      const pct = durationMillis ? pos / durationMillis : 0;
+      // cancel any existing animation
+      try { progressShared.value && (progressShared.value = pct); } catch (e) {}
 
-    if (!seekingRef.current) {
-      startRafLoop();
-    }
-
-    if (!isPlaying && Math.abs(localPosRef.current - lastContextPosRef.current) < 1) {
-      localPosRef.current = lastContextPosRef.current;
-      setLocalPos(lastContextPosRef.current);
-      cancelInterpolationRaf();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [positionMillis, isPlaying]);
-
-  useEffect(() => {
-    return () => {
-      cancelAllRafs();
-    };
-  }, []);
-
-  const cancelInterpolationRaf = () => {
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-  };
-
-  const cancelLabelRaf = () => {
-    if (labelRafRef.current != null) {
-      cancelAnimationFrame(labelRafRef.current);
-      labelRafRef.current = null;
-    }
-  };
-
-  const cancelAllRafs = () => {
-    cancelInterpolationRaf();
-    cancelLabelRaf();
-  };
-
-  const startRafLoop = () => {
-    cancelInterpolationRaf();
-
-    if (seekingRef.current) return;
-
-    const step = () => {
-      if (seekingRef.current) {
-        cancelInterpolationRaf();
-        return;
+      // If currently playing, animate the shared value on the UI thread to the end
+      if (isPlaying && durationMillis && durationMillis > 0) {
+        const remaining = Math.max(0, (durationMillis ?? 0) - pos);
+        // set immediate sync then animate to 1 over remaining time
+        progressShared.value = pct;
+        progressShared.value = withTiming(1, { duration: remaining > 0 ? remaining : 200 });
+      } else {
+        // not playing: gently snap to the exact position
+        progressShared.value = withTiming(pct, { duration: 200 });
       }
 
-      const target = lastContextPosRef.current;
-      const prevVal = localPosRef.current;
-      const diff = target - prevVal;
-
-      if (Math.abs(diff) <= RAF_MIN_DIFF) {
-        localPosRef.current = target;
-        const now = Date.now();
-        if (now - lastLabelUpdateRef.current >= LABEL_UPDATE_THROTTLE_MS) {
-          lastLabelUpdateRef.current = now;
-          setLocalPos(target);
-        } else {
-          setTimeout(() => setLocalPos(target), LABEL_UPDATE_THROTTLE_MS);
+      // reflect occasional UI label updates
+      setDisplayPos(pos);
+      // also update native slider value (infrequent) to keep control in sync
+      try {
+        if (sliderRef.current && sliderRef.current.setNativeProps) {
+          sliderRef.current.setNativeProps({ value: positionMillis ?? 0 });
         }
-        cancelInterpolationRaf();
-        return;
-      }
-
-      const nextVal = prevVal + diff * RAF_INTERPOLATION_FACTOR;
-      localPosRef.current = nextVal;
-
-      const now = Date.now();
-      if (now - lastLabelUpdateRef.current >= LABEL_UPDATE_THROTTLE_MS) {
-        lastLabelUpdateRef.current = now;
-        setLocalPos(nextVal);
-      }
-
-      rafRef.current = requestAnimationFrame(step);
-    };
-
-    if (Math.abs(localPosRef.current - lastContextPosRef.current) > 0.5) {
-      rafRef.current = requestAnimationFrame(step);
+      } catch (e) {}
     }
-  };
-
-  const scheduleLabelUpdate = () => {
-    if (labelRafRef.current) return;
-    labelRafRef.current = requestAnimationFrame(() => {
-      labelRafRef.current = null;
-      const now = Date.now();
-      if (now - lastLabelUpdateRef.current >= LABEL_UPDATE_THROTTLE_MS) {
-        lastLabelUpdateRef.current = now;
-        setLocalPos(localPosRef.current);
-      }
-    });
-  };
+  }, [positionMillis, durationMillis, isSeeking, progressShared]);
 
   const onValueChange = (v: number) => {
-    if (!seekingRef.current) {
-      seekingRef.current = true;
-      cancelInterpolationRaf();
+    setIsSeeking(true);
+    // drive shared value (0..1) for smooth visuals without rerender
+    if (durationMillis && durationMillis > 0) {
+      progressShared.value = v / durationMillis;
     }
-
-    localPosRef.current = v;
-    if (sliderRef.current && sliderRef.current.setNativeProps) {
-      sliderRef.current.setNativeProps({ value: v });
+    // throttle label updates (avoid heavy re-renders)
+    const now = Date.now();
+    if (now - lastUpdateRef.current > 100) {
+      setDisplayPos(v);
+      lastUpdateRef.current = now;
     }
-
-    scheduleLabelUpdate();
   };
 
   const onSlidingComplete = async (value: number) => {
-    seekingRef.current = false;
-    cancelLabelRaf();
-    cancelInterpolationRaf();
-
+    setIsSeeking(false);
     if (seek) {
-      const finalValue = Math.round(value);
-      await seek(finalValue);
-      lastContextPosRef.current = finalValue;
-      localPosRef.current = finalValue;
-      if (sliderRef.current && sliderRef.current.setNativeProps) {
-        sliderRef.current.setNativeProps({ value: finalValue });
-      }
-      setLocalPos(finalValue);
-      startRafLoop();
+      await seek(value);
     }
+    // ensure shared value syncs to final position
+    if (durationMillis && durationMillis > 0) {
+      progressShared.value = (value || 0) / durationMillis;
+    }
+    setDisplayPos(value);
   };
 
   const cycleRepeatMode = () => {
@@ -246,7 +169,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
   };
 
   // Calculate progress for waveform
-  const progress = durationMillis ? localPos / durationMillis : 0;
+  const progress = durationMillis ? displayPos / durationMillis : 0;
 
   // Calculate cover size based on screen dimensions
   const COVER_SIZE = Math.min(width - spacing.xl * 2 - spacing.lg * 2, 320);
@@ -269,7 +192,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
             accessibilityLabel="Go back"
             accessibilityRole="button"
           >
-            <Text style={styles.backIcon}>←</Text>
+            <Ionicons name="chevron-down" size={32} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Now Playing</Text>
           <View style={styles.headerSpacer} />
@@ -286,7 +209,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
               />
             ) : (
               <View style={[styles.artwork, styles.artworkPlaceholder, { width: COVER_SIZE, height: COVER_SIZE }]}>
-                <Text style={styles.artworkPlaceholderText}>♪</Text>
+                <Ionicons name="musical-note" size={80} color={colors.textMuted} />
               </View>
             )}
           </GlassCard>
@@ -305,30 +228,39 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
         {/* Waveform Visualization */}
         <Animated.View entering={FadeInDown.duration(400).delay(300)} style={styles.waveformContainer}>
           <Waveform
-            progress={progress}
+            progress={0}
+            progressValue={progressShared}
             width={width - spacing.xl * 2}
             height={50}
+            isPlaying={isPlaying}
           />
         </Animated.View>
 
         {/* Progress Bar */}
         <Animated.View entering={FadeInDown.duration(400).delay(350)} style={styles.progressSection}>
           <View style={styles.progressRow}>
-            <Slider
-              ref={sliderRef}
-              style={styles.slider}
-              minimumValue={0}
-              maximumValue={durationMillis || 1}
-              value={localPos}
-              minimumTrackTintColor={colors.primaryBlue}
-              maximumTrackTintColor={colors.progressTrack}
-              thumbTintColor={colors.textWhite}
-              onValueChange={onValueChange}
-              onSlidingComplete={onSlidingComplete}
-            />
-          </View>
+              <ProgressBar 
+                progress={durationMillis ? (displayPos) / durationMillis : 0}
+                durationMillis={durationMillis}
+                isPlaying={isPlaying && !isSeeking}
+                width={width - spacing.xl * 2}
+                progressShared={progressShared}
+              />
+              <Slider
+                ref={sliderRef}
+                style={styles.sliderOverlay}
+                minimumValue={0}
+                maximumValue={durationMillis || 1}
+                // leave slider uncontrolled to avoid rerenders; native thumb moves by itself
+                minimumTrackTintColor="transparent"
+                maximumTrackTintColor="transparent"
+                thumbTintColor="transparent"
+                onValueChange={onValueChange}
+                onSlidingComplete={onSlidingComplete}
+              />
+            </View>
           <View style={styles.timeRow}>
-            <Text style={styles.time}>{formatMillis(localPos)}</Text>
+            <Text style={styles.time}>{formatMillis(displayPos)}</Text>
             <Text style={styles.time}>{formatMillis(durationMillis)}</Text>
           </View>
         </Animated.View>
@@ -342,7 +274,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
             accessibilityLabel={shuffleEnabled ? 'Disable shuffle' : 'Enable shuffle'}
             accessibilityRole="button"
           >
-            <Text style={[styles.controlIcon, shuffleEnabled && styles.controlIconActive]}>🔀</Text>
+            <Ionicons name="shuffle" size={28} color={shuffleEnabled ? colors.primaryBlue : colors.controlInactive} />
           </TouchableOpacity>
 
           {/* Previous */}
@@ -352,13 +284,21 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
             accessibilityLabel="Previous track"
             accessibilityRole="button"
           >
-            <Text style={styles.controlIconLarge}>⏮</Text>
+            <Ionicons name="play-skip-back" size={32} color={colors.textPrimary} />
           </TouchableOpacity>
 
           {/* Play/Pause */}
           <PlayButton
             isPlaying={isPlaying}
-            onPress={togglePlay}
+            onPress={async () => {
+              try {
+                if (__DEV__) console.log('PlayerScreen: PlayButton pressed, calling togglePlay()');
+                await togglePlay();
+                if (__DEV__) console.log('PlayerScreen: togglePlay() returned');
+              } catch (e) {
+                console.warn('PlayerScreen: togglePlay() error', e);
+              }
+            }}
             size={72}
             accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
           />
@@ -370,7 +310,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
             accessibilityLabel="Next track"
             accessibilityRole="button"
           >
-            <Text style={styles.controlIconLarge}>⏭</Text>
+            <Ionicons name="play-skip-forward" size={32} color={colors.textPrimary} />
           </TouchableOpacity>
 
           {/* Repeat */}
@@ -380,9 +320,22 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
             accessibilityLabel={`Repeat mode: ${repeatMode}`}
             accessibilityRole="button"
           >
-            <Text style={[styles.controlIcon, repeatMode !== 'off' && styles.controlIconActive]}>
-              {getRepeatIcon()}
-            </Text>
+            <Ionicons 
+              name="repeat" 
+              size={28} 
+              color={repeatMode !== 'off' ? colors.primaryBlue : colors.controlInactive} 
+            />
+            {repeatMode === 'one' && (
+              <View style={{ 
+                position: 'absolute', 
+                top: '50%', 
+                left: '50%', 
+                marginTop: -6,
+                marginLeft: -4,
+              }}>
+                <Text style={{ fontSize: 10, fontWeight: 'bold', color: colors.primaryBlue }}>1</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </Animated.View>
 
@@ -395,7 +348,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
                 accessibilityLabel="View queue"
                 accessibilityRole="button"
               >
-                <Text style={styles.actionIcon}>📃</Text>
+                <Ionicons name="list" size={24} color={colors.textPrimary} style={{ marginBottom: spacing.xs }} />
                 <Text style={styles.actionLabel}>Queue</Text>
               </TouchableOpacity>
 
@@ -405,7 +358,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
                 accessibilityLabel={isLiked ? 'Unlike' : 'Like'}
                 accessibilityRole="button"
               >
-                <Text style={styles.actionIcon}>{isLiked ? '❤️' : '🤍'}</Text>
+                <Ionicons name={isLiked ? 'heart' : 'heart-outline'} size={24} color={isLiked ? '#FF3B30' : colors.textPrimary} style={{ marginBottom: spacing.xs }} />
                 <Text style={styles.actionLabel}>Like</Text>
               </TouchableOpacity>
 
@@ -414,7 +367,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
                 accessibilityLabel="Download"
                 accessibilityRole="button"
               >
-                <Text style={styles.actionIcon}>⬇️</Text>
+                <Ionicons name="download-outline" size={24} color={colors.textPrimary} style={{ marginBottom: spacing.xs }} />
                 <Text style={styles.actionLabel}>Download</Text>
               </TouchableOpacity>
 
@@ -423,7 +376,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
                 accessibilityLabel="Comments"
                 accessibilityRole="button"
               >
-                <Text style={styles.actionIcon}>💬</Text>
+                <Ionicons name="chatbubble-outline" size={24} color={colors.textPrimary} style={{ marginBottom: spacing.xs }} />
                 <Text style={styles.actionLabel}>Comments</Text>
               </TouchableOpacity>
             </View>
@@ -519,10 +472,19 @@ const styles = StyleSheet.create({
   },
   progressRow: {
     width: '100%',
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   slider: {
     width: '100%',
     height: 40,
+  },
+  sliderOverlay: {
+    position: 'absolute',
+    width: '100%',
+    height: 40,
+    zIndex: 10,
   },
   timeRow: {
     flexDirection: 'row',

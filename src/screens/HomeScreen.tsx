@@ -15,6 +15,12 @@ import {
   TouchableWithoutFeedback,
   ScrollView,
 } from 'react-native';
+import {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing as ReanimatedEasing,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import HamburgerButton from '../components/HamburgerButton';

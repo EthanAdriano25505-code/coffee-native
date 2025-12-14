@@ -6,6 +6,7 @@ module.exports = function(api) {
       // add any other plugins you need above this line
       // IMPORTANT: react-native-reanimated/plugin MUST be the last plugin
       'react-native-reanimated/plugin'
+      
     ],
   };
 };

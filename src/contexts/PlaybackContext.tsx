@@ -39,7 +39,7 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Throttle position updates to avoid excessive re-renders
   const lastPositionUpdateRef = useRef<number>(0);
-  const POSITION_UPDATE_THROTTLE_MS = 100; // 100ms
+  const POSITION_UPDATE_THROTTLE_MS = 500; // 500ms - UI handles smooth interpolation
 
   const _stopAndUnloadCurrent = async () => {
     if (soundRef.current) {
@@ -50,38 +50,45 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const togglePlay = async (song?: any) => {
+    if (__DEV__) console.log('togglePlay called:', { songId: song?.id ?? null, isPlaying });
     // If a specific song is requested and it's different, start it
     if (song && (currentSong as any)?.id !== song.id) {
       await play(song);
       return;
     }
 
-    // If there's an active sound, toggle quickly and optimistically
-    if (soundRef.current) {
-      setIsPlaying((prev) => !prev); // optimistic UI
+    // If UI currently thinks we're playing, user intends to pause
+    if (isPlaying) {
+      // optimistic UI
+      setIsPlaying(false);
       try {
-        const status = await (soundRef.current as any).getStatusAsync();
-        if (status.isLoaded) {
-          if (status.isPlaying) {
-            await (soundRef.current as any).pauseAsync();
-            setIsPlaying(false);
-          } else {
-            await (soundRef.current as any).playAsync();
-            setIsPlaying(true);
-          }
-        } else {
-          // attempt to play if not loaded
-          await (soundRef.current as any).playAsync();
-          setIsPlaying(true);
-        }
+        if (__DEV__) console.log('togglePlay -> calling pause()');
+        await pause();
+        if (__DEV__) console.log('togglePlay -> pause() resolved');
       } catch (e) {
-        console.warn('togglePlay error', e);
-        setIsPlaying(false);
+        console.warn('togglePlay (pause) error', e);
+        // restore state if pause failed
+        setIsPlaying(true);
       }
       return;
     }
 
-    // No instance: play currentSong if available
+    // Otherwise user intends to play: if we have an existing sound try to resume
+    if (soundRef.current) {
+      try {
+        const status = await (soundRef.current as any).getStatusAsync();
+        if (__DEV__) console.log('togglePlay resume: sound status', { isLoaded: status.isLoaded, isPlaying: status.isPlaying, positionMillis: status.positionMillis });
+        if (status.isLoaded) {
+          await (soundRef.current as any).playAsync();
+          setIsPlaying(true);
+          return;
+        }
+      } catch (e) {
+        console.warn('togglePlay (resume) getStatus/play error', e);
+      }
+    }
+
+    // No usable instance: start playing the currentSong (if any)
     if (currentSong) {
       await play(currentSong as any);
     }
@@ -149,6 +156,10 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           try { sound.unloadAsync().catch(() => {}); } catch (e) {}
           soundRef.current = null;
           return;
+        }
+
+        if (__DEV__) {
+          try { console.log('playback status update', { positionMillis: s.positionMillis, durationMillis: s.durationMillis, isPlaying: s.isPlaying, didJustFinish: s.didJustFinish }); } catch (e) {}
         }
 
         // Throttle frequent position updates to reduce re-renders

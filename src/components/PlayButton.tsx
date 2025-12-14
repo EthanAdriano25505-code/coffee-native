@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, Pressable, View, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Defs, RadialGradient, Stop, Circle } from 'react-native-svg';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -11,7 +12,8 @@ import Animated, {
   Easing,
   cancelAnimation,
 } from 'react-native-reanimated';
-import { colors, gradients, radii, shadows, touchTargetMinSize, animation } from '../utils/tokens';
+import { colors, gradients, touchTargetMinSize, shadows, animation } from '../utils/tokens';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 interface PlayButtonProps {
   isPlaying: boolean;
@@ -20,30 +22,23 @@ interface PlayButtonProps {
   accessibilityLabel?: string;
 }
 
-/**
- * PlayButton - Gradient play/pause button with pulsing glow animation when playing.
- * Uses Reanimated for smooth 60fps animations.
- */
 export default function PlayButton({
   isPlaying,
   onPress,
   size = 64,
   accessibilityLabel,
 }: PlayButtonProps) {
-  // Shared value for pulsing glow animation (0 to 1)
-  const glowProgress = useSharedValue(0);
-  // Shared value for press scale animation
-  const pressScale = useSharedValue(1);
+  const glowProgress = useSharedValue(0); // Animation for the glowing pulse
+  const pressScale = useSharedValue(1); // Animation for press interactions
 
-  // Start/stop pulsing animation based on playing state
   useEffect(() => {
     if (isPlaying) {
       glowProgress.value = withRepeat(
         withSequence(
-          withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0, { duration: 1200, easing: Easing.inOut(Easing.ease) })
+          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0, { duration: 1000, easing: Easing.inOut(Easing.ease) })
         ),
-        -1, // infinite repeat
+        -1, // Infinite loop
         false
       );
     } else {
@@ -52,7 +47,6 @@ export default function PlayButton({
     }
   }, [isPlaying, glowProgress]);
 
-  // Animated style for the glow effect
   const glowStyle = useAnimatedStyle(() => {
     const scale = interpolate(glowProgress.value, [0, 1], [1, 1.15]);
     const opacity = interpolate(glowProgress.value, [0, 1], [0.3, 0.6]);
@@ -62,48 +56,66 @@ export default function PlayButton({
     };
   });
 
-  // Animated style for press feedback
   const buttonStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pressScale.value }],
   }));
 
   const handlePressIn = () => {
-    pressScale.value = withTiming(0.92, { duration: 100 });
+    pressScale.value = withTiming(0.92, { duration: animation.duration.fast });
   };
 
   const handlePressOut = () => {
-    pressScale.value = withTiming(1, { duration: 150 });
+    pressScale.value = withTiming(1, { duration: animation.duration.fast });
   };
 
   const iconSize = size * 0.4;
-  const iconStyle = isPlaying
-    ? { fontSize: iconSize, color: colors.textWhite }
-    : { fontSize: iconSize, color: colors.textWhite, marginLeft: size * 0.05 }; // slight offset for play icon visual centering
+  const glowSize = size * 2.5; // Glow size expanded for softer effect
 
   return (
     <Pressable
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      accessibilityLabel={accessibilityLabel || (isPlaying ? 'Pause' : 'Play')}
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel || (isPlaying ? 'Pause' : 'Play')}
       accessibilityState={{ checked: isPlaying }}
       style={[styles.wrapper, { width: Math.max(size, touchTargetMinSize), height: Math.max(size, touchTargetMinSize) }]}
     >
-      {/* Glow effect layer (behind button) */}
+      {/* Glow effect (SVG Radial Gradient) */}
       <Animated.View
         style={[
-          styles.glow,
           {
-            width: size * 1.4,
-            height: size * 1.4,
-            borderRadius: size * 0.7,
+            position: 'absolute',
+            width: glowSize,
+            height: glowSize,
+            alignItems: 'center',
+            justifyContent: 'center',
           },
           glowStyle,
         ]}
-      />
+      >
+        <Svg height={glowSize} width={glowSize}>
+          <Defs>
+            <RadialGradient
+              id="glowGrad"
+              cx="50%"
+              cy="50%"
+              rx="50%"
+              ry="50%"
+              fx="50%"
+              fy="50%"
+              gradientUnits="userSpaceOnUse"
+            >
+              <Stop offset="20%" stopColor={colors.primaryBlue} stopOpacity="0.5" />
+              <Stop offset="70%" stopColor={colors.accentBlue} stopOpacity="0.2" />
+              <Stop offset="100%" stopColor={colors.accentBlue} stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          <Circle cx={glowSize / 2} cy={glowSize / 2} r={glowSize / 2} fill="url(#glowGrad)" />
+        </Svg>
+      </Animated.View>
 
-      {/* Main button with gradient */}
+      {/* Button UI */}
       <Animated.View style={[styles.buttonOuter, { width: size, height: size }, buttonStyle]}>
         <LinearGradient
           colors={gradients.playButton}
@@ -111,26 +123,7 @@ export default function PlayButton({
           end={{ x: 1, y: 1 }}
           style={[styles.button, { width: size, height: size, borderRadius: size / 2 }]}
         >
-          <View style={styles.iconContainer}>
-            {isPlaying ? (
-              <View style={styles.pauseIcon}>
-                <View style={[styles.pauseBar, { height: iconSize * 0.6, width: iconSize * 0.18 }]} />
-                <View style={[styles.pauseBar, { height: iconSize * 0.6, width: iconSize * 0.18, marginLeft: iconSize * 0.22 }]} />
-              </View>
-            ) : (
-              <View
-                style={[
-                  styles.playIcon,
-                  {
-                    borderLeftWidth: iconSize * 0.6,
-                    borderTopWidth: iconSize * 0.35,
-                    borderBottomWidth: iconSize * 0.35,
-                    marginLeft: size * 0.08,
-                  },
-                ]}
-              />
-            )}
-          </View>
+          <Ionicons name={isPlaying ? 'pause' : 'play'} size={iconSize} color={colors.textWhite} />
         </LinearGradient>
       </Animated.View>
     </Pressable>
@@ -143,10 +136,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
-  glow: {
-    position: 'absolute',
-    backgroundColor: colors.accentBlue,
-  },
   buttonOuter: {
     ...Platform.select({
       ios: shadows.playButton,
@@ -156,25 +145,7 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pauseIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  pauseBar: {
-    backgroundColor: colors.textWhite,
-    borderRadius: 2,
-  },
-  playIcon: {
-    width: 0,
-    height: 0,
-    borderTopColor: 'transparent',
-    borderBottomColor: 'transparent',
-    borderLeftColor: colors.textWhite,
-    borderStyle: 'solid',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
 });
