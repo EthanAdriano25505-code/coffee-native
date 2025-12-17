@@ -39,7 +39,7 @@ const GlassDrawer: React.FC<Props> = ({
   isOpen,
   onClose,
   onNavigate,
-  widthPercent = 0.6,
+  widthPercent = 0.75,
   blurIntensityIOS = 90,
   blurIntensityAndroid = 30,
   tint = 'default',
@@ -117,10 +117,13 @@ const GlassDrawer: React.FC<Props> = ({
   ];
 
   return (
-    <Animated.View style={[styles.container, { zIndex: 9999 }]}>
-      {/* Overlay: limit overlay to the screen area NOT covered by the drawer so it never intercepts drawer touchables */}
+    <Animated.View
+      style={[styles.container, { zIndex: 9999 }]}
+      pointerEvents={isOpen ? 'box-none' : 'none'}
+    >
+      {/* Overlay: covers the entire screen to dim the background */}
       <Pressable
-        style={[StyleSheet.absoluteFill, { left: DRAWER_WIDTH }]}
+        style={StyleSheet.absoluteFill}
         onPress={onClose}
         pointerEvents={isOpen ? 'auto' : 'none'}
       >
@@ -141,14 +144,8 @@ const GlassDrawer: React.FC<Props> = ({
           drawerStyle,
           {
             width: DRAWER_WIDTH,
-            height: SCREEN_HEIGHT,
             left: 0,
             zIndex: 10001,
-            shadowColor: '#000',
-            shadowOpacity: isDark ? 0.5 : 0.28,
-            shadowOffset: { width: 4, height: 0 },
-            shadowRadius: 18,
-            elevation: 28,
           },
         ]}
       >
@@ -243,15 +240,6 @@ by Saw K Za</Text>
             </SafeAreaView>
           </LinearGradient>
         </BlurView>
-
-        {/* Thin glass border edge */}
-        <View
-          pointerEvents="none"
-          style={[
-            styles.glassEdge,
-            { borderRightColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' },
-          ]}
-        />
       </Animated.View>
     </Animated.View>
   );
@@ -269,16 +257,9 @@ const styles = StyleSheet.create({
   drawer: {
     position: 'absolute',
     top: 0,
-    overflow: 'hidden',
+    bottom: 0,
     // rounded "liquid" edges like iPhone sheets
     borderTopRightRadius: 28,
-    borderBottomRightRadius: 28,
-    // subtle outer shadow to lift it above the backdrop
-    shadowColor: '#000',
-    shadowOffset: { width: 6, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 30,
-    elevation: 30,
     backgroundColor: 'transparent',
   },
 
@@ -287,7 +268,6 @@ const styles = StyleSheet.create({
     flex: 1,
     overflow: 'hidden',
     borderTopRightRadius: 28,
-    borderBottomRightRadius: 28,
   },
 
   // gradient overlay stretches full height; we add padding in inner content
@@ -381,25 +361,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.8,
     letterSpacing: 0.2,
-  },
-
-  // Thin glass edge to emphasize the sheet boundary; slightly blurred look via transparency
-  glassEdge: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    right: -1,
-    width: 2,
-    borderRightWidth: 1,
-    opacity: 0.95,
-    // neutral color used inline for light/dark adjustments; keep space for a highlight
-    backgroundColor: 'transparent',
-    // subtle highlight (will blend with the gradient behind it)
-    shadowColor: '#fff',
-    shadowOffset: { width: -1, height: 0 },
-    shadowOpacity: 0.025,
-    shadowRadius: 6,
-    elevation: 0,
   },
 });
 

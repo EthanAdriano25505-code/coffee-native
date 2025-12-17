@@ -435,22 +435,22 @@ const HomeScreen: React.FC = () => {
                 <Text style={styles.playerTitle} numberOfLines={1}>{currentSong?.title ?? ''}</Text>
                 <Text style={styles.playerArtist}>{currentSong?.artist ?? ''}</Text>
 
-                <View style={styles.progressContainer}>
-                  <Animated.View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: progressAnim.interpolate({
-                          inputRange: [0, 100],
-                          outputRange: ['0%', '100%'],
-                          extrapolate: 'clamp',
-                        }),
-                      },
-                    ]}
-                  />
-                </View>
-              </View>
-            </View>
+          <View style={styles.progressContainer}>
+            <Animated.View
+            style={[
+              styles.progressFill,
+              {
+              width: progressAnim.interpolate({
+                inputRange: [0, 100],
+                outputRange: ['0%', '100%'],
+                extrapolate: 'clamp',
+              }),
+              },
+            ]}
+            />
+          </View>
+          </View>
+        </View>
 
             <View style={styles.playerControls}>
               <TouchableOpacity onPress={() => prev()} style={styles.controlBtn} accessibilityLabel="Previous">
@@ -486,7 +486,7 @@ const HomeScreen: React.FC = () => {
       <GlassDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        onNavigate={(screen) => {
+        onNavigate={(screen: string) => {
           // Only allow safe, parameterless routes from the drawer
           const safeRoutes = ['Home', 'Profile', 'Settings', 'About'];
           if (safeRoutes.includes(screen)) {
