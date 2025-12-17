@@ -118,18 +118,23 @@ const GlassDrawer: React.FC<Props> = ({
 
   return (
     <Animated.View style={[styles.container, { zIndex: 9999 }]}>
-      {/* Overlay (dim background) */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} pointerEvents={isOpen ? 'auto' : 'none'}>
+      {/* Overlay: limit overlay to the screen area NOT covered by the drawer so it never intercepts drawer touchables */}
+      <Pressable
+        style={[StyleSheet.absoluteFill, { left: DRAWER_WIDTH }]}
+        onPress={onClose}
+        pointerEvents={isOpen ? 'auto' : 'none'}
+      >
         <Animated.View
+          // give the overlay a zIndex lower than the drawer to make stacking explicit
           style={[
             styles.overlay,
             overlayStyle,
-            { backgroundColor: isDark ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.45)' },
+            { zIndex: 10000, backgroundColor: isDark ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.45)' },
           ]}
         />
       </Pressable>
 
-      {/* Drawer surface */}
+      {/* Drawer surface (ensure it sits above the overlay) */}
       <Animated.View
         style={[
           styles.drawer,
@@ -138,6 +143,7 @@ const GlassDrawer: React.FC<Props> = ({
             width: DRAWER_WIDTH,
             height: SCREEN_HEIGHT,
             left: 0,
+            zIndex: 10001,
             shadowColor: '#000',
             shadowOpacity: isDark ? 0.5 : 0.28,
             shadowOffset: { width: 4, height: 0 },
