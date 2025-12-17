@@ -20,10 +20,10 @@ export default function AppNavigator() {
       <Stack.Screen name="MusicDetail" component={MusicDetail} />
       <Stack.Screen name="FullSongs" component={FullSongsScreen} />
       <Stack.Screen name="Player" component={PlayerScreen} options={{ headerShown: false }} />
-      <Stack.Screen name={"Profile" as keyof RootStackParamList} component={ProfileScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="CategorySongs" component={CategorySongsScreen} />
-      <Stack.Screen name={"Settings" as keyof RootStackParamList} component={SettingsScreen} />
-      <Stack.Screen name={"About" as keyof RootStackParamList} component={AboutScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="About" component={AboutScreen} />
     </Stack.Navigator>
   );
 }

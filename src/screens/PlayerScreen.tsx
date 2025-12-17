@@ -85,6 +85,32 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
 
   const song = currentSong ?? paramSong;
 
+  if (!song) {
+    return (
+      <AppBackground style={{ paddingTop: insets.top, justifyContent: 'center', alignItems: 'center', flex: 1 }}>
+        <GlassCard style={{ padding: spacing.lg, alignItems: 'center' }}>
+          <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: '600', marginBottom: spacing.sm }}>
+            No song playing
+          </Text>
+          <Text style={{ color: colors.textSecondary, marginBottom: spacing.md }}>
+            Select a song from the home screen to play.
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Home')}
+            style={{
+              backgroundColor: colors.primaryBlue,
+              paddingHorizontal: spacing.lg,
+              paddingVertical: spacing.sm,
+              borderRadius: radii.round,
+            }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '600' }}>Go Home</Text>
+          </TouchableOpacity>
+        </GlassCard>
+      </AppBackground>
+    );
+  }
+
   // Use a shared value to drive progress visuals without forcing React re-renders
   const progressShared = useSharedValue(0);
   const [displayPos, setDisplayPos] = useState<number>(positionMillis ?? 0);
