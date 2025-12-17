@@ -487,11 +487,17 @@ const HomeScreen: React.FC = () => {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         onNavigate={(screen) => {
-          setIsDrawerOpen(false);
-          try {
-            (hookNav ?? navigation).navigate(screen as any);
-          } catch (e) {
-            if (__DEV__) console.warn('Drawer navigation failed', e);
+          // Only allow safe, parameterless routes from the drawer
+          const safeRoutes = ['Home', 'Profile', 'Settings', 'About'];
+          if (safeRoutes.includes(screen)) {
+            setIsDrawerOpen(false);
+            try {
+              (hookNav ?? navigation).navigate(screen as any);
+            } catch (e) {
+              if (__DEV__) console.warn('Drawer navigation failed', e);
+            }
+          } else {
+            if (__DEV__) console.warn('Attempted unsafe drawer navigation to:', screen);
           }
         }}
       />
