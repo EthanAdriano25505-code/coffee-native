@@ -40,6 +40,7 @@ import { spacing, radii, sizes, elevation, getColors } from '../theme/designToke
 import { tokens } from '../theme/designTokens';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import GlassDrawer from '../components/GlassDrawer';
 
 const { width, height } = Dimensions.get('window');
 const isLargeScreen = Math.max(width, height) >= 768;
@@ -83,10 +84,8 @@ const HomeScreen: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState<boolean>(!!ctxPlaying);
   const [activeFilter, setActiveFilter] = useState('All');
 
-  // Drawer state (local, animated with React Native Animated — no reanimated)
+  // Drawer state (local)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const drawerTranslateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => setCurrentSong((ctxSong as Song) ?? null), [ctxSong]);
   useEffect(() => setIsPlaying(!!ctxPlaying), [ctxPlaying]);
@@ -344,73 +343,29 @@ const HomeScreen: React.FC = () => {
 
   const listFooter = songs.length > 0 ? <View style={{ height: PLAYER_HEIGHT + (insets.bottom ?? 0) + 12 }} /> : null;
 
-  // Drawer open / close animations (React Native Animated)
-  const openDrawer = useCallback(() => {
-    setIsDrawerOpen(true);
-    Animated.parallel([
-      Animated.timing(drawerTranslateX, {
-        toValue: 0,
-        duration: 420,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(overlayOpacity, {
-        toValue: 1,
-        duration: 320,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [drawerTranslateX, overlayOpacity]);
-
-  const closeDrawer = useCallback(() => {
-    Animated.parallel([
-      Animated.timing(drawerTranslateX, {
-        toValue: -DRAWER_WIDTH,
-        duration: 340,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(overlayOpacity, {
-        toValue: 0,
-        duration: 260,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // ensure fully closed after animation
-      setIsDrawerOpen(false);
-    });
-  }, [drawerTranslateX, overlayOpacity]);
+  const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
+  const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
 
   const handleDrawerNavigate = useCallback((screen: string) => {
     // close then navigate
-    closeDrawer();
+    setIsDrawerOpen(false);
     setTimeout(() => {
       try {
         (hookNav ?? navigation)?.navigate(screen as any);
       } catch (err) {
         if (__DEV__) console.warn('Navigation from drawer failed', err);
       }
-    }, 300);
-  }, [closeDrawer, hookNav, navigation]);
+    }, 260);
+  }, [hookNav, navigation]);
 
-  // overlay animated styles
-  const overlayStyle = {
-    opacity: overlayOpacity,
-    backgroundColor: isDark ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.45)',
-  };
-
-  const drawerAnimatedStyle = {
-    transform: [{ translateX: drawerTranslateX }],
-  };
+  // (drawer animations removed) simple state-driven overlay handled by GlassDrawer
 
   // menu items (placeholder)
   const menuItems = [
     { id: 'home', label: 'Home', icon: 'home', screen: 'Home' },
-    { id: 'profile', label: 'Profile', icon: 'user', screen: 'MusicDetail' },
-    { id: 'settings', label: 'Settings', icon: 'settings', screen: 'FullSongs' },
-    { id: 'about', label: 'About', icon: 'info', screen: 'Player' },
+    { id: 'profile', label: 'Profile', icon: 'user', screen: 'Profile' },
+    { id: 'settings', label: 'Settings', icon: 'settings', screen: 'Settings' },
+    { id: 'about', label: 'About', icon: 'info', screen: 'About' },
   ];
 
   return (
@@ -528,114 +483,18 @@ const HomeScreen: React.FC = () => {
         - Backdrop dims and is pressable to dismiss
         - Drawer interior uses BlurView + LinearGradient for premium glass look
       */}
-      {isDrawerOpen ? (
-        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-          {/* Backdrop */}
-          <TouchableWithoutFeedback onPress={closeDrawer}>
-            <Animated.View style={[styles.overlay, overlayStyle]} />
-          </TouchableWithoutFeedback>
-
-          {/* Drawer container */}
-          <Animated.View
-            style={[
-              styles.drawerContainer,
-              drawerAnimatedStyle,
-              { width: DRAWER_WIDTH, top : 0,bottom : 0, backgroundColor: 'transparent' },
-            ]}
-            pointerEvents="box-none"
-          >
-            
-            <BlurView
-              intensity={Platform.OS === 'ios' ? BLUR_INTENSITY_IOS : BLUR_INTENSITY_ANDROID}
-              tint={isDark ? 'dark' : 'light'}
-              style={styles.blur}
-            >
-              <LinearGradient
-                colors={
-                  isDark
-                    ? ['rgba(20,20,20,0.82)', 'rgba(12,12,12,0.95)']
-                    : ['rgba(255,255,255,0.82)', 'rgba(245,245,245,0.95)']
-                }
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={styles.gradient}
-              >
-                <SafeAreaView edges={['top', 'left', 'bottom']} style={styles.drawerSafe}>
-                  <View style={styles.drawerHeader}>
-                    <Text style={[styles.drawerTitle, { color: colors.text }]}>Menu</Text>
-                    <TouchableOpacity onPress={closeDrawer} style={styles.drawerCloseBtn} accessibilityRole="button" accessibilityLabel="Close menu">
-                      <Feather name="x" size={22} color={colors.text} />
-                    </TouchableOpacity>
-                  </View>
-
-<View style={styles.menuList}>
-  {menuItems.map((it) => (
-    <TouchableOpacity
-      key={it.id}
-      onPress={() => handleDrawerNavigate(it.screen)}
-      activeOpacity={0.7}
-      style={{
-        marginBottom: spacing.sm,
-        borderRadius: 14,
-        // Shadow for the "lifted" glass look
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: isDark ? 0.4 : 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-        backgroundColor: 'transparent',
-      }}
-    >
-      <BlurView
-        intensity={Platform.OS === 'ios' ? 80 : 40}
-        tint={isDark ? 'dark' : 'light'}
-        style={{
-          borderRadius: 14,
-          overflow: 'hidden',
-          borderWidth: 1,
-          borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.6)',
-          backgroundColor: 'transparent',
-        }}
-      >
-        <LinearGradient
-          colors={
-            isDark
-              ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']
-              : ['rgba(255,255,255,0.7)', 'rgba(255,255,255,0.3)']
+      <GlassDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onNavigate={(screen) => {
+          setIsDrawerOpen(false);
+          try {
+            (hookNav ?? navigation).navigate(screen as any);
+          } catch (e) {
+            if (__DEV__) console.warn('Drawer navigation failed', e);
           }
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingVertical: spacing.md,
-            paddingHorizontal: spacing.sm,
-            minHeight: 56,
-          }}
-        >
-          <Feather name={it.icon as any} size={20} color={isDark ? colors.text : '#111'} style={{ marginRight: spacing.md, opacity: 0.95 }} />
-          <Text style={{ fontSize: 16, fontWeight: '700', flex: 1, color: isDark ? colors.text : '#111' }}>{it.label}</Text>
-          <Feather name="chevron-right" size={18} color={isDark ? colors.muted : 'rgba(0,0,0,0.4)'} />
-        </LinearGradient>
-      </BlurView>
-    </TouchableOpacity>
-  ))}
-
-  {/* spacer to separate menu from footer and ensure footer sits at the bottom */}
-  <View style={{ height: spacing.md }} />
-</View>
-                  <View style={styles.drawerFooter}>
-                    <Text style={[styles.footerText, { color: colors.muted }]}>Music App v1.0 {"\n"}by Saw K Za</Text>
-                  </View>
-                </SafeAreaView>
-              </LinearGradient>
-            </BlurView>
-
-            {/* glass edge */}
-            <View pointerEvents="none" style={[styles.glassEdge, { borderRightColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]} />
-          </Animated.View>
-        </View>
-      ) : null}
+        }}
+      />
     </SafeAreaView>
   );
 };

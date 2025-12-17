@@ -230,7 +230,8 @@ const GlassDrawer: React.FC<Props> = ({
 
                 {/* Footer */}
                 <View style={styles.footer}>
-                  <Text style={[styles.footerText, { color: colors.muted }]}>Music App v1.0 by <br/>by Saw K Za</Text>
+                  <Text style={[styles.footerText, { color: colors.muted }]}>Music App v1.0
+by Saw K Za</Text>
                 </View>
               </Animated.View>
             </SafeAreaView>
