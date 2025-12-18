@@ -33,7 +33,7 @@ export default function SongCard({ song, onPress }: Props) {
             colors={
               isDark
                 ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']
-                : ['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.5)']
+                : ['rgba(255,255,255,0.7)', 'rgba(255,255,255,0.3)']
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
@@ -74,8 +74,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
     elevation: 4,
     backgroundColor: 'transparent',
   },

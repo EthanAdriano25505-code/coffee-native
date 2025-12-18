@@ -1,14 +1,14 @@
 import React from 'react';
-import { StyleSheet, View, Text, Image, Pressable, Platform } from 'react-native';
+import { StyleSheet, View, Text, Image, Pressable, Dimensions } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   withTiming,
-  interpolate,
-  Extrapolation,
   useSharedValue,
 } from 'react-native-reanimated';
-import GlassCard from './GlassCard';
-import { colors, spacing, radii, touchTargetMinSize, typography } from '../utils/tokens';
+import { Ionicons } from '@expo/vector-icons';
+import { spacing } from '../theme/designTokens';
+
+const { width } = Dimensions.get('window');
 
 interface Song {
   id: string | number;
@@ -20,16 +20,15 @@ interface Song {
 interface MiniPlayerProps {
   song: Song;
   isPlaying: boolean;
-  progress: number;
+  progress: number; // 0 to 1
   onPress: () => void;
   onPlayPause: () => void;
   onNext: () => void;
-  onPrev: () => void;
 }
 
 /**
- * MiniPlayer - Dark glass variant mini player with top progress strip.
- * Renders at the bottom of the screen when in minimized state.
+ * MiniPlayer - "Glass UI" variant.
+ * Floating pill shape, dark background, top progress bar.
  */
 export default function MiniPlayer({
   song,
@@ -38,7 +37,6 @@ export default function MiniPlayer({
   onPress,
   onPlayPause,
   onNext,
-  onPrev,
 }: MiniPlayerProps) {
   const pressScale = useSharedValue(1);
 
@@ -56,159 +54,145 @@ export default function MiniPlayer({
 
   return (
     <Animated.View style={[styles.container, containerAnimatedStyle]}>
-      <GlassCard variant="dark" style={styles.card}>
-        {/* Progress strip at top */}
-        <View style={styles.progressStrip}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-        </View>
+      {/* Progress Bar (Top Edge) */}
+      <View style={styles.progressBarContainer}>
+        <View style={[styles.progressBarFill, { width: `${Math.min(100, Math.max(0, progress * 100))}%` }]} />
+      </View>
 
-        <Pressable
-          onPress={onPress}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          style={styles.content}
-          accessibilityLabel={`Now playing: ${song.title} by ${song.artist || 'Unknown artist'}. Tap to expand.`}
-          accessibilityRole="button"
-        >
-          {/* Artwork */}
+      <Pressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={styles.content}
+        accessibilityLabel={`Now playing: ${song.title}`}
+      >
+        {/* Artwork */}
+        <View style={styles.artworkContainer}>
           {song.cover_url ? (
             <Image source={{ uri: song.cover_url }} style={styles.artwork} />
           ) : (
-            <View style={[styles.artwork, styles.artworkPlaceholder]}>
-              <Text style={styles.artworkPlaceholderText}>♪</Text>
+            <View style={[styles.artwork, styles.placeholderArt]}>
+              <Ionicons name="musical-note" size={20} color="#666" />
             </View>
           )}
+        </View>
 
-          {/* Song info */}
-          <View style={styles.info}>
-            <Text style={styles.title} numberOfLines={1}>
-              {song.title}
-            </Text>
-            <Text style={styles.artist} numberOfLines={1}>
-              {song.artist || 'Unknown artist'}
-            </Text>
-          </View>
+        {/* Info */}
+        <View style={styles.infoContainer}>
+          <Text style={styles.title} numberOfLines={1}>
+            {song.title}
+          </Text>
+          <Text style={styles.artist} numberOfLines={1}>
+            {song.artist || 'Unknown Artist'}
+          </Text>
+        </View>
 
-          {/* Controls */}
-          <View style={styles.controls}>
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onPrev();
-              }}
-              style={styles.controlButton}
-              accessibilityLabel="Previous track"
-              accessibilityRole="button"
-              hitSlop={8}
-            >
-              <Text style={styles.controlIcon}>⏮</Text>
-            </Pressable>
+        {/* Controls */}
+        <View style={styles.controls}>
+          {/* Like Button (Visual only for now) */}
+          <Pressable style={styles.iconButton}>
+            <Ionicons name="heart" size={24} color="#3B82F6" />
+          </Pressable>
 
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onPlayPause();
-              }}
-              style={[styles.controlButton, styles.playButton]}
-              accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-              accessibilityRole="button"
-              hitSlop={8}
-            >
-              <Text style={styles.playIcon}>{isPlaying ? '⏸' : '▶️'}</Text>
-            </Pressable>
+          {/* Play/Pause Button */}
+          <Pressable onPress={(e) => { e.stopPropagation(); onPlayPause(); }} style={styles.playButton}>
+            <Ionicons name={isPlaying ? "pause" : "play"} size={24} color="#fff" style={{ marginLeft: isPlaying ? 0 : 2 }} />
+          </Pressable>
 
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onNext();
-              }}
-              style={styles.controlButton}
-              accessibilityLabel="Next track"
-              accessibilityRole="button"
-              hitSlop={8}
-            >
-              <Text style={styles.controlIcon}>⏭</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </GlassCard>
+          {/* Next Button */}
+          <Pressable onPress={(e) => { e.stopPropagation(); onNext(); }} style={styles.iconButton}>
+            <Ionicons name="play-skip-forward" size={24} color="#fff" />
+          </Pressable>
+        </View>
+      </Pressable>
     </Animated.View>
   );
 }
 
-const ARTWORK_SIZE = 48;
-
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: spacing.lg,
+    height: 72,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    borderRadius: 22, // Reduced from 36 to look less "round" and more "modern"
+    backgroundColor: '#1E1E1E', // Dark background
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+    overflow: 'hidden', // Clip progress bar
   },
-  card: {
-    overflow: 'hidden',
-  },
-  progressStrip: {
+  progressBarContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     height: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    width: '100%',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    zIndex: 10,
   },
-  progressFill: {
+  progressBarFill: {
     height: '100%',
-    backgroundColor: colors.accentBlue,
+    backgroundColor: '#3B82F6', // Blue
   },
   content: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    minHeight: 64,
+    paddingHorizontal: 12, // Balanced padding
+  },
+  artworkContainer: {
+    // Removed marginLeft to keep symmetry
   },
   artwork: {
-    width: ARTWORK_SIZE,
-    height: ARTWORK_SIZE,
-    borderRadius: radii.sm,
-    backgroundColor: colors.darkGlassBorder,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#333',
   },
-  artworkPlaceholder: {
+  placeholderArt: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  artworkPlaceholderText: {
-    fontSize: 20,
-    color: colors.textMuted,
-  },
-  info: {
+  infoContainer: {
     flex: 1,
     marginLeft: spacing.md,
-    marginRight: spacing.sm,
+    justifyContent: 'center',
   },
   title: {
-    ...typography.subtitle,
-    color: colors.textOnDark,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 2,
   },
   artist: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
+    fontSize: 13,
+    color: '#aaa',
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    paddingRight: 4, // Slight adjustment for visual balance
   },
-  controlButton: {
-    width: touchTargetMinSize,
-    height: touchTargetMinSize,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  controlIcon: {
-    fontSize: 18,
-    color: colors.textOnDark,
+  iconButton: {
+    padding: 4,
   },
   playButton: {
-    backgroundColor: colors.textWhite,
-    borderRadius: touchTargetMinSize / 2,
-    marginHorizontal: spacing.xs,
-  },
-  playIcon: {
-    fontSize: 16,
-    color: colors.textPrimary,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#3B82F6', // Blue circle
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 4,
   },
 });
+

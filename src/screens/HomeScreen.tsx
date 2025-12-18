@@ -41,6 +41,7 @@ import { tokens } from '../theme/designTokens';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import GlassDrawer from '../components/GlassDrawer';
+import MiniPlayer from '../components/MiniPlayer';
 
 const { width, height } = Dimensions.get('window');
 const isLargeScreen = Math.max(width, height) >= 768;
@@ -93,18 +94,6 @@ const HomeScreen: React.FC = () => {
   useEffect(() => {
     if (__DEV__) console.log('player cover_url:', currentSong?.cover_url);
   }, [currentSong]);
-
-  // mini-player progress animation
-  const progressAnim = React.useRef(new Animated.Value(0)).current;
-  React.useEffect(() => {
-    const progressPercent = durationMillis && durationMillis > 0 ? (positionMillis / durationMillis) * 100 : 0;
-    Animated.timing(progressAnim, {
-      toValue: progressPercent,
-      duration: 300,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: false,
-    }).start();
-  }, [positionMillis, durationMillis, progressAnim]);
 
   const fetchSongs = useCallback(async () => {
     try {
@@ -414,66 +403,24 @@ const HomeScreen: React.FC = () => {
 
       {/* Mini-player */}
       {currentSong ? (
-        <Pressable
-          onPress={() => {
-            (hookNav ?? navigation)?.navigate('Player' as any, { song: currentSong });
-          }}
-          style={[styles.playerBar, { height: PLAYER_HEIGHT, bottom: (insets.bottom ?? 0) + 6 }]}
+        <View
+          style={[styles.playerBar, { bottom: (insets.bottom ?? 0), paddingHorizontal: 0 }]}
           pointerEvents="box-none"
         >
-          <View style={[styles.playerInner, isDark && styles.playerInnerDark]}>
-            <View style={styles.playerLeft}>
-              <RemoteImage
-                uri={currentSong?.cover_url ?? null}
-                width={48}
-                height={48}
-                style={styles.playerArtImage}
-                placeholderText="Art"
-              />
-
-              <View style={styles.playerMeta}>
-                <Text style={styles.playerTitle} numberOfLines={1}>{currentSong?.title ?? ''}</Text>
-                <Text style={styles.playerArtist}>{currentSong?.artist ?? ''}</Text>
-
-          <View style={styles.progressContainer}>
-            <Animated.View
-            style={[
-              styles.progressFill,
-              {
-              width: progressAnim.interpolate({
-                inputRange: [0, 100],
-                outputRange: ['0%', '100%'],
-                extrapolate: 'clamp',
-              }),
-              },
-            ]}
-            />
-          </View>
-          </View>
+          <MiniPlayer
+            song={currentSong}
+            isPlaying={isPlaying}
+            progress={durationMillis ? positionMillis / durationMillis : 0}
+            onPress={() => {
+              (hookNav ?? navigation)?.navigate('Player' as any, { song: currentSong });
+            }}
+            onPlayPause={() => {
+              setIsPlaying((p) => !p);
+              togglePlay();
+            }}
+            onNext={() => next()}
+          />
         </View>
-
-            <View style={styles.playerControls}>
-              <TouchableOpacity onPress={() => prev()} style={styles.controlBtn} accessibilityLabel="Previous">
-                <Feather name="skip-back" size={20} color="#fff" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => {
-                  setIsPlaying((p) => !p);
-                  togglePlay();
-                }}
-                style={styles.playFab}
-                accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
-              >
-                <Feather name={isPlaying ? 'pause' : 'play'} size={24} color="#111" />
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => next()} style={styles.controlBtn} accessibilityLabel="Next">
-                <Feather name="skip-forward" size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Pressable>
       ) : null}
 
       {/* Animated glass drawer (implemented inline so we avoid reanimated/worklets) */}
@@ -613,74 +560,6 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: BASE_PADDING,
     zIndex: 20,
-  },
-  playerInner: {
-    height: PLAYER_HEIGHT - 8,
-    backgroundColor: '#111',
-    borderRadius: tokens.radii.normal,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  playerInnerDark: { backgroundColor: '#121212' },
-  playerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-
-  playerArt: {
-    width: 48,
-    height: 48,
-    borderRadius: spacing.sm,
-    backgroundColor: '#2a2a2a',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playerArtText: { color: '#6b6b6b' },
-  playerArtImage: {
-    width: 48,
-    height: 48,
-    borderRadius: spacing.sm,
-    backgroundColor: '#2a2a2a',
-  },
-
-  playerMeta: { marginLeft: spacing.md, flex: 1 },
-  playerTitle: { color: '#fff', fontSize: 14, fontWeight: '800' },
-  playerArtist: { color: '#ccc', fontSize: 12, marginTop: 2 },
-
-  playerControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  controlBtn: {
-    padding: spacing.sm,
-    minWidth: sizes.touchTarget,
-    minHeight: sizes.touchTarget,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  playFab: {
-    backgroundColor: '#ffd166',
-    width: sizes.fabMini,
-    height: sizes.fabMini,
-    borderRadius: sizes.fabMini / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...elevation.medium,
-  },
-
-  progressContainer: {
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginTop: spacing.sm,
-    alignSelf: 'stretch',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#2f6dfd',
-    borderRadius: 2,
-    width: '0%',
   },
 
   /* Drawer styles */

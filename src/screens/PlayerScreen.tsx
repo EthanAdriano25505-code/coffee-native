@@ -17,6 +17,10 @@ import Animated, {
   FadeInUp,
   useSharedValue,
   withTiming,
+  withRepeat,
+  withSequence,
+  Easing,
+  useAnimatedStyle,
 } from 'react-native-reanimated';
 import { usePlayback } from '../contexts/PlaybackContext';
 import type { RouteProp } from '@react-navigation/native';
@@ -149,6 +153,24 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
     }
   }, [positionMillis, durationMillis, isSeeking, progressShared]);
 
+  // Floating animation for artwork
+  const floatY = useSharedValue(0);
+
+  useEffect(() => {
+    floatY.value = withRepeat(
+      withSequence(
+        withTiming(-8, { duration: 2500, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0, { duration: 2500, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedArtworkStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: floatY.value }],
+  }));
+
   const onValueChange = (v: number) => {
     setIsSeeking(true);
     // drive shared value (0..1) for smooth visuals without rerender
@@ -198,10 +220,20 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
   const progress = durationMillis ? displayPos / durationMillis : 0;
 
   // Calculate cover size based on screen dimensions
-  const COVER_SIZE = Math.min(width - spacing.xl * 2 - spacing.lg * 2, 320);
+  // Increased size for better visual impact, removed extra padding calculation
+  const COVER_SIZE = Math.min(width - spacing.xl * 2, 350);
 
   return (
     <AppBackground>
+      {/* Ambient Background Blur */}
+      {song?.cover_url && (
+        <Image
+          source={{ uri: String(song.cover_url) }}
+          style={[StyleSheet.absoluteFillObject, { opacity: 0.15 }]}
+          blurRadius={80}
+        />
+      )}
+      
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
@@ -218,15 +250,15 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
             accessibilityLabel="Go back"
             accessibilityRole="button"
           >
-            <Ionicons name="chevron-down" size={32} color={colors.textPrimary} />
+            <Ionicons name="chevron-down" size={28} color={colors.textSecondary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Now Playing</Text>
+          <Text style={styles.headerTitle}>NOW PLAYING</Text>
           <View style={styles.headerSpacer} />
         </View>
 
-        {/* Artwork Card with Glass Effect */}
-        <Animated.View entering={FadeInDown.duration(400).delay(100)}>
-          <GlassCard style={[styles.artworkCard, { width: COVER_SIZE + spacing.lg * 2 }]}>
+        {/* Artwork - Clean shadow style without glass card wrapper */}
+        <Animated.View entering={FadeInDown.duration(400).delay(100)} style={[styles.artworkContainer, animatedArtworkStyle]}>
+          <View style={[styles.artworkShadow, { width: COVER_SIZE, height: COVER_SIZE }]}>
             {song?.cover_url ? (
               <Image
                 source={{ uri: String(song.cover_url) }}
@@ -238,7 +270,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
                 <Ionicons name="musical-note" size={80} color={colors.textMuted} />
               </View>
             )}
-          </GlassCard>
+          </View>
         </Animated.View>
 
         {/* Song Info */}
@@ -325,7 +357,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
                 console.warn('PlayerScreen: togglePlay() error', e);
               }
             }}
-            size={72}
+            size={80}
             accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
           />
 
@@ -365,48 +397,42 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Bottom Actions Row */}
-        <Animated.View entering={FadeInUp.duration(400).delay(500)}>
-          <GlassCard style={styles.actionsCard}>
-            <View style={styles.actionsRow}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                accessibilityLabel="View queue"
-                accessibilityRole="button"
-              >
-                <Ionicons name="list" size={24} color={colors.textPrimary} style={{ marginBottom: spacing.xs }} />
-                <Text style={styles.actionLabel}>Queue</Text>
-              </TouchableOpacity>
+        {/* Bottom Actions Row - Clean floating style */}
+        <Animated.View entering={FadeInUp.duration(400).delay(500)} style={styles.actionsContainer}>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              accessibilityLabel="View queue"
+              accessibilityRole="button"
+            >
+              <Ionicons name="list" size={26} color={colors.textSecondary} />
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => setIsLiked(!isLiked)}
-                accessibilityLabel={isLiked ? 'Unlike' : 'Like'}
-                accessibilityRole="button"
-              >
-                <Ionicons name={isLiked ? 'heart' : 'heart-outline'} size={24} color={isLiked ? '#FF3B30' : colors.textPrimary} style={{ marginBottom: spacing.xs }} />
-                <Text style={styles.actionLabel}>Like</Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => setIsLiked(!isLiked)}
+              accessibilityLabel={isLiked ? 'Unlike' : 'Like'}
+              accessibilityRole="button"
+            >
+              <Ionicons name={isLiked ? 'heart' : 'heart-outline'} size={26} color={isLiked ? '#FF3B30' : colors.textSecondary} />
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.actionButton}
-                accessibilityLabel="Download"
-                accessibilityRole="button"
-              >
-                <Ionicons name="download-outline" size={24} color={colors.textPrimary} style={{ marginBottom: spacing.xs }} />
-                <Text style={styles.actionLabel}>Download</Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButton}
+              accessibilityLabel="Download"
+              accessibilityRole="button"
+            >
+              <Ionicons name="download-outline" size={26} color={colors.textSecondary} />
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.actionButton}
-                accessibilityLabel="Comments"
-                accessibilityRole="button"
-              >
-                <Ionicons name="chatbubble-outline" size={24} color={colors.textPrimary} style={{ marginBottom: spacing.xs }} />
-                <Text style={styles.actionLabel}>Comments</Text>
-              </TouchableOpacity>
-            </View>
-          </GlassCard>
+            <TouchableOpacity
+              style={styles.actionButton}
+              accessibilityLabel="Comments"
+              accessibilityRole="button"
+            >
+              <Ionicons name="chatbubble-outline" size={26} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
       </ScrollView>
     </AppBackground>
@@ -447,24 +473,38 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   headerTitle: {
-    ...typography.subtitle,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.5,
     color: colors.textSecondary,
+    opacity: 0.8,
   },
   headerSpacer: {
     width: touchTargetMinSize,
   },
-  artworkCard: {
-    padding: spacing.lg,
+  artworkContainer: {
     alignItems: 'center',
     marginBottom: spacing.xl,
+    marginTop: spacing.sm,
+    // Add subtle bounce/float effect if desired later
+  },
+  artworkShadow: {
+    shadowColor: colors.primaryBlue, // Colored shadow for more pop
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.35,
+    shadowRadius: 35,
+    elevation: 24,
+    borderRadius: radii.xxl,
+    backgroundColor: '#fff',
   },
   artwork: {
-    borderRadius: radii.lg,
+    borderRadius: radii.xxl,
     backgroundColor: colors.glassBackground,
   },
   artworkPlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
   },
   artworkPlaceholderText: {
     fontSize: 64,
@@ -472,20 +512,24 @@ const styles = StyleSheet.create({
   },
   songInfo: {
     alignItems: 'center',
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.xxl, // More space below info
+    paddingHorizontal: spacing.xl,
     width: '100%',
   },
   title: {
-    ...typography.title,
+    fontSize: 28, // Larger title
+    fontWeight: '800',
     color: colors.textPrimary,
     textAlign: 'center',
+    marginBottom: 8,
+    letterSpacing: -0.8,
   },
   artist: {
-    ...typography.subtitle,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
+    fontSize: 18,
+    fontWeight: '600', // Slightly bolder
+    color: colors.primaryBlue, // Accent color for artist
     textAlign: 'center',
+    opacity: 0.9,
   },
   waveformContainer: {
     width: '100%',
@@ -527,13 +571,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     marginBottom: spacing.xxl,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg, // Increased padding
   },
   controlButton: {
-    width: touchTargetMinSize,
-    height: touchTargetMinSize,
+    width: 52,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.2)', // Glassy background
   },
   controlIcon: {
     fontSize: 22,
@@ -546,22 +592,24 @@ const styles = StyleSheet.create({
   controlIconActive: {
     color: colors.primaryBlue,
   },
-  actionsCard: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    width: width - spacing.xl * 2,
+  actionsContainer: {
+    width: '100%',
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.sm,
   },
   actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between', // Spread out more
     alignItems: 'center',
+    paddingHorizontal: spacing.md,
   },
   actionButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: touchTargetMinSize,
-    minHeight: touchTargetMinSize,
-    paddingVertical: spacing.sm,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.5)', // Subtle circle background
   },
   actionIcon: {
     fontSize: 22,
