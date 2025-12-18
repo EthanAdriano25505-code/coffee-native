@@ -16,6 +16,7 @@ import AboutScreen from '../screens/AboutScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
+import SearchScreen from '../screens/SearchScreen';
 
 export default function AppNavigator({ session }: { session: Session | null }) {
   return (
@@ -31,6 +32,7 @@ export default function AppNavigator({ session }: { session: Session | null }) {
           <Stack.Screen name="CategorySongs" component={CategorySongsScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="About" component={AboutScreen} />
+          <Stack.Screen name="Search" component={SearchScreen} />
         </>
       ) : (
         // Auth Stack

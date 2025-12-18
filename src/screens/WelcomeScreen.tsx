@@ -35,10 +35,10 @@ export default function WelcomeScreen() {
         <View style={styles.header}>
           {/* Placeholder for Logo */}
           <View style={styles.logoPlaceholder}>
-            <Text style={styles.logoText}>M</Text>
+            <Text style={styles.logoText}>S</Text>
           </View>
           <Text style={styles.title}>Ta'ang Music App</Text>
-          <Text style={styles.subtitle}>Never Lost. Discover New Music.</Text>
+          <Text style={styles.subtitle}>မင်္ဂလာပါ</Text>
         </View>
 
         <View style={styles.footer}>

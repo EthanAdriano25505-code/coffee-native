@@ -367,9 +367,7 @@ const HomeScreen: React.FC = () => {
         <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>Music</Text>
         <View style={styles.headerActions}>
           <SearchBar
-            onPress={() => {
-              if (__DEV__) console.log('Search tapped');
-            }}
+            onPress={() => navigation.navigate('Search')}
             placeholder="Search songs, artists..."
           />
 
