@@ -425,7 +425,7 @@ const HomeScreen: React.FC = () => {
 
   return (
     <LinearGradient
-      colors={['#0b0504','#251614','#3b1f10']}
+      colors={isDark ? ['#121212', '#1c1c1e', '#2c2c2e'] : ['#FFFFFF', '#F9FAFB', '#F3F4F6']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={{ flex: 1 }}
@@ -471,7 +471,8 @@ const HomeScreen: React.FC = () => {
         ListHeaderComponent={listHeaderElement}
         ListEmptyComponent={null}
         ListFooterComponent={listFooter}
-        contentContainerStyle={{ backgroundColor: isDark ? '#000' : '#f7f7f8' }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ backgroundColor: 'transparent', paddingBottom: 20 }}
         ItemSeparatorComponent={() => <View style={styles.rowSeparator} />}
         showsVerticalScrollIndicator={false}
         initialNumToRender={8}
@@ -534,8 +535,8 @@ const HomeScreen: React.FC = () => {
 const CARD = 108;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#fff' },
-  safeDark: { backgroundColor: '#000' },
+  safe: { flex: 1, backgroundColor: 'transparent' },
+  safeDark: { backgroundColor: 'transparent' },
 
   glowBlob: {
     position: 'absolute',
@@ -552,10 +553,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent',
     gap: spacing.sm,
   },
-  headerDark: { backgroundColor: '#121212' },
+  headerDark: { backgroundColor: 'transparent' },
   headerTitle: {
     fontSize: isLargeScreen ? 30 : 24,
     fontWeight: '800',
