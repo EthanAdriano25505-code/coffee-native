@@ -1,4 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 import {
   View,
   Text,
@@ -29,6 +32,7 @@ type Props = {
 
 export default function CategorySongsScreen({ route }: Props) {
   const { filter, title } = route.params ?? {};
+  const navigation = useNavigation<any>();
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +84,12 @@ export default function CategorySongsScreen({ route }: Props) {
   if (loading) {
     return (
       <View style={styles.container}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+          <TouchableOpacity onPress={() => { if (navigation?.canGoBack && navigation.canGoBack()) navigation.goBack(); else navigation?.navigate?.('Home'); }} style={{ padding: 6, marginRight: 8 }}>
+            <Feather name="chevron-left" size={20} />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 20, fontWeight: '800' }}>{title ?? 'Category'}</Text>
+        </View>
         <ActivityIndicator size="large" />
         <Text style={{ marginTop: 12 }}>Loading {title ?? 'songs'}...</Text>
       </View>
@@ -100,6 +110,12 @@ export default function CategorySongsScreen({ route }: Props) {
 
   return (
     <View style={styles.container}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <TouchableOpacity onPress={() => { if (navigation?.canGoBack && navigation.canGoBack()) navigation.goBack(); else navigation?.navigate?.('Home'); }} style={{ padding: 6, marginRight: 8 }}>
+          <Feather name="chevron-left" size={20} />
+        </TouchableOpacity>
+        <Text style={{ fontSize: 20, fontWeight: '800' }}>{title ?? 'Category'}</Text>
+      </View>
       <FlatList
         data={songs}
         keyExtractor={(item) => String(item.id)}

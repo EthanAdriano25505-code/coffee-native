@@ -45,7 +45,11 @@ export default function LoginScreen() {
       });
 
       if (error) {
-        Alert.alert('Login Failed', error.message);
+        if (error.message.includes('Email not confirmed')) {
+          Alert.alert('Login Failed', 'Please verify your email address before logging in.');
+        } else {
+          Alert.alert('Login Failed', error.message);
+        }
       } else {
         // Navigation will be handled by the auth state listener in App.tsx
         // But we can also manually navigate if needed, though listener is better.

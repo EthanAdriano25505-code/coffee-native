@@ -11,53 +11,171 @@ import {
   useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { getColors, spacing, radii } from '../theme/designTokens';
 import { supabase } from '../utils/supabase';
 
 export default function ProfileScreen() {
+  const navigation = useNavigation<any>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = getColors(isDark);
 
-  const [name, setName] = useState('User');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [bio, setBio] = useState('Music lover & React Native enthusiast.');
-  const [image, setImage] = useState('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=880&q=80');
+  const [bio, setBio] = useState('');
+  const [image, setImage] = useState('https://via.placeholder.com/150');
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email) {
-        setEmail(user.email);
-        // Optionally fetch profile data from a 'profiles' table if you have one
-      }
-    });
+    getProfile();
   }, []);
 
-  const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) Alert.alert('Error', error.message);
-  };
+  const getProfile = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+      if (user) {
+        setEmail(user.email || '');
+        
+        const { data, error, status } = await supabase
+          .from('profiles')
+          .select(`username, website, avatar_url, full_name`)
+          .eq('id', user.id)
+          .single();
 
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
+        if (error && status !== 406) {
+          throw error;
+        }
+
+        if (data) {
+          setName(data.full_name || data.username || '');
+          setBio(data.website || ''); // Using website field for bio for now
+          if (data.avatar_url) setImage(data.avatar_url);
+        }
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        Alert.alert('Error', error.message);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSave = () => {
-    setIsEditing(false);
-    Alert.alert('Profile Updated', 'Your changes have been saved locally.');
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) throw new Error('No user on the session!');
+
+      const updates = {
+        id: user.id,
+        full_name: name,
+        website: bio, // Mapping bio to website field for now
+        avatar_url: image,
+        updated_at: new Date(),
+      };
+
+      const { error } = await supabase.from('profiles').upsert(updates);
+
+      if (error) {
+        throw error;
+      }
+      
+      setIsEditing(false);
+      Alert.alert('Success', 'Profile updated successfully!');
+    } catch (error) {
+      if (error instanceof Error) {
+        Alert.alert('Error', error.message);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
+
+  function handleSignOut(): void {
+    Alert.alert(
+      'Sign out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase.auth.signOut();
+              if (error) throw error;
+              Alert.alert('Signed out', 'You have been signed out.');
+            } catch (err) {
+              if (err instanceof Error) {
+                Alert.alert('Error', err.message);
+              }
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  }
+
+  async function pickImage(_: any): Promise<void> {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Permission to access photos is required.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.7,
+      });
+
+      // Newer expo returns { canceled, assets }, older returns { cancelled, uri }
+      if ((result as any).canceled || (result as any).cancelled) return;
+
+      const uri =
+        // @ts-ignore
+        (result as any).uri ?? (result as any).assets?.[0]?.uri;
+      if (!uri) return;
+
+      // Optimistically show selected image
+      setImage(uri);
+
+      // Upload to Supabase storage (avatars bucket)
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      const ext = uri.split('.').pop()?.split(/\#|\?/)[0] ?? 'jpg';
+      const fileName = `${user.id}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, blob, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicData } = supabase.storage.from('avatars').getPublicUrl(fileName);
+      if (publicData?.publicUrl) {
+        setImage(publicData.publicUrl);
+      }
+    } catch (error) {
+      if (error instanceof Error) Alert.alert('Error', error.message);
+    }
+  }
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -65,6 +183,13 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
+            {/* Back-aware header: shows back arrow when appropriate */}
+            <TouchableOpacity
+              onPress={() => { if (navigation?.canGoBack && navigation.canGoBack()) navigation.goBack(); else navigation?.navigate?.('Home'); }}
+              style={{ padding: 6, marginRight: 8 }}
+            >
+              <Feather name="chevron-left" size={22} color={colors.text} />
+            </TouchableOpacity>
             <Feather name="user" size={22} color={colors.text} />
             <Text style={[styles.title, { color: colors.text }]}>Profile</Text>
           </View>
@@ -72,7 +197,7 @@ export default function ProfileScreen() {
             onPress={() => (isEditing ? handleSave() : setIsEditing(true))}
             style={[styles.editBtn, { backgroundColor: isEditing ? colors.primary : colors.surface }]}
           >
-            <Text style={[styles.editBtnText, { color: isEditing ? '#fff' : colors.text }]}>
+            <Text style={[styles.editBtnText, { color: isEditing ? '#fff' : colors.text }]}>\
               {isEditing ? 'Save' : 'Edit'}
             </Text>
           </TouchableOpacity>

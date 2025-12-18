@@ -359,7 +359,7 @@ const HomeScreen: React.FC = () => {
 
   return (
     <SafeAreaView
-      style={[styles.safe, { backgroundColor: colors.background }, isDark && styles.safeDark, { position: 'relative' }]}
+      style={[styles.safe, { backgroundColor: isDark ? colors.background : colors.palette?.bgTop ?? '#fff' }, isDark && styles.safeDark, { position: 'relative' }]}
       edges={['left', 'right', 'bottom']}
     >
       {/* Header */}

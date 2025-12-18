@@ -8,7 +8,9 @@ import {
   Button,
   RefreshControl,
   ListRenderItem,
+  TouchableOpacity,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { supabase } from '../utils/supabase';
 
 type Song = {
@@ -24,8 +26,11 @@ type Props = {
   embedded?: boolean; // when true, don't take full screen height
 };
 
+import { useNavigation } from '@react-navigation/native';
+
 export default function FullSongsScreen({ embedded = false }: Props): JSX.Element {
   console.log('FullSongsScreen loaded: src/screens/FullSongsScreen.tsx');
+  const navigation = useNavigation<any>();
   
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -109,6 +114,13 @@ export default function FullSongsScreen({ embedded = false }: Props): JSX.Elemen
 
   return (
     <View style={embedded ? styles.containerEmbedded : styles.container}>
+      {/* Header with optional back */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <TouchableOpacity onPress={() => { if (navigation?.canGoBack && navigation.canGoBack()) navigation.goBack(); else navigation?.navigate?.('Home'); }} style={{ padding: 6, marginRight: 8 }}>
+          <Feather name="chevron-left" size={20} />
+        </TouchableOpacity>
+        <Text style={{ fontSize: 20, fontWeight: '800' }}>Songs</Text>
+      </View>
       <FlatList
         data={songs}
         keyExtractor={(item) => String(item.id)}

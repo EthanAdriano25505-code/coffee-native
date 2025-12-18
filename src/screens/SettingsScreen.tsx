@@ -10,6 +10,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { getColors, spacing } from '../theme/designTokens';
 
@@ -26,6 +27,7 @@ export default function SettingsScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = getColors(isDark);
+  const navigation = useNavigation<any>();
 
   const clearCache = () => {
     // Placeholder: integrate with your cache strategy (e.g., Assets/Images) if needed.
@@ -60,6 +62,12 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         {/* Header */}
         <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => { if (navigation?.canGoBack && navigation.canGoBack()) navigation.goBack(); else navigation?.navigate?.('Home'); }}
+            style={{ padding: 6, marginRight: 8 }}
+          >
+            <Feather name="chevron-left" size={22} color={colors.text} />
+          </TouchableOpacity>
           <Feather name="settings" size={22} color={colors.text} />
           <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
         </View>
