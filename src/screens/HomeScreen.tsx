@@ -425,7 +425,7 @@ const HomeScreen: React.FC = () => {
 
   return (
     <LinearGradient
-      colors={isDark ? ['#0F172A', '#020617'] : ['#FFFFFF', '#F0F5FF']}
+      colors={['#0b0504','#251614','#3b1f10']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={{ flex: 1 }}
