@@ -38,13 +38,43 @@ import { PlaybackProvider } from './src/contexts/PlaybackContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './src/navigation/AppNavigator';
+import { useState, useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import { supabase } from './src/utils/supabase';
+import { Session } from '@supabase/supabase-js';
 
 export default function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setIsLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+        <ActivityIndicator size="large" color="#2F80ED" />
+      </View>
+    );
+  }
+
   return (
     <ThemeProvider>
       <PlaybackProvider>
         <NavigationContainer>
-          <AppNavigator />
+          <AppNavigator session={session} />
         </NavigationContainer>
       </PlaybackProvider>
     </ThemeProvider>

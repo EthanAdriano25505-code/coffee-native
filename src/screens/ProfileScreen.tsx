@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,17 +14,32 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { getColors, spacing, radii } from '../theme/designTokens';
+import { supabase } from '../utils/supabase';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const colors = getColors(isDark);
 
-  const [name, setName] = useState('Saw K Za');
-  const [email, setEmail] = useState('saw.k.za@example.com');
+  const [name, setName] = useState('User');
+  const [email, setEmail] = useState('');
   const [bio, setBio] = useState('Music lover & React Native enthusiast.');
   const [image, setImage] = useState('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=880&q=80');
   const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.email) {
+        setEmail(user.email);
+        // Optionally fetch profile data from a 'profiles' table if you have one
+      }
+    });
+  }, []);
+
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) Alert.alert('Error', error.message);
+  };
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -119,6 +134,15 @@ export default function ProfileScreen() {
           <StatCard label="Liked" value="148" colors={colors} icon="heart" />
           <StatCard label="Following" value="24" colors={colors} icon="users" />
         </View>
+
+        {/* Sign Out Button */}
+        <TouchableOpacity
+          onPress={handleSignOut}
+          style={[styles.signOutBtn, { borderColor: colors.border }]}
+        >
+          <Feather name="log-out" size={20} color="#ef4444" />
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
 
       </ScrollView>
     </SafeAreaView>
@@ -305,5 +329,21 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  signOutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.md,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  signOutText: {
+    color: '#ef4444',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

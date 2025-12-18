@@ -1,4 +1,7 @@
 export type RootStackParamList = {
+  Welcome: undefined;
+  Login: undefined;
+  SignUp: undefined;
   Home: undefined;
   MusicDetail: { songId: string };
   FullSongs: undefined;
