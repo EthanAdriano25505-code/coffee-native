@@ -14,6 +14,7 @@ import {
   Platform,
   TouchableWithoutFeedback,
   ScrollView,
+  ImageBackground,
 } from 'react-native';
 import {
   useSharedValue,
@@ -67,6 +68,25 @@ const DRAWER_WIDTH_PERCENT = 0.75;
 const DRAWER_WIDTH = Math.round(SCREEN_WIDTH * DRAWER_WIDTH_PERCENT);
 const BLUR_INTENSITY_IOS = 95;
 const BLUR_INTENSITY_ANDROID = 40;
+
+const CATEGORIES = [
+  { name: 'DJ', image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&q=80', featured: true },
+  { name: 'Pop', image: 'https://images.unsplash.com/photo-1514525253440-b393452e8d26?w=800&q=80' },
+  { name: 'Rock', image: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=800&q=80' },
+  { name: 'Hip Hop', image: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=800&q=80' },
+  { name: 'R&B', image: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=800&q=80' },
+  { name: 'Country', image: 'https://images.unsplash.com/photo-1530259042678-cfa97d67edeb?w=800&q=80' },
+  { name: 'Jazz', image: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=800&q=80' },
+  { name: 'Classical', image: 'https://images.unsplash.com/photo-1507838153414-b4b713384ebd?w=800&q=80' },
+  { name: 'Lo-fi', image: 'https://images.unsplash.com/photo-1494232410401-ad00d5433cfa?w=800&q=80' },
+  { name: 'Electronic', image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&q=80' },
+  { name: 'Workout', image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80' },
+  { name: 'Chill', image: 'https://images.unsplash.com/photo-1499415479124-43c32433a620?w=800&q=80' },
+  { name: 'Soul', image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&q=80' },
+  { name: 'Blues', image: 'https://images.unsplash.com/photo-1525441273400-056e9c7517b3?w=800&q=80' },
+  { name: 'Metal', image: 'https://images.unsplash.com/photo-1528645238318-22cc5cc019a7?w=800&q=80' },
+  { name: 'Indie', image: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=800&q=80' },
+];
 
 const HomeScreen: React.FC = () => {
   if (__DEV__) console.log('HomeScreen loaded: src/screens/HomeScreen.tsx');
@@ -302,10 +322,51 @@ const HomeScreen: React.FC = () => {
           })}
         </ScrollView>
 
+        {/* Categories / Albums Row (Restored) */}
+        <View style={{ paddingHorizontal: spacing.md, marginBottom: spacing.lg, marginTop: spacing.sm }}>
+           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#FFF' : '#111' }}>Categories</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Search')}>
+                <Text style={{ fontSize: 13, color: '#999' }}>See all</Text>
+              </TouchableOpacity>
+           </View>
+           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -spacing.md }} contentContainerStyle={{ paddingHorizontal: spacing.md }}>
+              {CATEGORIES.map((item, idx) => {
+                 return (
+                   <TouchableOpacity 
+                    key={idx} 
+                    activeOpacity={0.9}
+                    style={{ marginRight: spacing.md, width: 160, height: 100, borderRadius: radii.normal, overflow: 'hidden', elevation: 5, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8 }}
+                    onPress={() => navigation.navigate('CategorySongs', { filter: item.name, title: item.name })}
+                   >
+                      <ImageBackground
+                        source={{ uri: item.image }}
+                        style={{ width: '100%', height: '100%', justifyContent: 'flex-end' }}
+                        imageStyle={{ borderRadius: radii.normal }}
+                      >
+                        <LinearGradient
+                          colors={['transparent', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.8)']}
+                          locations={[0, 0.5, 1]}
+                          style={{ padding: spacing.sm, height: '100%', justifyContent: 'flex-end' }}
+                        >
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800', textShadowColor: 'rgba(0, 0, 0, 0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{item.name}</Text>
+                            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}>
+                              <Feather name="music" size={10} color="rgba(255,255,255,0.8)" />
+                            </View>
+                          </View>
+                        </LinearGradient>
+                      </ImageBackground>
+                   </TouchableOpacity>
+                 );
+              })}
+           </ScrollView>
+        </View>
+
         <View style={styles.sectionHeaderCompact}>
-          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Song List</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark, { fontSize: 28, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '800' }]}>Song List</Text>
           <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
-            <Text style={styles.seeAll}>See all</Text>
+            <Feather name="more-horizontal" size={24} color={isDark ? '#FFF' : '#111'} />
           </TouchableOpacity>
         </View>
       </View>
@@ -324,11 +385,16 @@ const HomeScreen: React.FC = () => {
     navigation.navigate('Player', { song });
   }, [play, navigation]);
 
-  const renderSongItem: ListRenderItem<Song> = useCallback(({ item }) => (
+  const renderSongItem: ListRenderItem<Song> = useCallback(({ item, index }) => (
     <View style={{ paddingHorizontal: spacing.sm }}>
-      <SongCard song={item} onPress={() => onCardPress(item)} />
+      <SongCard 
+        song={item} 
+        onPress={() => onCardPress(item)} 
+        index={index}
+        isActive={currentSong?.id === item.id}
+      />
     </View>
-  ), [onCardPress]);
+  ), [onCardPress, currentSong]);
 
   const listFooter = songs.length > 0 ? <View style={{ height: PLAYER_HEIGHT + (insets.bottom ?? 0) + 12 }} /> : null;
 
@@ -358,8 +424,22 @@ const HomeScreen: React.FC = () => {
   ];
 
   return (
+    <LinearGradient
+      colors={isDark ? ['#0F172A', '#020617'] : ['#FFFFFF', '#F0F5FF']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={{ flex: 1 }}
+    >
+      {/* Background Glow Blobs */}
+      {isDark && (
+        <>
+          <View style={[styles.glowBlob, { top: '10%', left: '-10%', backgroundColor: 'rgba(47, 128, 237, 0.15)', width: 300, height: 300 }]} />
+          <View style={[styles.glowBlob, { top: '40%', right: '-20%', backgroundColor: 'rgba(255, 215, 0, 0.08)', width: 400, height: 400 }]} />
+          <View style={[styles.glowBlob, { bottom: '10%', left: '20%', backgroundColor: 'rgba(47, 128, 237, 0.1)', width: 350, height: 350 }]} />
+        </>
+      )}
     <SafeAreaView
-      style={[styles.safe, { backgroundColor: isDark ? colors.background : colors.palette?.bgTop ?? '#fff' }, isDark && styles.safeDark, { position: 'relative' }]}
+      style={[styles.safe, { backgroundColor: 'transparent' }, { position: 'relative' }]}
       edges={['left', 'right', 'bottom']}
     >
       {/* Header */}
@@ -447,6 +527,7 @@ const HomeScreen: React.FC = () => {
         }}
       />
     </SafeAreaView>
+    </LinearGradient>
   );
 };
 
@@ -455,6 +536,14 @@ const CARD = 108;
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#fff' },
   safeDark: { backgroundColor: '#000' },
+
+  glowBlob: {
+    position: 'absolute',
+    borderRadius: 1000,
+    opacity: 0.6,
+    // Use blur if possible, but since we are in a safe path, we'll just use opacity and large radius
+    // If expo-blur is available, we could use it, but absolute positioned views with large radius work too
+  },
 
   header: {
     paddingTop: 6,

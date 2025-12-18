@@ -180,53 +180,35 @@ const GlassDrawer: React.FC<Props> = ({
                   {menuItems.map((item) => (
                     <TouchableOpacity
                       key={item.id}
-                      style={{
-                        marginBottom: spacing.sm,
-                        borderRadius: 14,
-                        // Shadow for the "lifted" glass look
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: isDark ? 0.4 : 0.1,
-                        shadowRadius: 8,
-                        elevation: 4,
-                        backgroundColor: 'transparent',
-                      }}
                       onPress={() => handleNavigate(item.screen)}
                       accessibilityLabel={item.label}
-                      activeOpacity={0.75}
+                      activeOpacity={0.8}
+                      style={{ marginBottom: spacing.md }}
                     >
-                      <BlurView
-                        intensity={Platform.OS === 'ios' ? 80 : 40}
-                        tint={isDark ? 'dark' : 'light'}
-                        style={{
-                          borderRadius: 14,
-                          overflow: 'hidden',
-                          borderWidth: 1,
-                          borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.6)',
-                          backgroundColor: 'transparent',
-                        }}
-                      >
-                        <LinearGradient
-                          colors={
-                            isDark
-                              ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']
-                              : ['rgba(255,255,255,0.7)', 'rgba(255,255,255,0.3)']
+                      <LinearGradient
+                        colors={
+                          isDark
+                            ? ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)']
+                            : ['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.4)']
+                        }
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[
+                          styles.menuItemContainer,
+                          {
+                            borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.4)',
+                            marginBottom: 0, // handled by wrapper
                           }
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 0, y: 1 }}
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            paddingVertical: spacing.md,
-                            paddingHorizontal: spacing.sm,
-                            minHeight: 56,
-                          }}
-                        >
-                          <Feather name={item.icon as any} size={20} color={colors.text} style={styles.menuIcon} />
+                        ]}
+                      >
+                        <View style={styles.menuItemContent}>
+                          <View style={[styles.iconContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+                            <Feather name={item.icon as any} size={20} color={colors.text} />
+                          </View>
                           <Text style={[styles.menuLabel, { color: colors.text }]}>{item.label}</Text>
-                          <Feather name="chevron-right" size={18} color={colors.muted ?? 'rgba(0,0,0,0.4)'} />
-                        </LinearGradient>
-                      </BlurView>
+                          <Feather name="chevron-right" size={20} color={colors.muted ?? 'rgba(0,0,0,0.4)'} />
+                        </View>
+                      </LinearGradient>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -321,46 +303,49 @@ const styles = StyleSheet.create({
   },
 
   // Each item has a pill-like shape with a light glass surface and inner shadow
-  menuItem: {
+  menuItemContainer: {
+    marginBottom: spacing.md,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  menuItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    marginBottom: spacing.sm,
-    borderRadius: 14,
-    borderWidth: 1,
-    minHeight: 56,
-    // softer rounded look + subtle inner elevation
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-    // fallback translucent fill — specific colors are provided inline depending on theme
-    backgroundColor: 'transparent',
+    paddingHorizontal: spacing.md,
+    minHeight: 60,
   },
-  menuIcon: {
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: spacing.md,
-    opacity: 0.95,
   },
   menuLabel: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '600',
     flex: 1,
+    letterSpacing: 0.3,
   },
-
-  // Footer with subtle divider and lighter text
   footer: {
     paddingVertical: spacing.md,
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.03)',
-    marginTop: spacing.sm,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+    marginTop: spacing.lg,
   },
   footerText: {
     fontSize: 12,
-    opacity: 0.8,
-    letterSpacing: 0.2,
+    opacity: 0.6,
+    letterSpacing: 0.5,
+    fontWeight: '500',
   },
 });
 

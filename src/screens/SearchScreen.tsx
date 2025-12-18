@@ -27,14 +27,22 @@ const { width } = Dimensions.get('window');
 
 // --- Data ---
 const CATEGORIES = [
-  { name: 'DJ', image: 'https://images.unsplash.com/photo-1571266028243-3716f02d2d2e?w=800&q=80', featured: true },
-  { name: 'Pop', image: 'https://images.unsplash.com/photo-1514525253440-b393452e8d26?w=400&q=80' },
-  { name: 'Rock', image: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=400&q=80' },
-  { name: 'Hip Hop', image: 'https://images.unsplash.com/photo-1605722243979-fe0be81929d9?w=400&q=80' },
-  { name: 'R&B', image: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=400&q=80' },
-  { name: 'Country', image: 'https://images.unsplash.com/photo-1549834125-82f329a71c06?w=400&q=80' },
-  { name: 'Jazz', image: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=400&q=80' },
-  { name: 'Classical', image: 'https://images.unsplash.com/photo-1507838153414-b4b713384ebd?w=400&q=80' },
+  { name: 'DJ', image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&q=80', featured: true },
+  { name: 'Pop', image: 'https://images.unsplash.com/photo-1514525253440-b393452e8d26?w=800&q=80' },
+  { name: 'Rock', image: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=800&q=80' },
+  { name: 'Hip Hop', image: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=800&q=80' },
+  { name: 'R&B', image: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?w=800&q=80' },
+  { name: 'Country', image: 'https://images.unsplash.com/photo-1530259042678-cfa97d67edeb?w=800&q=80' },
+  { name: 'Jazz', image: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=800&q=80' },
+  { name: 'Classical', image: 'https://images.unsplash.com/photo-1507838153414-b4b713384ebd?w=800&q=80' },
+  { name: 'Lo-fi', image: 'https://images.unsplash.com/photo-1494232410401-ad00d5433cfa?w=800&q=80' },
+  { name: 'Electronic', image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&q=80' },
+  { name: 'Workout', image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80' },
+  { name: 'Chill', image: 'https://images.unsplash.com/photo-1499415479124-43c32433a620?w=800&q=80' },
+  { name: 'Soul', image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&q=80' },
+  { name: 'Blues', image: 'https://images.unsplash.com/photo-1525441273400-056e9c7517b3?w=800&q=80' },
+  { name: 'Metal', image: 'https://images.unsplash.com/photo-1528645238318-22cc5cc019a7?w=800&q=80' },
+  { name: 'Indie', image: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=800&q=80' },
 ];
 
 type Song = {
@@ -188,7 +196,7 @@ export default function SearchScreen() {
           <Feather name="chevron-left" size={28} color={colors.text} />
         </TouchableOpacity>
 
-        <View style={[styles.searchBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+        <View style={[styles.searchBar, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' }]}>
           <Feather name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
           <TextInput
             ref={inputRef}
@@ -278,11 +286,14 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    height: 50,
+    height: 52,
     borderRadius: radii.round,
     paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchIcon: {
     marginRight: spacing.sm,
@@ -316,13 +327,13 @@ const styles = StyleSheet.create({
   },
   featuredItem: {
     width: '100%',
-    height: 220,
-    marginBottom: spacing.sm,
+    height: 240,
+    marginBottom: spacing.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 10,
   },
   featuredImage: {
     width: '100%',
@@ -368,13 +379,13 @@ const styles = StyleSheet.create({
   },
   gridItemContainer: {
     width: (width - spacing.md * 3) / 2,
-    height: 140,
+    height: 150,
     marginBottom: spacing.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
   },
   gridItemImage: {
     width: '100%',
