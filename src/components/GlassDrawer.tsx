@@ -188,8 +188,8 @@ const GlassDrawer: React.FC<Props> = ({
                       <LinearGradient
                         colors={
                           isDark
-                            ? ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)']
-                            : ['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.4)']
+                            ? ['#1E293B', '#0F1722']
+                            : ['#FFFFFF', '#F8F9FA']
                         }
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}

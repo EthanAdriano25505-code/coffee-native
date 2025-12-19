@@ -28,24 +28,25 @@ export default function SongCard({ song, onPress, index, isActive = false }: Pro
   // Format index to be 2 digits (01, 02, etc.)
   const formattedIndex = index !== undefined ? String(index + 1).padStart(2, '0') : '';
 
-  const Container = isActive ? LinearGradient : View;
-  const containerProps = isActive 
-    ? {
-        colors: isDark ? ['#2F80ED', 'rgba(47, 128, 237, 0.1)'] : ['#2F80ED', 'rgba(47, 128, 237, 0.1)'],
-        start: { x: 0, y: 0 },
-        end: { x: 1, y: 0 },
-        style: [styles.container, styles.activeContainer]
-      }
-    : {
-        style: [styles.container, { backgroundColor: 'transparent' }]
-      };
-
   return (
     <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={{ marginBottom: spacing.xs }}>
       <Animated.View style={{ transform: [{ scale }] }}>
-        {/* @ts-ignore - LinearGradient props vs View props */}
-        <Container {...containerProps}>
-          
+        <View
+          style={[
+            styles.container,
+            { backgroundColor: isDark ? colors.surfaceAlt : '#FFFFFF', overflow: 'hidden' },
+            isActive && styles.activeContainer,
+          ]}
+        >
+          {isActive && (
+            <LinearGradient
+              colors={['#2F80ED', 'rgba(47, 128, 237, 0.1)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
+
           {/* Index Number / Playing Icon */}
           <View style={styles.indexContainer}>
             {isActive ? (
@@ -88,7 +89,7 @@ export default function SongCard({ song, onPress, index, isActive = false }: Pro
           <View style={styles.menuButton}>
               <Feather name="more-horizontal" size={20} color={isActive ? '#FFF' : (isDark ? '#555' : '#CCC')} />
           </View>
-        </Container>
+        </View>
       </Animated.View>
     </Pressable>
   );
