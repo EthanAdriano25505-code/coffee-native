@@ -3,5 +3,6 @@ export type RootStackParamList = {
   MusicDetail: { songId: string };
   FullSongs: undefined;
   Player: { song?: any };
+  CategorySongs: { filter?: { is_free?: boolean }; title?: string } | undefined;
 };
 

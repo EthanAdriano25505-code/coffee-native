@@ -1,7 +1,18 @@
 import React, { createContext, useContext, useRef, useState, useEffect } from 'react';
 import { Audio } from 'expo-av';
+import { useSupabaseClient } from '../hooks/useSupabaseClient';
+import { markTeaserIfNeeded } from './playbackMarks';
+import { markSongInteraction, normalizeSource, SourceSongShape } from '../utils/marks';
 
-type Song = { id: string | number; title: string; artist?: string | null; uri?: { uri: string } | undefined; cover_url?: string | null };
+type Song = {
+  id: string | number;
+  title: string;
+  artist?: string | null;
+  uri?: { uri: string } | undefined;
+  cover_url?: string | null;
+  audio_url?: string | null;
+  teaser_url?: string | null;
+};
 
 type PlaybackContextType = {
   currentSong: Song | null;
@@ -40,6 +51,8 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Throttle position updates to avoid excessive re-renders
   const lastPositionUpdateRef = useRef<number>(0);
   const POSITION_UPDATE_THROTTLE_MS = 100; // 100ms
+
+  const supabase = useSupabaseClient();
 
   const _stopAndUnloadCurrent = async () => {
     if (soundRef.current) {
@@ -100,7 +113,23 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Ensure any existing sound is stopped/unloaded before creating a new one
       await _stopAndUnloadCurrent();
 
-      if (!song?.uri) {
+      // Decide which source to play (teaser vs full) based on TEASER_MODE and song fields
+      const teaserMode = (globalThis as any)?.process?.env?.TEASER_MODE as string | undefined;
+      
+      // If caller passed a pre-resolved uri that is a teaser and TEASER_MODE is off, clear it
+      let songToPlay = song;
+      if (teaserMode !== 'on' && (song as any)?.uri?.uri && (song as any)?.teaser_url) {
+        const uriStr = (song as any).uri.uri;
+        const teaserStr = (song as any).teaser_url;
+        if (typeof uriStr === 'string' && typeof teaserStr === 'string' && uriStr.trim() === teaserStr.trim()) {
+          // Suppress the pre-resolved teaser uri when TEASER_MODE is off
+          songToPlay = { ...(song as any), uri: undefined };
+        }
+      }
+      
+      const selectedSource = markTeaserIfNeeded(songToPlay as SourceSongShape, { TEASER_MODE: teaserMode });
+
+      if (!selectedSource) {
         // nothing playable: only clear UI if this action is still the latest
         if (lastActionIdRef.current === actionId) {
           setCurrentSong(null);
@@ -111,9 +140,32 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
 
-      // create and play new sound
-      const created = await Audio.Sound.createAsync(song.uri, { shouldPlay: true });
-      const sound = (created as any).sound;
+      const primarySource = selectedSource;
+      const fullFallback = normalizeSource(song as SourceSongShape);
+      const isTeaserPreferred = teaserMode === 'on' && !!(song as any)?.teaser_url;
+
+      let sound: Audio.Sound | null = null;
+
+      const createSound = async (src: { uri: string }) => {
+        const created = await Audio.Sound.createAsync(src, { shouldPlay: true });
+        return (created as any).sound as Audio.Sound;
+      };
+
+      try {
+        sound = await createSound(primarySource);
+      } catch (err) {
+        // If teaser failed to load and we have a full-track fallback, try once more
+        if (isTeaserPreferred && fullFallback && fullFallback.uri !== primarySource.uri) {
+          console.warn('Teaser load failed', {
+            songId: (song as any)?.id,
+            attemptedUri: primarySource.uri,
+            error: (err as any)?.message ?? String(err),
+          });
+          sound = await createSound(fullFallback);
+        } else {
+          throw err;
+        }
+      }
 
       // If a newer action arrived while we were creating the sound, unload & abandon
       if (lastActionIdRef.current !== actionId) {
@@ -136,6 +188,8 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setDurationMillis(statusAny.durationMillis ?? 0);
       setIsPlaying(statusAny.isPlaying ?? true);
 
+      let completionMarked = false;
+
       sound.setOnPlaybackStatusUpdate((s: any) => {
         if (!s) return;
         // Ignore updates for stale actions
@@ -143,9 +197,38 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         // Always handle didJustFinish immediately
         if (s.didJustFinish) {
-          setPositionMillis( s.positionMillis ?? 0 );
-          setDurationMillis( s.durationMillis ?? 0 );
+          setPositionMillis(s.positionMillis ?? 0);
+          setDurationMillis(s.durationMillis ?? 0);
           setIsPlaying(false);
+
+          // Fire-and-forget Supabase mark when playback completes
+          if (!completionMarked) {
+            completionMarked = true;
+            const rawId = (song as any)?.id;
+            const numericId = typeof rawId === 'number' ? rawId : Number(rawId);
+            if (Number.isFinite(numericId)) {
+              const playedSource = selectedSource ?? normalizeSource(song as SourceSongShape);
+              (async () => {
+                try {
+                  const result = await markSongInteraction(supabase, numericId, 'play');
+                  if (__DEV__) {
+                    console.log('Playback completion mark success', {
+                      songId: numericId,
+                      uri: playedSource?.uri,
+                      result,
+                    });
+                  }
+                } catch (e: any) {
+                  console.error('Mark RPC failed', {
+                    songId: numericId,
+                    rpc: 'mark_song_interaction',
+                    error: e?.message ?? String(e),
+                  });
+                }
+              })();
+            }
+          }
+
           try { sound.unloadAsync().catch(() => {}); } catch (e) {}
           soundRef.current = null;
           return;
