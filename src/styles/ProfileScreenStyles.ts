@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
-import { tokens } from '../theme/designTokens';
+import { tokens, ColorTheme } from '../theme/designTokens';
 
-const createStyles = (colors: any) => StyleSheet.create({
+const createStyles = (colors: ColorTheme) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -27,7 +27,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRadius: tokens.radii.round,
   },
   imagePickerText: {
-    color: colors.textOnPrimary,
+    color: colors.text,
     // ...tokens.typography.button, // typography is not in tokens
   },
   infoSection: {
@@ -41,10 +41,10 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   input: {
     // ...tokens.typography.body, // typography is not in tokens
-    backgroundColor: colors.inputBackground,
+    backgroundColor: colors.surface,
     borderRadius: tokens.radii.normal,
     padding: tokens.spacing.md,
-    color: colors.textPrimary,
+    color: colors.text,
     marginBottom: tokens.spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -64,7 +64,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   statText: {
     // ...tokens.typography.body, // typography is not in tokens
-    color: colors.textPrimary,
+    color: colors.text,
   },
   settingsSection: {
     width: '100%',
@@ -79,7 +79,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   buttonText: {
     // ...tokens.typography.button, // typography is not in tokens
-    color: colors.textOnPrimary,
+    color: colors.text,
   },
   darkModeContainer: {
     flexDirection: 'row',
@@ -92,7 +92,7 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
   darkModeText: {
     // ...tokens.typography.body, // typography is not in tokens
-    color: colors.textPrimary,
+    color: colors.text,
   },
   logoutButton: {
     backgroundColor: colors.error,

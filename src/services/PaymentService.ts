@@ -19,7 +19,7 @@ const MOCK_PLANS: Plan[] = [
     name: 'Premium Yearly',
     description: 'Best value',
     price: 990000,
-    currency: 'MMk',
+    currency: 'MMK',
     interval: 'year',
     features: ['Ad-free listening', 'High quality audio', 'Offline downloads', 'Unlimited skips', '2 months free'],
     isPopular: true,
@@ -66,6 +66,13 @@ class PaymentService {
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     if (this.isMockMode) {
+      const planExists = MOCK_PLANS.some(p => p.id === planId);
+      if (!planExists) {
+        return {
+          success: false,
+          error: `Plan with id ${planId} not found.`,
+        };
+      }
       // Simulate success
       return {
         success: true,

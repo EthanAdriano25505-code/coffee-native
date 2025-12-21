@@ -24,7 +24,7 @@ export default function PaymentStatusScreen({ navigation }: { navigation: { navi
         return 'Cancelled.';
       default: {
         const _exhaustive: never = stage;
-        return _exhaustive;
+        throw new Error(`Unhandled payment stage: ${stage}`);
       }
     }
   }, [stage]);
@@ -39,6 +39,7 @@ export default function PaymentStatusScreen({ navigation }: { navigation: { navi
 
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={t('payments.status.tryAgain')}
           onPress={() => {
             actions.reset();
             navigation.navigate('Checkout');

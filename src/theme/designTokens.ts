@@ -102,11 +102,13 @@ export const light = {
     glassBorder: 'rgba(255, 255, 255, 0.5)',
     surfaceAlt: '#FFFFFF',
     muted: '#9CA3AF',
+    error: palette.semantic.error,
   },
   gradients: {
     primary: [palette.brand.primary, palette.brand.secondary],
     surface: ['#FFFFFF', '#F9FAFB'],
     skeleton: ['#E5E7EB', '#F3F4F6', '#E5E7EB'],
+    appBackground: ['#FFFFFF', '#F9FAFB', '#F3F4F6'],
   }
 };
 
@@ -126,16 +128,20 @@ export const dark = {
     glassBorder: 'rgba(255, 255, 255, 0.08)',
     surfaceAlt: '#18181B',
     muted: '#52525B',
+    error: palette.semantic.error,
   },
   gradients: {
     primary: [palette.brand.primary, palette.brand.secondary],
     surface: ['#121212', '#000000'],
     skeleton: ['#27272A', '#3F3F46', '#27272A'],
     fadeOverlay: ['transparent', 'rgba(0,0,0,0.8)', '#000000'],
+    appBackground: ['#0f172a', '#1e1b4b', '#000000'],
   }
 };
 
 export const tokens = { spacing, radii, sizes, elevation, light, dark };
+
+export type ColorTheme = typeof light.colors;
 
 // Helper to get colors based on color scheme
 export function getColors(isDark: boolean) {

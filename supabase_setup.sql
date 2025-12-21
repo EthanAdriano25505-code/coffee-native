@@ -64,6 +64,8 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Set the search_path for the function to avoid security issues
+ALTER FUNCTION public.handle_new_user() SET search_path = public;
 
 -- 5) Create trigger if missing (on auth.users)
 DO $$
@@ -104,6 +106,7 @@ BEGIN
         CREATE POLICY storage_objects_insert_avatars
           ON storage.objects
           FOR INSERT
+          TO authenticated
           WITH CHECK ( bucket_id = 'avatars' );
       $$;
     END IF;

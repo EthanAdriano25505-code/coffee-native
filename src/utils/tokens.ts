@@ -25,6 +25,7 @@ export const colors = {
   darkGlassBorder: 'rgba(255, 255, 255, 0.08)',
 
   // Dark Mode Gradient Colors (Premium Midnight)
+  // DEPRECATED: Use designTokens.ts gradients instead
   backgroundDarkTop: '#0f172a', // Deep Navy
   backgroundDarkMid: '#1e1b4b', // Deep Purple
   backgroundDarkBottom: '#000000', // Pure Black
