@@ -295,16 +295,18 @@ const HomeScreen: React.FC = () => {
                     overflow: 'hidden',
                     borderWidth: 1,
                     borderColor: isActive
-                      ? (isDark ? '#2F6DFD' : '#2F6DFD')
-                      : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.6)'),
+                      ? (isDark ? '#1DB954' : '#1DB954')
+                      : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
                     backgroundColor: 'transparent',
                   }}
                 >
                   <LinearGradient
                     colors={
-                      isDark 
-                        ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)'] 
-                        : ['rgba(255,255,255,0.7)', 'rgba(255,255,255,0.3)']
+                      isActive
+                        ? ['rgba(29, 185, 84, 0.2)', 'rgba(29, 185, 84, 0.1)']
+                        : (isDark 
+                            ? ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)'] 
+                            : ['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.5)'])
                     }
                     start={{ x: 0, y: 0 }}
                     end={{ x: 0, y: 1 }}
@@ -319,7 +321,7 @@ const HomeScreen: React.FC = () => {
                     <Text
                       style={{
                         color: isActive
-                          ? '#2F6DFD'
+                          ? '#1DB954'
                           : (isDark ? '#E6EEF8' : '#111'),
                         fontWeight: isActive ? '700' : '600',
                         fontSize: 14,
@@ -441,17 +443,16 @@ const HomeScreen: React.FC = () => {
 
   return (
     <LinearGradient
-      colors={isDark ? ['#121212', '#1c1c1e', '#2c2c2e'] : ['#FFFFFF', '#F9FAFB', '#F3F4F6']}
+      colors={isDark ? ['#000000', '#121212', '#18181B'] : ['#FFFFFF', '#F9FAFB', '#F3F4F6']}
       start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+      end={{ x: 0, y: 1 }}
       style={{ flex: 1 }}
     >
-      {/* Background Glow Blobs */}
+      {/* Subtle Gradient Mesh (Premium Look) */}
       {isDark && (
         <>
-          <View style={[styles.glowBlob, { top: '10%', left: '-10%', backgroundColor: 'rgba(47, 128, 237, 0.15)', width: 300, height: 300 }]} />
-          <View style={[styles.glowBlob, { top: '40%', right: '-20%', backgroundColor: 'rgba(255, 215, 0, 0.08)', width: 400, height: 400 }]} />
-          <View style={[styles.glowBlob, { bottom: '10%', left: '20%', backgroundColor: 'rgba(47, 128, 237, 0.1)', width: 350, height: 350 }]} />
+          <View style={[styles.glowBlob, { top: -100, left: -100, backgroundColor: 'rgba(29, 185, 84, 0.08)', width: 500, height: 500 }]} />
+          <View style={[styles.glowBlob, { top: '30%', right: -150, backgroundColor: 'rgba(29, 185, 84, 0.05)', width: 600, height: 600 }]} />
         </>
       )}
     <SafeAreaView

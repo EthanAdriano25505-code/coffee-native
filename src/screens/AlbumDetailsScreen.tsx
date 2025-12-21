@@ -160,12 +160,12 @@ const AlbumDetailsScreen: React.FC = () => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       
-      {/* Background Gradient */}
+      {/* Background Gradient - Premium Dark */}
       <LinearGradient
-        colors={['#4c669f', '#192f6a', '#000']}
+        colors={['#1e1e1e', '#121212', '#000000']}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 0.6 }}
+        end={{ x: 0, y: 1 }}
       />
 
       <SafeAreaView style={styles.safeArea} edges={['top']}>

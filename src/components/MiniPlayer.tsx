@@ -91,7 +91,7 @@ export default function MiniPlayer({
         <View style={styles.controls}>
           {/* Like Button (Visual only for now) */}
           <Pressable style={styles.iconButton}>
-            <Ionicons name="heart" size={24} color="#3B82F6" />
+            <Ionicons name="heart" size={24} color="#1DB954" />
           </Pressable>
 
           {/* Play/Pause Button */}
@@ -136,16 +136,15 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#3B82F6', // Blue
+    backgroundColor: '#1DB954', // Green
   },
   content: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12, // Balanced padding
+    paddingHorizontal: 12,
   },
   artworkContainer: {
-    // Removed marginLeft to keep symmetry
   },
   artwork: {
     width: 48,
@@ -176,7 +175,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingRight: 4, // Slight adjustment for visual balance
+    paddingRight: 4,
   },
   iconButton: {
     padding: 4,
@@ -185,10 +184,10 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#3B82F6', // Blue circle
+    backgroundColor: '#1DB954', // Green circle
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#3B82F6',
+    shadowColor: '#1DB954',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
