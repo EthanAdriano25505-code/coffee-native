@@ -26,6 +26,9 @@ import Animated, {
   withSpring, 
   withRepeat, 
   withTiming, 
+  withSequence,
+  FadeInDown,
+  FadeInRight,
   Easing,
   cancelAnimation,
   runOnJS
@@ -45,17 +48,297 @@ type Song = {
   price?: number; // Mock price
 };
 
+const FeedItem = React.memo(({ 
+  item, 
+  isActive, 
+  isPlaying, 
+  progress,
+  togglePlayback 
+}: { 
+  item: Song; 
+  isActive: boolean; 
+  isPlaying: boolean; 
+  progress: ReturnType<typeof useSharedValue>;
+  togglePlayback: () => void; 
+}) => {
+  const navigation = useNavigation();
+  
+  // Animation Values
+  const rotation = useSharedValue(0);
+  const scale = useSharedValue(1);
+  const heartScale = useSharedValue(0);
+  const buyButtonScale = useSharedValue(1);
+  const [isLiked, setIsLiked] = useState(false);
+
+  useEffect(() => {
+    if (isActive && isPlaying) {
+      rotation.value = withRepeat(
+        withTiming(360, { duration: 8000, easing: Easing.linear }),
+        -1,
+        false
+      );
+    } else {
+      cancelAnimation(rotation);
+    }
+  }, [isActive, isPlaying]);
+
+  // Pulse animation for Buy Button
+  useEffect(() => {
+    if (isActive) {
+      buyButtonScale.value = withRepeat(
+        withSequence(
+          withTiming(1.05, { duration: 1000 }),
+          withTiming(1, { duration: 1000 })
+        ),
+        -1,
+        true
+      );
+    } else {
+      cancelAnimation(buyButtonScale);
+      buyButtonScale.value = 1;
+    }
+  }, [isActive]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${rotation.value}deg` }, { scale: scale.value }],
+    };
+  });
+
+  const heartStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: Math.max(heartScale.value, 0) }],
+      opacity: heartScale.value,
+    };
+  });
+
+  const buyButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: buyButtonScale.value }],
+    };
+  });
+
+  const progressStyle = useAnimatedStyle(() => {
+    return {
+      width: `${progress.value * 100}%`,
+    };
+  });
+
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onStart(() => {
+      runOnJS(setIsLiked)(true);
+      heartScale.value = withSpring(1, undefined, (finished: boolean) => {
+        if (finished) {
+          heartScale.value = withTiming(0, { duration: 500 });
+        }
+      });
+    });
+
+  const singleTap = Gesture.Tap()
+    .onStart(() => {
+      scale.value = withSequence(
+        withTiming(0.9, { duration: 100 }),
+        withTiming(1, { duration: 100 })
+      );
+      runOnJS(togglePlayback)();
+    });
+
+  return (
+    <View style={{ width, height: ITEM_HEIGHT, backgroundColor: '#000' }}>
+      {/* Background & Main Tap Area */}
+      <GestureDetector gesture={Gesture.Exclusive(doubleTap, singleTap)}>
+        <View style={StyleSheet.absoluteFill}>
+          <Image
+            source={{ uri: item.cover_url || 'https://via.placeholder.com/400' }}
+            style={StyleSheet.absoluteFillObject}
+            blurRadius={50}
+          />
+          <LinearGradient
+            colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.6)', '#000']}
+            style={StyleSheet.absoluteFillObject}
+          />
+          
+          <View style={styles.centerArea}>
+             <Animated.View style={[styles.albumArtContainer, animatedStyle]}>
+                <Image 
+                  source={{ uri: item.cover_url || 'https://via.placeholder.com/400' }} 
+                  style={styles.albumArt} 
+                />
+                {/* Vinyl Center Hole */}
+                <View style={styles.vinylHole} />
+             </Animated.View>
+             
+             {/* Big Heart Animation */}
+             <Animated.View style={[styles.bigHeart, heartStyle]}>
+               <Ionicons name="heart" size={100} color="#FFF" />
+             </Animated.View>
+
+             {!isPlaying && (
+                <View style={styles.playOverlay}>
+                  <Ionicons name="play" size={50} color="rgba(255,255,255,0.9)" />
+                </View>
+              )}
+          </View>
+        </View>
+      </GestureDetector>
+
+      {/* Content Overlay */}
+      <SafeAreaView style={styles.contentContainer} pointerEvents="box-none">
+        {/* Top Bar */}
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Feather name="arrow-left" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Discover</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        {/* Bottom Info & Actions */}
+        <View style={styles.bottomSection} pointerEvents="box-none">
+          <View style={styles.infoRow} pointerEvents="box-none">
+            <View style={styles.textInfo} pointerEvents="box-none">
+              <Animated.View entering={FadeInDown.delay(200).duration(500)}>
+                <Text style={styles.songTitle}>{item.title}</Text>
+              </Animated.View>
+              <Animated.View entering={FadeInDown.delay(300).duration(500)}>
+                <Text style={styles.artistName}>{item.artist || 'Unknown Artist'}</Text>
+              </Animated.View>
+              <Animated.View 
+                entering={FadeInDown.delay(400).duration(500)} 
+                style={styles.tagRow}
+              >
+                 <View style={styles.tag}>
+                    <Text style={styles.tagText}>Teaser</Text>
+                 </View>
+                 <View style={[styles.tag, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+                    <Text style={styles.tagText}>Pop</Text>
+                 </View>
+              </Animated.View>
+            </View>
+
+            {/* Right Side Actions - Safe Zone */}
+            <View style={styles.actionsColumn} pointerEvents="box-none">
+              <Animated.View entering={FadeInRight.delay(300).springify()}>
+                <TouchableOpacity 
+                  style={styles.profileContainer}
+                  hitSlop={{ top: 10, bottom: 10, left: 20, right: 20 }}
+                >
+                   <Image source={{ uri: item.cover_url || 'https://via.placeholder.com/100' }} style={styles.profileImage} />
+                   <View style={styles.plusBadge}>
+                        <Feather name="plus" size={10} color="#FFF" />
+                   </View>
+                </TouchableOpacity>
+              </Animated.View>
+
+              <Animated.View entering={FadeInRight.delay(400).springify()}>
+                <TouchableOpacity 
+                  style={styles.actionButton} 
+                  onPress={() => setIsLiked(!isLiked)}
+                  hitSlop={{ top: 10, bottom: 10, left: 20, right: 20 }}
+                >
+                  <Ionicons name={isLiked ? "heart" : "heart-outline"} size={35} color={isLiked ? "#FF2D55" : "#FFF"} />
+                  <Text style={styles.actionText}>{isLiked ? '1.3k' : '1.2k'}</Text>
+                </TouchableOpacity>
+              </Animated.View>
+              
+              <Animated.View entering={FadeInRight.delay(500).springify()}>
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 20, right: 20 }}
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={32} color="#FFF" />
+                  <Text style={styles.actionText}>450</Text>
+                </TouchableOpacity>
+              </Animated.View>
+
+              <Animated.View entering={FadeInRight.delay(600).springify()}>
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 20, right: 20 }}
+                >
+                  <Ionicons name="share-social-outline" size={32} color="#FFF" />
+                  <Text style={styles.actionText}>Share</Text>
+                </TouchableOpacity>
+              </Animated.View>
+
+              <Animated.View entering={FadeInRight.delay(700).springify()}>
+                <TouchableOpacity 
+                  style={[styles.actionButton, { marginTop: 10 }]}
+                  hitSlop={{ top: 10, bottom: 10, left: 20, right: 20 }}
+                >
+                   <View style={styles.vinylIcon}>
+                      <Image source={{ uri: item.cover_url || 'https://via.placeholder.com/100' }} style={styles.vinylImage} />
+                   </View>
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
+          </View>
+
+          {/* Buy Button */}
+          <Animated.View entering={FadeInDown.delay(800).springify()}>
+            <Animated.View style={buyButtonStyle}>
+              <TouchableOpacity 
+                style={styles.buyButton}
+                onPress={() => Alert.alert('Purchase', 'Purchase flow would start here!')}
+                activeOpacity={0.8}
+              >
+                <View style={styles.buyContent}>
+                  <Text style={styles.buyText}>Buy Full Version</Text>
+                  <Text style={styles.priceText}>$1.29 • High Quality Audio</Text>
+                </View>
+                <View style={styles.buyIconContainer}>
+                   <Feather name="shopping-bag" size={20} color="#000" />
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          </Animated.View>
+
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <Animated.View 
+              style={[
+                styles.progressBar, 
+                progressStyle
+              ]} 
+            />
+          </View>
+        </View>
+      </SafeAreaView>
+    </View>
+  );
+});
+
 const FeedScreen = () => {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const [songs, setSongs] = useState<Song[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const currentIndexRef = useRef(0);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [duration, setDuration] = useState(0);
-  const [position, setPosition] = useState(0);
+  const progress = useSharedValue(0);
+  const lastRequestId = useRef(0);
+
+  // Configure Audio Mode
+  useEffect(() => {
+    const setupAudio = async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          staysActiveInBackground: false,
+          playsInSilentModeIOS: true,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
+        });
+      } catch (e) {
+        console.warn('Audio mode setup error:', e);
+      }
+    };
+    setupAudio();
+  }, []);
 
   // Fetch songs
   useEffect(() => {
@@ -100,34 +383,48 @@ const FeedScreen = () => {
   const playSong = async (index: number) => {
     if (!songs[index]) return;
     
+    const requestId = ++lastRequestId.current;
+    
     try {
+      // 1. Immediate cleanup of previous sound (don't await unload to keep it snappy)
       if (sound) {
-        await sound.unloadAsync();
+        const oldSound = sound;
+        setSound(null);
+        oldSound.stopAsync().then(() => oldSound.unloadAsync()).catch(() => {});
       }
 
       const song = songs[index];
-      // Prefer teaser_url, fallback to audio_url
       const uri = song.teaser_url || song.audio_url;
       
       if (!uri) return;
 
+      // 2. Load new sound
       const { sound: newSound } = await Audio.Sound.createAsync(
         { uri },
-        { shouldPlay: true, isLooping: true },
+        { shouldPlay: true, isLooping: true, progressUpdateIntervalMillis: 100 },
         onPlaybackStatusUpdate
       );
 
-      setSound(newSound);
-      setIsPlaying(true);
+      // 3. Check if this is still the latest request before setting state
+      if (requestId === lastRequestId.current) {
+        setSound(newSound);
+        setIsPlaying(true);
+        progress.value = 0;
+      } else {
+        // If user scrolled away while loading, clean up this sound
+        newSound.unloadAsync().catch(() => {});
+      }
     } catch (error) {
-      console.warn('Error playing sound:', error);
+      if (requestId === lastRequestId.current) {
+        console.warn('Error playing sound:', error);
+        setIsPlaying(false);
+      }
     }
   };
 
   const onPlaybackStatusUpdate = (status: any) => {
-    if (status.isLoaded) {
-      setDuration(status.durationMillis || 0);
-      setPosition(status.positionMillis || 0);
+    if (status.isLoaded && status.durationMillis) {
+      progress.value = status.positionMillis / status.durationMillis;
     }
   };
 
@@ -135,8 +432,17 @@ const FeedScreen = () => {
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
       const index = viewableItems[0].index;
-      if (index !== null && index !== undefined && index !== currentIndex) {
+      if (index !== null && index !== undefined && index !== currentIndexRef.current) {
         setCurrentIndex(index);
+        currentIndexRef.current = index;
+        
+        // Cancel any pending loads immediately
+        lastRequestId.current++;
+        
+        // Stop current sound immediately for instant silence on scroll
+        if (sound) {
+          sound.stopAsync().catch(() => {});
+        }
       }
     }
   }).current;
@@ -158,182 +464,19 @@ const FeedScreen = () => {
     }
   };
 
-  const renderItem = ({ item, index }: { item: Song; index: number }) => {
-    const isActive = index === currentIndex;
-    
-    // Animation Values
-    const rotation = useSharedValue(0);
-    const scale = useSharedValue(1);
-    const heartScale = useSharedValue(0);
-    const [isLiked, setIsLiked] = useState(false);
-
-    useEffect(() => {
-      if (isActive && isPlaying) {
-        rotation.value = withRepeat(
-          withTiming(360, { duration: 8000, easing: Easing.linear }),
-          -1,
-          false
-        );
-      } else {
-        cancelAnimation(rotation);
-      }
-    }, [isActive, isPlaying]);
-
-    const animatedStyle = useAnimatedStyle(() => {
-      return {
-        transform: [{ rotate: `${rotation.value}deg` }, { scale: scale.value }],
-      };
-    });
-
-    const heartStyle = useAnimatedStyle(() => {
-      return {
-        transform: [{ scale: Math.max(heartScale.value, 0) }],
-        opacity: heartScale.value,
-      };
-    });
-
-    const doubleTap = Gesture.Tap()
-      .numberOfTaps(2)
-      .onStart(() => {
-        runOnJS(setIsLiked)(true);
-        heartScale.value = withSpring(1, undefined, (finished) => {
-          if (finished) {
-            heartScale.value = withTiming(0, { duration: 500 });
-          }
-        });
-      });
-
-    const singleTap = Gesture.Tap()
-      .onStart(() => {
-        runOnJS(togglePlayback)();
-      });
-
+  const renderItem = useCallback(({ item, index }: { item: Song; index: number }) => {
     return (
-      <View style={{ width, height: ITEM_HEIGHT, backgroundColor: '#000' }}>
-        {/* Background */}
-        <Image
-          source={{ uri: item.cover_url || 'https://via.placeholder.com/400' }}
-          style={StyleSheet.absoluteFillObject}
-          blurRadius={50}
-        />
-        <LinearGradient
-          colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.6)', '#000']}
-          style={StyleSheet.absoluteFillObject}
-        />
-
-        {/* Content */}
-        <SafeAreaView style={styles.contentContainer}>
-          {/* Top Bar */}
-          <View style={styles.topBar}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Feather name="arrow-left" size={24} color="#FFF" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Discover</Text>
-            <View style={{ width: 40 }} />
-          </View>
-
-          {/* Main Center Area - Album Art */}
-          <GestureDetector gesture={Gesture.Exclusive(doubleTap, singleTap)}>
-            <View style={styles.centerArea}>
-               <Animated.View style={[styles.albumArtContainer, animatedStyle]}>
-                  <Image 
-                    source={{ uri: item.cover_url || 'https://via.placeholder.com/400' }} 
-                    style={styles.albumArt} 
-                  />
-                  {/* Vinyl Center Hole */}
-                  <View style={styles.vinylHole} />
-               </Animated.View>
-               
-               {/* Big Heart Animation */}
-               <Animated.View style={[styles.bigHeart, heartStyle]}>
-                 <Ionicons name="heart" size={100} color="#FFF" />
-               </Animated.View>
-
-               {!isPlaying && (
-                  <View style={styles.playOverlay}>
-                    <Ionicons name="play" size={50} color="rgba(255,255,255,0.9)" />
-                  </View>
-                )}
-            </View>
-          </GestureDetector>
-
-          {/* Bottom Info & Actions */}
-          <View style={styles.bottomSection}>
-            <View style={styles.infoRow}>
-              <View style={styles.textInfo}>
-                <Text style={styles.songTitle}>{item.title}</Text>
-                <Text style={styles.artistName}>{item.artist || 'Unknown Artist'}</Text>
-                <View style={styles.tagRow}>
-                   <View style={styles.tag}>
-                      <Text style={styles.tagText}>Teaser</Text>
-                   </View>
-                   <View style={[styles.tag, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                      <Text style={styles.tagText}>Pop</Text>
-                   </View>
-                </View>
-              </View>
-
-              {/* Right Side Actions */}
-              <View style={styles.actionsColumn}>
-                <View style={styles.profileContainer}>
-                   <Image source={{ uri: item.cover_url || 'https://via.placeholder.com/100' }} style={styles.profileImage} />
-                   <View style={styles.plusBadge}>
-                      <Feather name="plus" size={10} color="#FFF" />
-                   </View>
-                </View>
-
-                <TouchableOpacity style={styles.actionButton} onPress={() => setIsLiked(!isLiked)}>
-                  <Ionicons name={isLiked ? "heart" : "heart-outline"} size={35} color={isLiked ? "#FF2D55" : "#FFF"} />
-                  <Text style={styles.actionText}>{isLiked ? '1.3k' : '1.2k'}</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={32} color="#FFF" />
-                  <Text style={styles.actionText}>450</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="share-social-outline" size={32} color="#FFF" />
-                  <Text style={styles.actionText}>Share</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.actionButton, { marginTop: 10 }]}>
-                   <View style={styles.vinylIcon}>
-                      <Image source={{ uri: item.cover_url || 'https://via.placeholder.com/100' }} style={styles.vinylImage} />
-                   </View>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Buy Button */}
-            <TouchableOpacity 
-              style={styles.buyButton}
-              onPress={() => Alert.alert('Purchase', 'Purchase flow would start here!')}
-              activeOpacity={0.8}
-            >
-              <View style={styles.buyContent}>
-                <Text style={styles.buyText}>Buy Full Version</Text>
-                <Text style={styles.priceText}>$1.29 • High Quality Audio</Text>
-              </View>
-              <View style={styles.buyIconContainer}>
-                 <Feather name="shopping-bag" size={20} color="#000" />
-              </View>
-            </TouchableOpacity>
-
-            {/* Progress Bar */}
-            <View style={styles.progressContainer}>
-              <View 
-                style={[
-                  styles.progressBar, 
-                  { width: `${duration > 0 ? (position / duration) * 100 : 0}%` }
-                ]} 
-              />
-            </View>
-          </View>
-        </SafeAreaView>
-      </View>
+      <FeedItem 
+        item={item} 
+        isActive={index === currentIndex}
+        isPlaying={isPlaying}
+        progress={progress}
+        togglePlayback={togglePlayback}
+      />
     );
-  };
+  }, [currentIndex, isPlaying, togglePlayback]);
+
+
 
   if (loading) {
     return (
@@ -352,6 +495,7 @@ const FeedScreen = () => {
           renderItem={renderItem}
           keyExtractor={(item) => String(item.id)}
           pagingEnabled
+          disableIntervalMomentum={true}
           showsVerticalScrollIndicator={false}
           snapToInterval={ITEM_HEIGHT}
           snapToAlignment="start"
@@ -416,11 +560,11 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   albumArtContainer: {
-    width: width * 0.7,
-    height: width * 0.7,
-    borderRadius: (width * 0.7) / 2,
-    borderWidth: 8,
-    borderColor: '#111',
+    width: width * 0.6,
+    height: width * 0.6,
+    borderRadius: (width * 0.6) / 2,
+    borderWidth: 6,
+    borderColor: 'rgba(255,255,255,0.1)',
     elevation: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
@@ -430,11 +574,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#111',
   },
   albumArt: {
     width: '100%',
     height: '100%',
-    borderRadius: (width * 0.7) / 2,
+    borderRadius: (width * 0.6) / 2,
+    opacity: 0.9,
   },
   vinylHole: {
     position: 'absolute',
