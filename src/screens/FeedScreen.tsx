@@ -20,6 +20,17 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { supabase } from '../utils/supabase';
 import { BlurView } from 'expo-blur';
 import { spacing, radii, sizes } from '../theme/designTokens';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring, 
+  withRepeat, 
+  withTiming, 
+  Easing,
+  cancelAnimation,
+  runOnJS
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const { width, height } = Dimensions.get('window');
 const ITEM_HEIGHT = height; // Full screen
@@ -150,15 +161,65 @@ const FeedScreen = () => {
   const renderItem = ({ item, index }: { item: Song; index: number }) => {
     const isActive = index === currentIndex;
     
+    // Animation Values
+    const rotation = useSharedValue(0);
+    const scale = useSharedValue(1);
+    const heartScale = useSharedValue(0);
+    const [isLiked, setIsLiked] = useState(false);
+
+    useEffect(() => {
+      if (isActive && isPlaying) {
+        rotation.value = withRepeat(
+          withTiming(360, { duration: 8000, easing: Easing.linear }),
+          -1,
+          false
+        );
+      } else {
+        cancelAnimation(rotation);
+      }
+    }, [isActive, isPlaying]);
+
+    const animatedStyle = useAnimatedStyle(() => {
+      return {
+        transform: [{ rotate: `${rotation.value}deg` }, { scale: scale.value }],
+      };
+    });
+
+    const heartStyle = useAnimatedStyle(() => {
+      return {
+        transform: [{ scale: Math.max(heartScale.value, 0) }],
+        opacity: heartScale.value,
+      };
+    });
+
+    const doubleTap = Gesture.Tap()
+      .numberOfTaps(2)
+      .onStart(() => {
+        runOnJS(setIsLiked)(true);
+        heartScale.value = withSpring(1, undefined, (finished) => {
+          if (finished) {
+            heartScale.value = withTiming(0, { duration: 500 });
+          }
+        });
+      });
+
+    const singleTap = Gesture.Tap()
+      .onStart(() => {
+        runOnJS(togglePlayback)();
+      });
+
     return (
       <View style={{ width, height: ITEM_HEIGHT, backgroundColor: '#000' }}>
         {/* Background */}
         <Image
           source={{ uri: item.cover_url || 'https://via.placeholder.com/400' }}
           style={StyleSheet.absoluteFillObject}
-          blurRadius={30}
+          blurRadius={50}
         />
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.4)' }]} />
+        <LinearGradient
+          colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.6)', '#000']}
+          style={StyleSheet.absoluteFillObject}
+        />
 
         {/* Content */}
         <SafeAreaView style={styles.contentContainer}>
@@ -172,19 +233,29 @@ const FeedScreen = () => {
           </View>
 
           {/* Main Center Area - Album Art */}
-          <View style={styles.centerArea}>
-             <TouchableOpacity activeOpacity={0.9} onPress={togglePlayback} style={styles.albumArtContainer}>
-                <Image 
-                  source={{ uri: item.cover_url || 'https://via.placeholder.com/400' }} 
-                  style={styles.albumArt} 
-                />
-                {!isPlaying && (
+          <GestureDetector gesture={Gesture.Exclusive(doubleTap, singleTap)}>
+            <View style={styles.centerArea}>
+               <Animated.View style={[styles.albumArtContainer, animatedStyle]}>
+                  <Image 
+                    source={{ uri: item.cover_url || 'https://via.placeholder.com/400' }} 
+                    style={styles.albumArt} 
+                  />
+                  {/* Vinyl Center Hole */}
+                  <View style={styles.vinylHole} />
+               </Animated.View>
+               
+               {/* Big Heart Animation */}
+               <Animated.View style={[styles.bigHeart, heartStyle]}>
+                 <Ionicons name="heart" size={100} color="#FFF" />
+               </Animated.View>
+
+               {!isPlaying && (
                   <View style={styles.playOverlay}>
                     <Ionicons name="play" size={50} color="rgba(255,255,255,0.9)" />
                   </View>
                 )}
-             </TouchableOpacity>
-          </View>
+            </View>
+          </GestureDetector>
 
           {/* Bottom Info & Actions */}
           <View style={styles.bottomSection}>
@@ -204,19 +275,32 @@ const FeedScreen = () => {
 
               {/* Right Side Actions */}
               <View style={styles.actionsColumn}>
-                <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="heart-outline" size={32} color="#FFF" />
-                  <Text style={styles.actionText}>1.2k</Text>
+                <View style={styles.profileContainer}>
+                   <Image source={{ uri: item.cover_url || 'https://via.placeholder.com/100' }} style={styles.profileImage} />
+                   <View style={styles.plusBadge}>
+                      <Feather name="plus" size={10} color="#FFF" />
+                   </View>
+                </View>
+
+                <TouchableOpacity style={styles.actionButton} onPress={() => setIsLiked(!isLiked)}>
+                  <Ionicons name={isLiked ? "heart" : "heart-outline"} size={35} color={isLiked ? "#FF2D55" : "#FFF"} />
+                  <Text style={styles.actionText}>{isLiked ? '1.3k' : '1.2k'}</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="chatbubble-outline" size={30} color="#FFF" />
+                  <Ionicons name="chatbubble-ellipses-outline" size={32} color="#FFF" />
                   <Text style={styles.actionText}>450</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.actionButton}>
-                  <Ionicons name="share-social-outline" size={30} color="#FFF" />
+                  <Ionicons name="share-social-outline" size={32} color="#FFF" />
                   <Text style={styles.actionText}>Share</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.actionButton, { marginTop: 10 }]}>
+                   <View style={styles.vinylIcon}>
+                      <Image source={{ uri: item.cover_url || 'https://via.placeholder.com/100' }} style={styles.vinylImage} />
+                   </View>
                 </TouchableOpacity>
               </View>
             </View>
@@ -225,12 +309,15 @@ const FeedScreen = () => {
             <TouchableOpacity 
               style={styles.buyButton}
               onPress={() => Alert.alert('Purchase', 'Purchase flow would start here!')}
+              activeOpacity={0.8}
             >
               <View style={styles.buyContent}>
                 <Text style={styles.buyText}>Buy Full Version</Text>
-                <Text style={styles.priceText}>$1.29</Text>
+                <Text style={styles.priceText}>$1.29 • High Quality Audio</Text>
               </View>
-              <Feather name="shopping-bag" size={20} color="#000" />
+              <View style={styles.buyIconContainer}>
+                 <Feather name="shopping-bag" size={20} color="#000" />
+              </View>
             </TouchableOpacity>
 
             {/* Progress Bar */}
@@ -257,24 +344,29 @@ const FeedScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <FlatList
-        data={songs}
-        renderItem={renderItem}
-        keyExtractor={(item) => String(item.id)}
-        pagingEnabled
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_HEIGHT}
-        snapToAlignment="start"
-        decelerationRate="fast"
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
-        initialNumToRender={3}
-        maxToRenderPerBatch={3}
-        windowSize={5}
-      />
-    </View>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        <FlatList
+          data={songs}
+          renderItem={renderItem}
+          keyExtractor={(item) => String(item.id)}
+          pagingEnabled
+          showsVerticalScrollIndicator={false}
+          snapToInterval={ITEM_HEIGHT}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
+          initialNumToRender={3}
+          maxToRenderPerBatch={3}
+          windowSize={5}
+          getItemLayout={(data, index) => (
+            { length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index }
+          )}
+        />
+      </View>
+    </GestureHandlerRootView>
   );
 };
 
@@ -299,6 +391,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
+    zIndex: 10,
   },
   backButton: {
     width: 40,
@@ -312,27 +405,46 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 18,
     fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   centerArea: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
   },
   albumArtContainer: {
-    width: width * 0.75,
-    height: width * 0.75,
-    borderRadius: 20,
+    width: width * 0.7,
+    height: width * 0.7,
+    borderRadius: (width * 0.7) / 2,
+    borderWidth: 8,
+    borderColor: '#111',
     elevation: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.5,
     shadowRadius: 20,
     position: 'relative',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   albumArt: {
     width: '100%',
     height: '100%',
-    borderRadius: 20,
+    borderRadius: (width * 0.7) / 2,
+  },
+  vinylHole: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#000',
+    borderWidth: 2,
+    borderColor: '#333',
+    zIndex: 2,
   },
   playOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -340,10 +452,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 20,
+    zIndex: 10,
+  },
+  bigHeart: {
+    position: 'absolute',
+    zIndex: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   bottomSection: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.lg,
+    zIndex: 10,
   },
   infoRow: {
     flexDirection: 'row',
@@ -354,18 +476,20 @@ const styles = StyleSheet.create({
   textInfo: {
     flex: 1,
     marginRight: spacing.lg,
+    justifyContent: 'flex-end',
+    paddingBottom: 10,
   },
   songTitle: {
     color: '#FFF',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
-    marginBottom: 4,
+    marginBottom: 6,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
   artistName: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.9)',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
@@ -375,10 +499,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tag: {
-    backgroundColor: '#2F6DFD',
+    backgroundColor: 'rgba(47, 109, 253, 0.8)',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   tagText: {
     color: '#FFF',
@@ -387,7 +511,30 @@ const styles = StyleSheet.create({
   },
   actionsColumn: {
     alignItems: 'center',
-    gap: 20,
+    gap: 24,
+    paddingBottom: 10,
+  },
+  profileContainer: {
+    marginBottom: 10,
+    position: 'relative',
+  },
+  profileImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+  plusBadge: {
+    position: 'absolute',
+    bottom: -5,
+    alignSelf: 'center',
+    backgroundColor: '#FF2D55',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   actionButton: {
     alignItems: 'center',
@@ -397,39 +544,68 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  vinylIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#111',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 6,
+    borderColor: '#222',
+  },
+  vinylImage: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
   },
   buyButton: {
-    backgroundColor: '#FFF',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   buyContent: {
     flexDirection: 'column',
   },
   buyText: {
-    color: '#000',
+    color: '#FFF',
     fontSize: 16,
     fontWeight: '800',
   },
   priceText: {
-    color: '#666',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
     fontWeight: '600',
+    marginTop: 2,
+  },
+  buyIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   progressContainer: {
-    height: 4,
+    height: 3,
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#2F6DFD',
+    backgroundColor: '#FFF',
   },
 });
 
