@@ -31,37 +31,45 @@ export default function SongCard({ song, onPress, index, isActive = false, onRig
   const formattedIndex = index !== undefined ? String(index + 1).padStart(2, '0') : '';
 
   return (
-    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={{ marginBottom: spacing.xs }}>
+    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={{ marginBottom: spacing.sm }}>
       <Animated.View style={{ transform: [{ scale }] }}>
         <View
           style={[
             styles.container,
-            { backgroundColor: isDark ? colors.surfaceAlt : '#FFFFFF', overflow: 'hidden' },
-            isActive && styles.activeContainer,
+            { 
+              backgroundColor: isActive 
+                ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)') 
+                : 'transparent',
+            }
           ]}
         >
+          {/* Active Indicator (Left Bar) */}
           {isActive && (
-            <LinearGradient
-              colors={['#2F80ED', 'rgba(47, 128, 237, 0.1)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFill}
-            />
+            <View style={{
+              position: 'absolute',
+              left: 0,
+              top: 12,
+              bottom: 12,
+              width: 4,
+              backgroundColor: '#1DB954',
+              borderTopRightRadius: 4,
+              borderBottomRightRadius: 4,
+            }} />
           )}
 
           {/* Index Number / Playing Icon */}
           <View style={styles.indexContainer}>
             {isActive ? (
-              <Ionicons name="stats-chart" size={18} color="#FFD700" />
+              <Ionicons name="stats-chart" size={16} color="#1DB954" />
             ) : (
-              <Text style={[styles.index, { color: isDark ? '#888' : '#999' }]}>
+              <Text style={[styles.index, { color: isDark ? '#666' : '#999' }]}>
                 {formattedIndex}
               </Text>
             )}
           </View>
 
-          {/* Album Art (Circular) */}
-          <View style={[styles.artContainer, isActive && styles.activeArtContainer]}>
+          {/* Album Art */}
+          <View style={styles.artContainer}>
             <View style={[styles.artWrapper, isActive && styles.activeArtWrapper]}>
               {song.cover_url && !imageError ? (
                 <Image 
@@ -70,8 +78,8 @@ export default function SongCard({ song, onPress, index, isActive = false, onRig
                   onError={() => setImageError(true)}
                 />
               ) : (
-                <View style={[styles.art, { backgroundColor: isDark ? '#333' : '#F0F0F0', justifyContent: 'center', alignItems: 'center' }]}>
-                  <Ionicons name="musical-note" size={24} color={isDark ? '#666' : '#CCC'} />
+                <View style={[styles.art, { backgroundColor: isDark ? '#333' : '#E0E0E0', justifyContent: 'center', alignItems: 'center' }]}>
+                  <Ionicons name="musical-note" size={20} color={isDark ? '#555' : '#AAA'} />
                 </View>
               )}
             </View>
@@ -79,10 +87,16 @@ export default function SongCard({ song, onPress, index, isActive = false, onRig
 
           {/* Meta: Title + Artist */}
           <View style={styles.meta}>
-            <Text numberOfLines={1} style={[styles.title, { color: isActive ? '#FFF' : colors.text }]}>
+            <Text 
+              numberOfLines={1} 
+              style={[
+                styles.title, 
+                { color: isActive ? (isDark ? '#1DB954' : '#10893E') : colors.text }
+              ]}
+            >
               {song.title}
             </Text>
-            <Text numberOfLines={1} style={[styles.artist, { color: isActive ? 'rgba(255,255,255,0.7)' : colors.textSecondary }]}>
+            <Text numberOfLines={1} style={[styles.artist, { color: colors.textSecondary }]}>
               {song.artist || 'Unknown Artist'}
             </Text>
           </View>
@@ -90,11 +104,11 @@ export default function SongCard({ song, onPress, index, isActive = false, onRig
           {/* Right: Menu Icon (3 dots) or Custom Action */}
           {onRightAction ? (
             <Pressable onPress={onRightAction} style={styles.menuButton} hitSlop={8}>
-              <Feather name={rightIconName} size={20} color={isActive ? '#FFF' : (isDark ? '#555' : '#CCC')} />
+              <Feather name={rightIconName} size={20} color={isDark ? '#666' : '#999'} />
             </Pressable>
           ) : (
             <View style={styles.menuButton}>
-                <Feather name={rightIconName} size={20} color={isActive ? '#FFF' : (isDark ? '#555' : '#CCC')} />
+                <Feather name={rightIconName} size={20} color={isDark ? '#666' : '#999'} />
             </View>
           )}
         </View>
@@ -107,49 +121,50 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 12,
   },
   activeContainer: {
-    shadowColor: '#2F80ED',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
+    // Removed shadow for cleaner look
   },
   indexContainer: {
-    width: 30,
-    marginRight: 10,
+    width: 24,
+    marginRight: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   index: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
+    fontVariant: ['tabular-nums'],
   },
   artContainer: {
-    marginRight: 16,
+    marginRight: 14,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3.84,
+    elevation: 3,
   },
   activeArtContainer: {
-    // Glow effect around the art
   },
   artWrapper: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    padding: 2, // Space for the ring
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   activeArtWrapper: {
-    borderWidth: 2,
-    borderColor: '#FFD700', // Yellow ring from screenshot
+    // No yellow border
   },
   art: {
     width: '100%',
     height: '100%',
-    borderRadius: 26,
+    borderRadius: 8,
     backgroundColor: '#222',
   },
   meta: {
@@ -159,18 +174,19 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 2,
-    letterSpacing: 0.2,
+    fontWeight: '600',
+    marginBottom: 3,
+    letterSpacing: 0.1,
   },
   artist: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   menuButton: {
     width: 32,
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
+    opacity: 0.8,
   },
 });

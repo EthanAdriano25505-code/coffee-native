@@ -376,9 +376,13 @@ const HomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.sectionHeaderCompact}>
-          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark, { fontSize: 28, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '800' }]}>Song List</Text>
-          <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')}>
-            <Feather name="more-horizontal" size={24} color={isDark ? '#FFF' : '#111'} />
+          <View>
+            <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark, { fontSize: 22, fontWeight: '700' }]}>Trending Now</Text>
+            <Text style={{ color: isDark ? '#888' : '#666', fontSize: 13, marginTop: 2 }}>Top hits for you</Text>
+          </View>
+          <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')} style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ color: isDark ? '#888' : '#666', fontSize: 13, marginRight: 4 }}>See all</Text>
+            <Feather name="chevron-right" size={16} color={isDark ? '#888' : '#666'} />
           </TouchableOpacity>
         </View>
       </View>
