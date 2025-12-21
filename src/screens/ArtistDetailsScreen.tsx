@@ -9,11 +9,12 @@ import {
   StatusBar,
   ScrollView,
   ImageBackground,
+  ActivityIndicator
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp, NavigationProp } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 
 import { supabase } from '../utils/supabase';
@@ -33,6 +34,8 @@ type Song = {
   album?: string | null;
   audio_url?: string | null;
   cover_url?: string | null;
+  artwork?: string | null;
+  duration?: number;
 };
 
 type Album = {
@@ -68,18 +71,27 @@ const ArtistDetailsScreen: React.FC = () => {
         .order('popularity', { ascending: false })
         .limit(5);
 
-      if (songsData) setPopularSongs(songsData as Song[]);
+      if (songsData && songsData.length > 0) {
+          setPopularSongs(songsData as Song[]);
+      } else {
+          // Fallback demo data if no songs found
+          setPopularSongs([
+              { id: 'demo1', title: 'Blinding Lights', artist: artist, cover_url: cover_url },
+              { id: 'demo2', title: 'Save Your Tears', artist: artist, cover_url: cover_url },
+              { id: 'demo3', title: 'Starboy', artist: artist, cover_url: cover_url },
+              { id: 'demo4', title: 'The Hills', artist: artist, cover_url: cover_url },
+              { id: 'demo5', title: 'Die For You', artist: artist, cover_url: cover_url },
+          ] as any);
+      }
 
       // Fetch albums (simulated by distinct albums from songs)
-      // Since Supabase JS client doesn't support distinct easily on select without a view or rpc, 
-      // we'll fetch songs and process client side for this demo.
       const { data: albumsData } = await supabase
         .from('songs')
         .select('album, cover_url, created_at')
         .eq('artist', artist)
         .not('album', 'is', null);
 
-      if (albumsData) {
+      if (albumsData && albumsData.length > 0) {
           const uniqueAlbums = new Map();
           albumsData.forEach((item: any) => {
               if (item.album && !uniqueAlbums.has(item.album)) {
@@ -91,6 +103,13 @@ const ArtistDetailsScreen: React.FC = () => {
               }
           });
           setAlbums(Array.from(uniqueAlbums.values()));
+      } else {
+          // Fallback demo albums
+          setAlbums([
+              { title: 'After Hours', cover_url: cover_url, year: '2020' },
+              { title: 'Starboy', cover_url: cover_url, year: '2016' },
+              { title: 'Beauty Behind the Madness', cover_url: cover_url, year: '2015' },
+          ]);
       }
 
     } catch (err) {
@@ -102,25 +121,19 @@ const ArtistDetailsScreen: React.FC = () => {
 
   const handlePlaySong = async (song: Song) => {
     const uri = song.audio_url ? { uri: song.audio_url } : undefined;
-    await play({
-      id: song.id,
-      title: song.title,
-      artist: song.artist ?? undefined,
-      cover_url: song.cover_url ?? undefined,
-      uri,
-    });
+    await play(song);
   };
 
   const renderSongItem = (item: Song, index: number) => (
     <TouchableOpacity key={item.id} style={styles.songItem} onPress={() => handlePlaySong(item)}>
       <Text style={styles.songIndex}>{index + 1}</Text>
-      <RemoteImage uri={item.cover_url} width={40} height={40} style={{ borderRadius: 4 }} />
+      <RemoteImage uri={item.cover_url} width={48} height={48} style={{ borderRadius: 4 }} />
       <View style={styles.songInfo}>
         <Text style={styles.songTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.songPlays} numberOfLines={1}>{Math.floor(Math.random() * 1000000).toLocaleString()} plays</Text>
+        <Text style={styles.songPlays} numberOfLines={1}>{Math.floor(Math.random() * 50000000 + 1000000).toLocaleString()} plays</Text>
       </View>
       <TouchableOpacity style={styles.moreButton}>
-        <Ionicons name="ellipsis-horizontal" size={16} color="rgba(255,255,255,0.5)" />
+        <Feather name="more-horizontal" size={20} color="#b3b3b3" />
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -128,13 +141,22 @@ const ArtistDetailsScreen: React.FC = () => {
   const renderAlbumItem = ({ item }: { item: Album }) => (
     <TouchableOpacity 
         style={styles.albumItem}
-        onPress={() => navigation.navigate('AlbumDetails', { album: item.title, artist: artist, cover_url: item.cover_url ?? undefined })}
+        onPress={() => navigation.navigate('AlbumDetails' as any, { album: item.title, artist: artist, cover_url: item.cover_url ?? undefined })}
     >
       <RemoteImage uri={item.cover_url} width={140} height={140} style={styles.albumCover} />
       <Text style={styles.albumTitle} numberOfLines={1}>{item.title}</Text>
       <Text style={styles.albumYear}>{item.year}</Text>
     </TouchableOpacity>
   );
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <StatusBar barStyle="light-content" />
+        <ActivityIndicator size="large" color="#1DB954" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -151,8 +173,9 @@ const ArtistDetailsScreen: React.FC = () => {
                 style={styles.headerBackground}
             >
                 <LinearGradient
-                    colors={['transparent', '#000']}
+                    colors={['transparent', 'rgba(0,0,0,0.8)', '#000']}
                     style={StyleSheet.absoluteFill}
+                    locations={[0, 0.7, 1]}
                 />
                 <SafeAreaView edges={['top']} style={styles.headerContent}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -161,13 +184,13 @@ const ArtistDetailsScreen: React.FC = () => {
                     
                     <View style={styles.artistInfo}>
                         <Text style={styles.artistName}>{artist}</Text>
-                        <Text style={styles.monthlyListeners}>1.2M Monthly Listeners</Text>
+                        <Text style={styles.monthlyListeners}>24,102,931 monthly listeners</Text>
                         <View style={styles.headerButtons}>
                             <TouchableOpacity style={styles.followButton}>
                                 <Text style={styles.followButtonText}>Follow</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.playButton}>
-                                <Ionicons name="play" size={24} color="#fff" />
+                                <Ionicons name="play" size={24} color="#000" style={{ marginLeft: 2 }} />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -177,34 +200,37 @@ const ArtistDetailsScreen: React.FC = () => {
 
         {/* Popular Songs */}
         <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Popular</Text>
+            <Text style={styles.sectionTitle}>Popular releases</Text>
             {popularSongs.map((song, index) => renderSongItem(song, index))}
         </View>
 
         {/* Albums */}
-        {albums.length > 0 && (
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Albums</Text>
-                <FlatList
-                    data={albums}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    renderItem={renderAlbumItem}
-                    keyExtractor={(item) => item.title}
-                    contentContainerStyle={styles.albumsList}
-                />
-            </View>
-        )}
+        <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Albums</Text>
+            <FlatList
+                data={albums}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                renderItem={renderAlbumItem}
+                keyExtractor={(item, index) => `${item.title}-${index}`}
+                contentContainerStyle={styles.albumsList}
+            />
+        </View>
 
         {/* About */}
         <View style={styles.section}>
             <Text style={styles.sectionTitle}>About</Text>
             <View style={styles.aboutCard}>
-                <RemoteImage uri={cover_url} width={width - spacing.lg * 2} height={200} style={styles.aboutImage} />
-                <Text style={styles.aboutText} numberOfLines={4}>
-                    {artist} is a popular artist known for their unique style and amazing performances. 
-                    Listen to their latest tracks and albums right here.
-                </Text>
+                <RemoteImage uri={cover_url} width={width - 32} height={200} style={styles.aboutImage} />
+                <View style={styles.aboutOverlay}>
+                    <LinearGradient
+                        colors={['transparent', 'rgba(0,0,0,0.8)']}
+                        style={StyleSheet.absoluteFill}
+                    />
+                    <Text style={styles.aboutText} numberOfLines={3}>
+                        {artist} is one of the most influential artists of our generation, blending genres and creating timeless hits.
+                    </Text>
+                </View>
             </View>
         </View>
 
@@ -213,15 +239,13 @@ const ArtistDetailsScreen: React.FC = () => {
   );
 };
 
-const primaryColor = (tokens as any)?.colors?.primary ?? (tokens as any)?.light?.primary ?? '#1DB954';
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
   },
   header: {
-    height: 350,
+    height: 400,
     width: '100%',
   },
   headerBackground: {
@@ -232,7 +256,7 @@ const styles = StyleSheet.create({
   headerContent: {
     flex: 1,
     justifyContent: 'space-between',
-    padding: spacing.md,
+    padding: 16,
   },
   backButton: {
     width: 40,
@@ -241,116 +265,128 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   artistInfo: {
-    marginBottom: spacing.lg,
+    marginBottom: 10,
   },
   artistName: {
-    fontSize: 42,
-    fontWeight: 'bold',
+    fontSize: 48,
+    fontWeight: '800',
     color: '#fff',
-    marginBottom: spacing.xs,
+    marginBottom: 8,
+    letterSpacing: -1,
   },
   monthlyListeners: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
-    marginBottom: spacing.md,
+    color: '#b3b3b3',
+    marginBottom: 16,
   },
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   followButton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.round,
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#fff',
-    marginRight: spacing.md,
   },
   followButtonText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   playButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: primaryColor,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1DB954',
     justifyContent: 'center',
     alignItems: 'center',
   },
   section: {
-    marginTop: spacing.xl,
-    paddingHorizontal: spacing.md,
+    marginTop: 32,
+    paddingHorizontal: 16,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#fff',
-    marginBottom: spacing.md,
+    marginBottom: 16,
   },
   songItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: 16,
   },
   songIndex: {
     width: 24,
     fontSize: 16,
-    color: 'rgba(255,255,255,0.5)',
+    color: '#b3b3b3',
     textAlign: 'center',
-    marginRight: spacing.sm,
+    marginRight: 12,
   },
   songInfo: {
     flex: 1,
-    marginLeft: spacing.md,
+    marginLeft: 12,
   },
   songTitle: {
     fontSize: 16,
     color: '#fff',
-    marginBottom: 2,
+    marginBottom: 4,
+    fontWeight: '500',
   },
   songPlays: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    color: '#b3b3b3',
   },
   moreButton: {
-    padding: spacing.sm,
+    padding: 8,
   },
   albumsList: {
-    paddingRight: spacing.md,
+    paddingRight: 16,
   },
   albumItem: {
-    marginRight: spacing.md,
-    width: 140,
+    marginRight: 16,
+    width: 150,
   },
   albumCover: {
-    borderRadius: 8,
-    marginBottom: spacing.sm,
+    borderRadius: 4,
+    marginBottom: 8,
   },
   albumTitle: {
     fontSize: 14,
     color: '#fff',
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   albumYear: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    color: '#b3b3b3',
   },
   aboutCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
+    borderRadius: 8,
     overflow: 'hidden',
-    paddingBottom: spacing.md,
+    position: 'relative',
   },
   aboutImage: {
-    marginBottom: spacing.md,
+    width: '100%',
+    height: 200,
+  },
+  aboutOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
   },
   aboutText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
-    lineHeight: 20,
-    paddingHorizontal: spacing.md,
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 24,
   },
 });
 

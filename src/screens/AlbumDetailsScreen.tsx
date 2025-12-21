@@ -1,26 +1,25 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Image,
   FlatList,
   TouchableOpacity,
   Dimensions,
-  Platform,
   StatusBar,
+  ActivityIndicator,
+  ScrollView
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp, NavigationProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons, Feather, Entypo } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 
 import { supabase } from '../utils/supabase';
 import { usePlayback } from '../contexts/PlaybackContext';
-import { spacing, radii, getColors, tokens } from '../theme/designTokens';
-import type { RootStackParamList } from '../navigation/types';
 import RemoteImage from '../components/RemoteImage';
+import { RootStackParamList } from '../navigation/types';
 
 const { width } = Dimensions.get('window');
 
@@ -33,11 +32,12 @@ type Song = {
   album?: string | null;
   audio_url?: string | null;
   cover_url?: string | null;
+  artwork?: string | null;
   duration?: number;
 };
 
 const AlbumDetailsScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<any>();
   const route = useRoute<AlbumDetailsRouteProp>();
   const { album, artist, cover_url } = route.params;
   const insets = useSafeAreaInsets();
@@ -53,38 +53,23 @@ const AlbumDetailsScreen: React.FC = () => {
   const fetchAlbumSongs = async () => {
     try {
       setLoading(true);
-      // Assuming 'album' column exists. If not, we might need to filter client side or use another method.
-      // For now, we'll try to fetch by album. If it fails, we might fallback to artist or just random songs for demo.
-      let query = supabase
+      // Try to fetch songs by album name
+      let { data, error } = await supabase
         .from('songs')
-        .select('id, title, artist, album, audio_url, cover_url')
+        .select('*')
         .eq('album', album);
       
-      const { data, error } = await query;
-
-      if (error) {
-        console.warn('Error fetching album songs:', error);
-        // Fallback: fetch songs by artist if album fetch fails (or returns empty which might mean column doesn't exist or data is missing)
-        // This is just a safety net for the demo if the DB schema isn't exactly as expected.
+      if (error || !data || data.length === 0) {
+        // Fallback: fetch songs by artist if album fetch fails or is empty
         const { data: artistData } = await supabase
             .from('songs')
-            .select('id, title, artist, album, audio_url, cover_url')
+            .select('*')
             .eq('artist', artist || '')
             .limit(10);
         
         if (artistData) setSongs(artistData as Song[]);
-      } else if (data && data.length > 0) {
-        setSongs(data as Song[]);
       } else {
-         // If no songs found for album, maybe try to find songs with same artist
-         if (artist) {
-             const { data: artistData } = await supabase
-            .from('songs')
-            .select('id, title, artist, album, audio_url, cover_url')
-            .eq('artist', artist)
-            .limit(10);
-            if (artistData) setSongs(artistData as Song[]);
-         }
+        setSongs(data as Song[]);
       }
     } catch (err) {
       console.warn('Exception fetching album songs:', err);
@@ -93,73 +78,82 @@ const AlbumDetailsScreen: React.FC = () => {
     }
   };
 
-  const handlePlaySong = async (song: Song, index: number) => {
-    const uri = song.audio_url ? { uri: song.audio_url } : undefined;
-    await play({
+  const handlePlaySong = async (song: Song) => {
+    const track = {
       id: song.id,
       title: song.title,
-      artist: song.artist ?? undefined,
-      cover_url: song.cover_url ?? undefined,
-      uri,
-    });
+      artist: song.artist || 'Unknown Artist',
+      artwork: song.cover_url || cover_url || 'https://via.placeholder.com/300',
+      url: song.audio_url || '',
+    } as any;
+    await play(track);
   };
-
-  const handlePlayAll = async () => {
-    if (songs.length > 0) {
-      handlePlaySong(songs[0], 0);
-      // In a real app, we would queue the rest
-    }
-  };
-
-  const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      <View style={styles.coverContainer}>
-        <RemoteImage 
-            uri={cover_url} 
-            width={width * 0.6} 
-            height={width * 0.6} 
-            style={styles.coverImage} 
-            placeholderText={album}
-        />
-        <View style={styles.shadow} />
-      </View>
-      
-      <View style={styles.infoContainer}>
-        <Text style={styles.albumTitle}>{album}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('ArtistDetails', { artist: artist ?? '', cover_url })}>
-            <Text style={styles.artistName}>{artist}</Text>
-        </TouchableOpacity>
-        <Text style={styles.metaInfo}>Album • {new Date().getFullYear()}</Text>
-      </View>
-
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity style={styles.playButton} onPress={handlePlayAll}>
-          <Ionicons name="play" size={24} color="#fff" style={{ marginLeft: 4 }} />
-        </TouchableOpacity>
-        
-        <View style={styles.secondaryActions}>
-            <TouchableOpacity style={styles.actionButton}>
-                <Ionicons name="heart-outline" size={24} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-                <Ionicons name="ellipsis-horizontal" size={24} color="#fff" />
-            </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
 
   const renderSongItem = ({ item, index }: { item: Song; index: number }) => (
-    <TouchableOpacity style={styles.songItem} onPress={() => handlePlaySong(item, index)}>
-      <Text style={styles.songIndex}>{index + 1}</Text>
+    <TouchableOpacity 
+        style={styles.songItem} 
+        onPress={() => handlePlaySong(item)}
+        activeOpacity={0.7}
+    >
+      <View style={styles.songIndexContainer}>
+          <Text style={styles.songIndex}>{index + 1}</Text>
+      </View>
       <View style={styles.songInfo}>
         <Text style={styles.songTitle} numberOfLines={1}>{item.title}</Text>
         <Text style={styles.songArtist} numberOfLines={1}>{item.artist}</Text>
       </View>
       <TouchableOpacity style={styles.moreButton}>
-        <Ionicons name="ellipsis-vertical" size={16} color="rgba(255,255,255,0.5)" />
+        <Feather name="more-horizontal" size={20} color="#b3b3b3" />
       </TouchableOpacity>
     </TouchableOpacity>
+  );
+
+  const renderHeader = () => (
+    <View style={styles.contentHeader}>
+        <View style={styles.albumArtContainer}>
+            <RemoteImage 
+                uri={cover_url} 
+                width={200} 
+                height={200} 
+                style={styles.albumArt} 
+                imageProps={{ resizeMode: 'cover' }}
+            />
+            <View style={styles.shadow} />
+        </View>
+        
+        <Text style={styles.albumTitle}>{album}</Text>
+        <View style={styles.artistRow}>
+            <RemoteImage 
+                uri={cover_url} 
+                width={24} 
+                height={24} 
+                style={styles.artistTinyImage} 
+                imageProps={{ resizeMode: 'cover' }}
+            />
+            <Text style={styles.artistName}>{artist}</Text>
+            <Text style={styles.albumMeta}>• Album • 2024</Text>
+        </View>
+
+        <View style={styles.controlsRow}>
+            <View style={styles.leftControls}>
+                <TouchableOpacity style={styles.iconButton}>
+                    <Feather name="heart" size={28} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.iconButton}>
+                    <Feather name="download-cloud" size={28} color="#b3b3b3" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.iconButton}>
+                    <Feather name="more-horizontal" size={28} color="#b3b3b3" />
+                </TouchableOpacity>
+            </View>
+            <TouchableOpacity 
+                style={styles.playButton}
+                onPress={() => songs.length > 0 && handlePlaySong(songs[0])}
+            >
+                <Ionicons name="play" size={32} color="#000" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+        </View>
+    </View>
   );
 
   return (
@@ -168,44 +162,33 @@ const AlbumDetailsScreen: React.FC = () => {
       
       {/* Background Gradient */}
       <LinearGradient
-        colors={['#1a1a1a', '#000']}
+        colors={['#4c669f', '#192f6a', '#000']}
         style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 0.6 }}
       />
-      
-      {/* Blurred Background Image */}
-      {cover_url && (
-        <View style={[StyleSheet.absoluteFill, { opacity: 0.3 }]}>
-            <RemoteImage 
-                uri={cover_url} 
-                width={width} 
-                height={width} 
-                style={{ width: '100%', height: '100%' }}
-            />
-            <BlurView intensity={80} style={StyleSheet.absoluteFill} tint="dark" />
-            <LinearGradient
-                colors={['transparent', '#000']}
-                style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-            />
-        </View>
-      )}
 
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={styles.navBar}>
+        <View style={styles.headerBar}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                 <Ionicons name="chevron-back" size={28} color="#fff" />
             </TouchableOpacity>
         </View>
 
-        <FlatList
-          data={songs}
-          keyExtractor={(item) => String(item.id)}
-          renderItem={renderSongItem}
-          ListHeaderComponent={renderHeader}
-          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
-          showsVerticalScrollIndicator={false}
-        />
+        {loading ? (
+           <View style={styles.centerContainer}>
+             <ActivityIndicator size="large" color="#1DB954" />
+           </View>
+        ) : (
+          <FlatList
+            data={songs}
+            renderItem={renderSongItem}
+            keyExtractor={(item, index) => `${item.id}-${index}`}
+            ListHeaderComponent={renderHeader}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
       </SafeAreaView>
     </View>
   );
@@ -219,10 +202,11 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  navBar: {
-    height: 44,
-    paddingHorizontal: spacing.md,
-    justifyContent: 'center',
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    height: 50,
     zIndex: 10,
   },
   backButton: {
@@ -231,100 +215,112 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
-  listContent: {
-    paddingBottom: spacing.xl,
-  },
-  headerContainer: {
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
   },
-  coverContainer: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
+  listContent: {
+    paddingBottom: 100,
+  },
+  contentHeader: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+    alignItems: 'flex-start',
+  },
+  albumArtContainer: {
+    alignSelf: 'center',
+    marginVertical: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+        width: 0,
+        height: 10,
+    },
     shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 10,
-    marginBottom: spacing.lg,
+    shadowRadius: 13.16,
+    elevation: 20,
   },
-  coverImage: {
-    borderRadius: 8,
+  albumArt: {
+    width: 220,
+    height: 220,
   },
   shadow: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    bottom: -20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    zIndex: -1,
-    borderRadius: 8,
-  },
-  infoContainer: {
-    alignItems: 'center',
-    marginBottom: spacing.lg,
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'transparent',
   },
   albumTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
-    textAlign: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: 8,
+    textAlign: 'left',
+  },
+  artistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  artistTinyImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 8,
   },
   artistName: {
-    fontSize: 18,
-    color: tokens.light.colors.primary,
-    marginBottom: spacing.xs,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginRight: 6,
   },
-  metaInfo: {
+  albumMeta: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    color: '#b3b3b3',
   },
-  actionsContainer: {
+  controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     width: '100%',
-    marginTop: spacing.sm,
+    marginTop: 8,
+  },
+  leftControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconButton: {
+    marginRight: 24,
   },
   playButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: tokens.light.colors.primary,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1DB954', // Spotify Green
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: tokens.light.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 8,
-    marginHorizontal: spacing.lg,
-  },
-  secondaryActions: {
-    position: 'absolute',
-    right: 0,
-    flexDirection: 'row',
-  },
-  actionButton: {
-    padding: spacing.sm,
-    marginLeft: spacing.sm,
   },
   songItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  songIndexContainer: {
+    width: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
   },
   songIndex: {
-    width: 30,
+    color: '#b3b3b3',
     fontSize: 16,
-    color: 'rgba(255,255,255,0.5)',
-    textAlign: 'center',
   },
   songInfo: {
     flex: 1,
-    marginLeft: spacing.sm,
+    justifyContent: 'center',
   },
   songTitle: {
     fontSize: 16,
@@ -333,10 +329,10 @@ const styles = StyleSheet.create({
   },
   songArtist: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    color: '#b3b3b3',
   },
   moreButton: {
-    padding: spacing.sm,
+    padding: 8,
   },
 });
 
