@@ -17,5 +17,6 @@ export type RootStackParamList = {
   ArtistDetails: { artist: string; cover_url?: string };
   Artists: undefined;
   Albums: undefined;
+  Feed: undefined;
 };
 

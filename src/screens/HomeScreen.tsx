@@ -256,7 +256,7 @@ const HomeScreen: React.FC = () => {
           contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.md, paddingTop: spacing.xs }}
           style={{ flexGrow: 0 }}
         >
-          {['All', 'Playlists', 'Albums', 'Downloaded', 'Artists'].map((filter) => {
+          {['All', 'Playlists', 'Feed', 'Albums', 'Artists'].map((filter) => {
             const isActive = activeFilter === filter;
             return (
               <TouchableOpacity
@@ -268,6 +268,8 @@ const HomeScreen: React.FC = () => {
                     navigation.navigate('Albums');
                   } else if (filter === 'Artists') {
                     navigation.navigate('Artists');
+                  } else if (filter === 'Feed') {
+                    navigation.navigate('Feed');
                   } else {
                     setActiveFilter(filter);
                   }
