@@ -11,5 +11,7 @@ export type RootStackParamList = {
   Settings: undefined;
   About: undefined;
   Search: undefined;
+  Playlists: undefined;
+  PlaylistDetail: { playlistId: string; title: string; type?: 'purchased' | 'teasers' | 'custom' };
 };
 

@@ -48,19 +48,22 @@ export const light = {
   colors: {
     primary: '#2F80ED',
     secondary: '#0AA1FF',
-    surface: 'rgba(255, 255, 255, 0.7)',
-    surfaceAlt: '#E9F7FF',
+    // Use opaque white for light-mode surfaces for consistent card backgrounds
+    surface: '#FFFFFF',
+    surfaceAlt: '#FFFFFF',
     text: '#0F172A',
     textSecondary: '#55617A',
     muted: '#9AA7BF',
     border: 'rgba(255, 255, 255, 0.5)',
-    background: '#D0ECFF',
+    // Use neutral white background for light mode
+    background: '#FFFFFF',
     palette: {
       accent: '#2F80ED',
       progress: '#0AA1FF',
+      // Make background stops neutral/white for light mode
       bgTop: '#FFFFFF',
-      bgMid: '#E9F7FF',
-      bgBottom: '#D0ECFF',
+      bgMid: '#F8F9FA',
+      bgBottom: '#FFFFFF',
       glassBorder: 'rgba(255,255,255,0.2)',
     }
   },

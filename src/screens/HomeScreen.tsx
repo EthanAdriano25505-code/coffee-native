@@ -256,12 +256,18 @@ const HomeScreen: React.FC = () => {
           contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.md, paddingTop: spacing.xs }}
           style={{ flexGrow: 0 }}
         >
-          {['All', 'Playlists', 'Albums', 'Downloaded'].map((filter) => {
+          {['All', 'Playlists', 'Albums', 'Downloaded', 'Artists'].map((filter) => {
             const isActive = activeFilter === filter;
             return (
               <TouchableOpacity
                 key={filter}
-                onPress={() => setActiveFilter(filter)}
+                onPress={() => {
+                  if (filter === 'Playlists') {
+                    navigation.navigate('Playlists');
+                  } else {
+                    setActiveFilter(filter);
+                  }
+                }}
                 activeOpacity={0.7}
                 style={{
                   marginRight: spacing.sm,

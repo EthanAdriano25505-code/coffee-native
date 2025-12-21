@@ -6,8 +6,9 @@
 export const colors = {
   // Background gradient (white to blue)
   backgroundTop: '#FFFFFF',
-  backgroundMid: '#E9F7FF',
-  backgroundBottom: '#D0ECFF',
+  // Make background stops neutral/white for light mode
+  backgroundMid: '#F8F9FA',
+  backgroundBottom: '#FFFFFF',
 
   // Primary accent colors
   primaryBlue: '#2F80ED',

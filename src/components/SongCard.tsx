@@ -13,9 +13,11 @@ type Props = {
   onPress: () => void; 
   index?: number;
   isActive?: boolean;
+  onRightAction?: () => void;
+  rightIconName?: keyof typeof Feather.glyphMap;
 };
 
-export default function SongCard({ song, onPress, index, isActive = false }: Props) {
+export default function SongCard({ song, onPress, index, isActive = false, onRightAction, rightIconName = "more-horizontal" }: Props) {
   const scale = React.useRef(new Animated.Value(1)).current;
   const [imageError, setImageError] = React.useState(false);
   const colorScheme = useColorScheme();
@@ -85,10 +87,16 @@ export default function SongCard({ song, onPress, index, isActive = false }: Pro
             </Text>
           </View>
 
-          {/* Right: Menu Icon (3 dots) */}
-          <View style={styles.menuButton}>
-              <Feather name="more-horizontal" size={20} color={isActive ? '#FFF' : (isDark ? '#555' : '#CCC')} />
-          </View>
+          {/* Right: Menu Icon (3 dots) or Custom Action */}
+          {onRightAction ? (
+            <Pressable onPress={onRightAction} style={styles.menuButton} hitSlop={8}>
+              <Feather name={rightIconName} size={20} color={isActive ? '#FFF' : (isDark ? '#555' : '#CCC')} />
+            </Pressable>
+          ) : (
+            <View style={styles.menuButton}>
+                <Feather name={rightIconName} size={20} color={isActive ? '#FFF' : (isDark ? '#555' : '#CCC')} />
+            </View>
+          )}
         </View>
       </Animated.View>
     </Pressable>
