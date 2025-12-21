@@ -19,6 +19,10 @@ import SignUpScreen from '../screens/SignUpScreen';
 import SearchScreen from '../screens/SearchScreen';
 import PlaylistsScreen from '../screens/PlaylistsScreen';
 import PlaylistDetailScreen from '../screens/PlaylistDetailScreen';
+import AlbumDetailsScreen from '../screens/AlbumDetailsScreen';
+import ArtistDetailsScreen from '../screens/ArtistDetailsScreen';
+import ArtistsScreen from '../screens/ArtistsScreen';
+import AlbumsScreen from '../screens/AlbumsScreen';
 
 export default function AppNavigator({ session }: { session: Session | null }) {
   return (
@@ -37,6 +41,10 @@ export default function AppNavigator({ session }: { session: Session | null }) {
           <Stack.Screen name="Search" component={SearchScreen} />
           <Stack.Screen name="Playlists" component={PlaylistsScreen} />
           <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen} />
+          <Stack.Screen name="AlbumDetails" component={AlbumDetailsScreen} />
+          <Stack.Screen name="ArtistDetails" component={ArtistDetailsScreen} />
+          <Stack.Screen name="Artists" component={ArtistsScreen} />
+          <Stack.Screen name="Albums" component={AlbumsScreen} />
         </>
       ) : (
         // Auth Stack

@@ -264,6 +264,10 @@ const HomeScreen: React.FC = () => {
                 onPress={() => {
                   if (filter === 'Playlists') {
                     navigation.navigate('Playlists');
+                  } else if (filter === 'Albums') {
+                    navigation.navigate('Albums');
+                  } else if (filter === 'Artists') {
+                    navigation.navigate('Artists');
                   } else {
                     setActiveFilter(filter);
                   }
