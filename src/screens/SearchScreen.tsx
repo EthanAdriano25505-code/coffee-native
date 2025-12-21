@@ -22,6 +22,8 @@ import { usePlayback } from '../contexts/PlaybackContext';
 import { getColors, spacing, radii } from '../theme/designTokens';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useTheme } from '../contexts/ThemeContext';
+import AppBackground from '../components/AppBackground';
 
 const { width } = Dimensions.get('window');
 
@@ -55,8 +57,7 @@ type Song = {
 
 export default function SearchScreen() {
   const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDarkMode: isDark } = useTheme();
   const colors = getColors(isDark);
   const { play } = usePlayback();
 
@@ -185,7 +186,8 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.background : '#FFFFFF' }]} edges={['top']}>
+    <AppBackground>
+    <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -193,10 +195,10 @@ export default function SearchScreen() {
           style={styles.backButton}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Feather name="chevron-left" size={28} color={colors.text} />
+          <Feather name="chevron-left" size={28} color={isDark ? '#fff' : colors.text} />
         </TouchableOpacity>
 
-        <View style={[styles.searchBar, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' }]}>
+        <View style={[styles.searchBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#FFFFFF' }]}>
           <Feather name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
           <TextInput
             ref={inputRef}
@@ -264,6 +266,7 @@ export default function SearchScreen() {
         )}
       </View>
     </SafeAreaView>
+    </AppBackground>
   );
 }
 

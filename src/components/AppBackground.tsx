@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { gradients } from '../utils/tokens';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface AppBackgroundProps {
   children: React.ReactNode;
@@ -9,13 +10,17 @@ interface AppBackgroundProps {
 }
 
 /**
- * AppBackground - Provides the white→blue vertical gradient background
- * for the player screens.
+ * AppBackground - Provides the background gradient.
+ * Light: White -> Blue-ish
+ * Dark: Deep Black Gradient
  */
 export default function AppBackground({ children, style }: AppBackgroundProps) {
+  const { isDarkMode } = useTheme();
+  const currentGradient = isDarkMode ? gradients.backgroundDark : gradients.background;
+
   return (
     <LinearGradient
-      colors={gradients.background}
+      colors={currentGradient}
       locations={[0, 0.5, 1]}
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}

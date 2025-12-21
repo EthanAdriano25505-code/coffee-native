@@ -18,29 +18,25 @@ export default function BannerIllustration({ width = 300, height = 200 }: Props)
       {/* Music note 1 */}
       <Path
         d="M80 100 L80 60 L110 55 L110 95 M80 100 C80 105.5 74.5 110 67.5 110 C60.5 110 55 105.5 55 100 C55 94.5 60.5 90 67.5 90 C74.5 90 80 94.5 80 100 Z"
-        fill="#2f6dfd"
+        fill="#2F80ED"
       />
       
-      {/* Music note 2 */}
-      <Path
-        d="M120 85 L120 45 L150 40 L150 80 M120 85 C120 90.5 114.5 95 107.5 95 C100.5 95 95 90.5 95 85 C95 79.5 100.5 75 107.5 75 C114.5 75 120 79.5 120 85 Z"
-        fill="#ffd166"
-      />
+      {/* Music note 2 (Removed as per request) */}
       
       {/* Headphone arc */}
       <Path
         d="M170 100 C170 75 190 55 215 55 C240 55 260 75 260 100"
-        stroke="#2f6dfd"
+        stroke="#2F80ED"
         strokeWidth="6"
         fill="none"
         strokeLinecap="round"
       />
       
       {/* Headphone left cup */}
-      <Rect x="165" y="100" width="15" height="25" rx="7" fill="#2f6dfd" />
+      <Rect x="165" y="100" width="15" height="25" rx="7" fill="#2F80ED" />
       
       {/* Headphone right cup */}
-      <Rect x="250" y="100" width="15" height="25" rx="7" fill="#2f6dfd" />
+      <Rect x="250" y="100" width="15" height="25" rx="7" fill="#2F80ED" />
       
       {/* Waveform bars */}
       <Rect x="40" y="140" width="8" height="20" rx="4" fill="#e0e7ff" />

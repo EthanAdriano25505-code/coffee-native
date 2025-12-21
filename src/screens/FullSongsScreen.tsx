@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback , JSX} from 'react';
+import React, { useEffect, useState, useCallback, JSX, useContext } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '../utils/supabase';
+import { useNavigation } from '@react-navigation/native';
+import AppBackground from '../components/AppBackground';
+import { useTheme } from '../contexts/ThemeContext';
 
 type Song = {
   id: string;
@@ -26,11 +29,10 @@ type Props = {
   embedded?: boolean; // when true, don't take full screen height
 };
 
-import { useNavigation } from '@react-navigation/native';
-
 export default function FullSongsScreen({ embedded = false }: Props): JSX.Element {
   console.log('FullSongsScreen loaded: src/screens/FullSongsScreen.tsx');
   const navigation = useNavigation<any>();
+  const { isDarkMode, colors } = useTheme();
   
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -60,9 +62,9 @@ export default function FullSongsScreen({ embedded = false }: Props): JSX.Elemen
           .select(fallbackCols)
           .order('created_at', { ascending: false })
           .limit(embedded ? 6 : 1000);
-  // Log the retry result
-  console.log('FullSongs fetch result (fallback):', retry);
-  data = retry.data as any;
+        // Log the retry result
+        console.log('FullSongs fetch result (fallback):', retry);
+        data = retry.data as any;
         error = retry.error;
       }
 
@@ -85,65 +87,71 @@ export default function FullSongsScreen({ embedded = false }: Props): JSX.Elemen
   useEffect(() => { fetchFullSongs(); }, [fetchFullSongs]);
 
   const renderSongItem: ListRenderItem<Song> = ({ item }) => (
-    <View style={styles.songItem}>
-      <Text style={styles.songTitle}>{item.title}</Text>
-      <Text style={styles.songArtist}>{item.artist}</Text>
+    <View style={[styles.songItem, { backgroundColor: 'transparent', borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#eee', borderBottomWidth: 1 }]}>
+      <Text style={[styles.songTitle, { color: colors.text }]}>{item.title}</Text>
+      <Text style={[styles.songArtist, { color: colors.textSecondary }]}>{item.artist}</Text>
     </View>
   );
 
-  if (loading) {
-    return (
-      <View style={embedded ? styles.containerEmbedded : styles.container}>
-        <ActivityIndicator size="large" />
-        <Text style={{ marginTop: 12 }}>Loading songs...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={embedded ? styles.containerEmbedded : styles.container}>
-        <Text style={styles.errorTitle}>Error loading songs</Text>
-        <Text style={styles.errorMessage}>{error}</Text>
-        <View style={{ marginTop: 12 }}>
-          <Button title="Retry" onPress={() => { setLoading(true); fetchFullSongs(); }} />
+  const content = (
+    <View style={embedded ? styles.containerEmbedded : styles.container}>
+      {!embedded && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+          <TouchableOpacity onPress={() => { if (navigation?.canGoBack && navigation.canGoBack()) navigation.goBack(); else navigation?.navigate?.('Home'); }} style={{ padding: 6, marginRight: 8 }}>
+            <Feather name="chevron-left" size={20} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>Songs</Text>
         </View>
-      </View>
-    );
+      )}
+      
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ marginTop: 12, color: colors.textSecondary }}>Loading songs...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centered}>
+          <Text style={styles.errorTitle}>Error loading songs</Text>
+          <Text style={[styles.errorMessage, { color: colors.text }]}>{error}</Text>
+          <View style={{ marginTop: 12 }}>
+            <Button title="Retry" onPress={() => { setLoading(true); fetchFullSongs(); }} color={colors.primary} />
+          </View>
+        </View>
+      ) : (
+        <FlatList
+          data={songs}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderSongItem}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchFullSongs(); }} tintColor={colors.text} />
+          }
+          ListEmptyComponent={null}
+          contentContainerStyle={songs.length === 0 ? { flexGrow: 0 } : undefined}
+          scrollEnabled={!embedded}
+        />
+      )}
+    </View>
+  );
+
+  if (embedded) {
+    return content;
   }
 
   return (
-    <View style={embedded ? styles.containerEmbedded : styles.container}>
-      {/* Header with optional back */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-        <TouchableOpacity onPress={() => { if (navigation?.canGoBack && navigation.canGoBack()) navigation.goBack(); else navigation?.navigate?.('Home'); }} style={{ padding: 6, marginRight: 8 }}>
-          <Feather name="chevron-left" size={20} />
-        </TouchableOpacity>
-        <Text style={{ fontSize: 20, fontWeight: '800' }}>Songs</Text>
-      </View>
-      <FlatList
-        data={songs}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={renderSongItem}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchFullSongs(); }} />
-        }
-        ListEmptyComponent={null}
-        contentContainerStyle={songs.length === 0 ? { flexGrow: 0 } : undefined}
-        scrollEnabled={!embedded}
-      />
-    </View>
+    <AppBackground>
+      {content}
+    </AppBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
   containerEmbedded: { padding: 0, marginTop: 8, marginBottom: 8, flexShrink: 0 },
-  songItem: { paddingVertical: 12, paddingHorizontal: 16, backgroundColor: '#fff' },
+  songItem: { paddingVertical: 12, paddingHorizontal: 16 },
   songTitle: { fontSize: 16, fontWeight: '700' },
-  songArtist: { fontSize: 13, color: '#666', marginTop: 4 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  songArtist: { fontSize: 13, marginTop: 4 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 200 },
   errorTitle: { fontSize: 18, fontWeight: '700', color: '#b00020' },
-  errorMessage: { marginTop: 8, color: '#333' },
+  errorMessage: { marginTop: 8 },
 });
 

@@ -1,12 +1,14 @@
 import React from 'react';
-import { StyleSheet, View, Text, Image, Pressable, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, Image, Pressable, Dimensions, Platform } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   withTiming,
   useSharedValue,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { spacing } from '../theme/designTokens';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +40,7 @@ export default function MiniPlayer({
   onPlayPause,
   onNext,
 }: MiniPlayerProps) {
+  const { isDarkMode, colors } = useTheme();
   const pressScale = useSharedValue(1);
 
   const containerAnimatedStyle = useAnimatedStyle(() => ({
@@ -54,6 +57,11 @@ export default function MiniPlayer({
 
   return (
     <Animated.View style={[styles.container, containerAnimatedStyle]}>
+      <BlurView
+        intensity={Platform.OS === 'ios' ? 90 : 60}
+        tint="dark"
+        style={StyleSheet.absoluteFill}
+      />
       {/* Progress Bar (Top Edge) */}
       <View style={styles.progressBarContainer}>
         <View style={[styles.progressBarFill, { width: `${Math.min(100, Math.max(0, progress * 100))}%` }]} />
@@ -91,7 +99,7 @@ export default function MiniPlayer({
         <View style={styles.controls}>
           {/* Like Button (Visual only for now) */}
           <Pressable style={styles.iconButton}>
-            <Ionicons name="heart" size={24} color="#1DB954" />
+            <Ionicons name="heart" size={24} color="#2F80ED" />
           </Pressable>
 
           {/* Play/Pause Button */}
@@ -114,15 +122,15 @@ const styles = StyleSheet.create({
     height: 72,
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
-    borderRadius: 22, // Reduced from 36 to look less "round" and more "modern"
-    backgroundColor: '#1E1E1E', // Dark background
+    borderRadius: 22,
+    backgroundColor: 'rgba(15, 23, 42, 0.7)', // Navy glass
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
     overflow: 'hidden', // Clip progress bar
   },
   progressBarContainer: {
@@ -136,7 +144,7 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#1DB954', // Green
+    backgroundColor: '#2F80ED', // Blue
   },
   content: {
     flex: 1,
@@ -169,7 +177,7 @@ const styles = StyleSheet.create({
   },
   artist: {
     fontSize: 13,
-    color: '#aaa',
+    color: 'rgba(255,255,255,0.6)',
   },
   controls: {
     flexDirection: 'row',
@@ -184,13 +192,13 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#1DB954', // Green circle
+    backgroundColor: '#2F80ED', // Blue circle
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1DB954',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    shadowColor: '#2F80ED',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
     elevation: 4,
   },
 });

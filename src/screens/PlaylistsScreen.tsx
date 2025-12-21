@@ -23,6 +23,8 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { getColors, spacing, radii } from '../theme/designTokens';
 import { supabase } from '../utils/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../contexts/ThemeContext';
+import AppBackground from '../components/AppBackground';
 
 const { width } = Dimensions.get('window');
 const COLUMN_COUNT = 2;
@@ -60,8 +62,7 @@ const DEFAULT_PLAYLISTS: Playlist[] = [
 
 export default function PlaylistsScreen() {
   const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDarkMode: isDark } = useTheme();
   const colors = getColors(isDark);
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
   const [isModalVisible, setModalVisible] = useState(false);
@@ -167,7 +168,8 @@ export default function PlaylistsScreen() {
   }, [colors, navigation]);
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+    <AppBackground>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -250,6 +252,7 @@ export default function PlaylistsScreen() {
         </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
+    </AppBackground>
   );
 }
 

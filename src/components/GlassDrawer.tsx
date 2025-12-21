@@ -11,17 +11,19 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   withTiming,
+  withRepeat,
   interpolate,
   Extrapolate,
 } from 'react-native-reanimated';
 import { getColors, spacing } from '../theme/designTokens';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -44,8 +46,7 @@ const GlassDrawer: React.FC<Props> = ({
   blurIntensityAndroid = 30,
   tint = 'default',
 }) => {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDarkMode: isDark } = useTheme();
   const colors = getColors?.(!!isDark) ?? {
     text: isDark ? '#fff' : '#111',
     muted: isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)',
@@ -101,20 +102,45 @@ const GlassDrawer: React.FC<Props> = ({
     }, 260);
   };
 
-  if (!isOpen && overlayOpacity.value === 0) {
-    // completely closed — render nothing to avoid capturing touches
-    return null;
-  }
-
   const blurIntensity = Platform.OS === 'ios' ? blurIntensityIOS : blurIntensityAndroid;
   const blurTint = tint === 'default' ? (isDark ? 'dark' : 'light') : tint;
+
+  // Premium animation
+  const premiumPulse = useSharedValue(1);
+  const premiumGlow = useSharedValue(0);
+
+  useEffect(() => {
+    if (isOpen) {
+      premiumPulse.value = withRepeat(
+        withTiming(1.02, { duration: 1500 }),
+        -1,
+        true
+      );
+      premiumGlow.value = withRepeat(
+        withTiming(1, { duration: 2000 }),
+        -1,
+        true
+      );
+    }
+  }, [isOpen]);
+
+  const premiumAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: premiumPulse.value }],
+    shadowOpacity: interpolate(premiumGlow.value, [0, 1], [0.3, 0.8]),
+  }));
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: 'home', screen: 'Home' },
     { id: 'profile', label: 'Profile', icon: 'user', screen: 'Profile' },
     { id: 'settings', label: 'Settings', icon: 'settings', screen: 'Settings' },
+    { id: 'premium', label: 'Premium', icon: 'diamond', screen: 'Premium', isPremium: true },
     { id: 'about', label: 'About', icon: 'info', screen: 'About' },
   ];
+
+  if (!isOpen && overlayOpacity.value === 0) {
+    // completely closed — render nothing to avoid capturing touches
+    return null;
+  }
 
   return (
     <Animated.View
@@ -153,8 +179,8 @@ const GlassDrawer: React.FC<Props> = ({
           <LinearGradient
             colors={
               isDark
-                ? ['rgba(25,25,25,0.78)', 'rgba(18,18,18,0.92)']
-                : ['rgba(255,255,255,0.78)', 'rgba(245,245,245,0.92)']
+                ? ['rgba(15, 23, 42, 0.92)', 'rgba(0, 0, 0, 0.98)']
+                : ['rgba(255, 255, 255, 0.85)', 'rgba(245, 245, 245, 0.95)']
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
@@ -177,40 +203,89 @@ const GlassDrawer: React.FC<Props> = ({
 
                 {/* Items */}
                 <View style={styles.menuItems}>
-                  {menuItems.map((item) => (
+                  {menuItems.map((item: any) => {
+                    const isPremium = item.isPremium;
+                    
+                    if (isPremium) {
+                      return (
+                        <Animated.View key={item.id} style={[premiumAnimatedStyle, { marginBottom: spacing.sm, width: '85%' }]}>
+                          <TouchableOpacity
+                            onPress={() => handleNavigate(item.screen)}
+                            activeOpacity={0.9}
+                            style={{ borderRadius: 999, overflow: 'hidden' }}
+                          >
+                            <LinearGradient
+                              colors={['#2F80ED', '#0AA1FF']}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 1 }}
+                              style={{
+                                borderRadius: 999,
+                                padding: 1, // Border width
+                                shadowColor: '#2F80ED',
+                                shadowOffset: { width: 0, height: 0 },
+                                shadowOpacity: 0.5,
+                                shadowRadius: 10,
+                                elevation: 8,
+                              }}
+                            >
+                              <LinearGradient
+                                colors={['rgba(47, 128, 237, 0.9)', 'rgba(10, 161, 255, 0.8)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={[styles.menuItemContent, { backgroundColor: 'transparent', justifyContent: 'center', borderRadius: 999 }]}
+                              >
+                                <View style={[styles.iconContainer, { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 12 }]}> 
+                                  <Ionicons name="diamond" size={16} color="#fff" />
+                                </View>
+                                <Text style={[styles.menuLabel, { color: '#fff', fontWeight: '800', letterSpacing: 0.5 }]}>PREMIUM</Text>
+                                <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>PRO</Text>
+                                </View>
+                              </LinearGradient>
+                            </LinearGradient>
+                          </TouchableOpacity>
+                        </Animated.View>
+                      );
+                    }
+
+                    return (
                     <TouchableOpacity
                       key={item.id}
                       onPress={() => handleNavigate(item.screen)}
                       accessibilityLabel={item.label}
                       activeOpacity={0.8}
-                      style={{ marginBottom: spacing.md }}
+                      style={{ marginBottom: spacing.sm, width: '85%' }}
                     >
-                      <LinearGradient
-                        colors={
-                          isDark
-                            ? ['#1E293B', '#0F1722']
-                            : ['#FFFFFF', '#F8F9FA']
-                        }
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={[
-                          styles.menuItemContainer,
-                          {
-                            borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.4)',
-                            marginBottom: 0, // handled by wrapper
-                          }
-                        ]}
+                      <BlurView
+                        intensity={Platform.OS === 'ios' ? 60 : 30}
+                        tint={isDark ? 'dark' : 'light'}
+                        style={{
+                          borderRadius: 999, // Pill shape
+                          overflow: 'hidden',
+                          borderWidth: 1,
+                          borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                        }}
                       >
-                        <View style={styles.menuItemContent}>
-                          <View style={[styles.iconContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
-                            <Feather name={item.icon as any} size={20} color={colors.text} />
+                        <LinearGradient
+                          colors={
+                            isDark
+                              ? ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)']
+                              : ['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.5)']
+                          }
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 0, y: 1 }}
+                          style={styles.menuItemContent}
+                        >
+                          <View style={[styles.iconContainer, { backgroundColor: 'transparent' }]}>
+                            <Feather name={item.icon as any} size={18} color={colors.text} />
                           </View>
                           <Text style={[styles.menuLabel, { color: colors.text }]}>{item.label}</Text>
-                          <Feather name="chevron-right" size={20} color={colors.muted ?? 'rgba(0,0,0,0.4)'} />
-                        </View>
-                      </LinearGradient>
+                          <Feather name="chevron-right" size={16} color={colors.muted ?? 'rgba(0,0,0,0.4)'} />
+                        </LinearGradient>
+                      </BlurView>
                     </TouchableOpacity>
-                  ))}
+                  );
+                  })}
                 </View>
 
                 {/* Footer */}
@@ -304,35 +379,27 @@ const styles = StyleSheet.create({
 
   // Each item has a pill-like shape with a light glass surface and inner shadow
   menuItemContainer: {
-    marginBottom: spacing.md,
-    borderRadius: 16,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    // Removed, handled inline for BlurView wrapper
   },
   menuItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    minHeight: 60,
+    paddingVertical: 12, // Smaller padding for pill look
+    paddingHorizontal: 16,
+    minHeight: 48, // Smaller height
   },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 24,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
+    marginRight: 12,
   },
   menuLabel: {
-    fontSize: 17,
+    fontSize: 15, // Smaller font
     fontWeight: '600',
     flex: 1,
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   footer: {
     paddingVertical: spacing.md,

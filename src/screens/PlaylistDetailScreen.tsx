@@ -19,6 +19,8 @@ import { supabase } from '../utils/supabase';
 import SongCard from '../components/SongCard';
 import { RootStackParamList } from '../navigation/types';
 import { usePlayback } from '../contexts/PlaybackContext';
+import { useTheme } from '../contexts/ThemeContext';
+import AppBackground from '../components/AppBackground';
 
 type PlaylistDetailRouteProp = RouteProp<RootStackParamList, 'PlaylistDetail'>;
 
@@ -50,8 +52,7 @@ export default function PlaylistDetailScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<PlaylistDetailRouteProp>();
   const { playlistId, title, type } = route.params;
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDarkMode: isDark } = useTheme();
   const colors = getColors(isDark);
   const { play } = usePlayback();
   const [songs, setSongs] = useState<Song[]>([]);
@@ -176,7 +177,8 @@ export default function PlaylistDetailScreen() {
   ), [colors, addSongToPlaylist]);
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+    <AppBackground>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -249,6 +251,7 @@ export default function PlaylistDetailScreen() {
         </View>
       </Modal>
     </SafeAreaView>
+    </AppBackground>
   );
 }
 

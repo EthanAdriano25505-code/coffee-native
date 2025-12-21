@@ -12,6 +12,7 @@ import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { spacing, radii, sizes, getColors } from '../theme/designTokens';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 const isLargeScreen = width >= 768;
@@ -22,8 +23,7 @@ type Props = {
 };
 
 export default function SearchBar({ onPress, placeholder = 'Search songs, artists...' }: Props) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDarkMode: isDark } = useTheme();
   const colors = getColors(isDark);
 
   return (
@@ -47,20 +47,20 @@ export default function SearchBar({ onPress, placeholder = 'Search songs, artist
       }}
     >
       <BlurView
-        intensity={Platform.OS === 'ios' ? 80 : 40}
+        intensity={Platform.OS === 'ios' ? (isDark ? 90 : 80) : (isDark ? 60 : 40)}
         tint={isDark ? 'dark' : 'light'}
         style={{
           borderRadius: radii.round,
           overflow: 'hidden',
           borderWidth: 1,
-          borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.6)',
+          borderColor: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.6)',
           backgroundColor: 'transparent',
         }}
       >
         <LinearGradient
           colors={
             isDark
-              ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']
+              ? ['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.05)']
               : ['rgba(255,255,255,0.7)', 'rgba(255,255,255,0.3)']
           }
           start={{ x: 0, y: 0 }}

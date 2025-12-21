@@ -18,5 +18,6 @@ export type RootStackParamList = {
   Artists: undefined;
   Albums: undefined;
   Feed: undefined;
+  Premium: undefined;
 };
 

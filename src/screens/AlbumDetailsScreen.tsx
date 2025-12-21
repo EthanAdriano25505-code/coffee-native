@@ -20,6 +20,7 @@ import { supabase } from '../utils/supabase';
 import { usePlayback } from '../contexts/PlaybackContext';
 import RemoteImage from '../components/RemoteImage';
 import { RootStackParamList } from '../navigation/types';
+import AppBackground from '../components/AppBackground';
 
 const { width } = Dimensions.get('window');
 
@@ -150,24 +151,16 @@ const AlbumDetailsScreen: React.FC = () => {
                 style={styles.playButton}
                 onPress={() => songs.length > 0 && handlePlaySong(songs[0])}
             >
-                <Ionicons name="play" size={32} color="#000" style={{ marginLeft: 4 }} />
+                <Ionicons name="play" size={32} color="#fff" style={{ marginLeft: 4 }} />
             </TouchableOpacity>
         </View>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <AppBackground>
       <StatusBar barStyle="light-content" />
       
-      {/* Background Gradient - Premium Dark */}
-      <LinearGradient
-        colors={['#1e1e1e', '#121212', '#000000']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
-
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.headerBar}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -177,7 +170,7 @@ const AlbumDetailsScreen: React.FC = () => {
 
         {loading ? (
            <View style={styles.centerContainer}>
-             <ActivityIndicator size="large" color="#1DB954" />
+             <ActivityIndicator size="large" color="#2F80ED" />
            </View>
         ) : (
           <FlatList
@@ -190,7 +183,7 @@ const AlbumDetailsScreen: React.FC = () => {
           />
         )}
       </SafeAreaView>
-    </View>
+    </AppBackground>
   );
 };
 
@@ -298,9 +291,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#1DB954', // Spotify Green
+    backgroundColor: '#2F80ED', // Premium Blue
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#2F80ED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   songItem: {
     flexDirection: 'row',

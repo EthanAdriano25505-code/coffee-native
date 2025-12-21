@@ -21,6 +21,7 @@ import { RootStackParamList } from '../navigation/types';
 import { spacing } from '../theme/designTokens';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../utils/supabase';
+import AppBackground from '../components/AppBackground';
 
 type SignUpScreenProp = NativeStackNavigationProp<RootStackParamList, 'SignUp'>;
 
@@ -63,14 +64,8 @@ export default function SignUpScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <AppBackground>
       <StatusBar style="light" />
-      <LinearGradient
-        colors={['#0f172a', '#000000']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -168,7 +163,7 @@ export default function SignUpScreen() {
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-    </View>
+    </AppBackground>
   );
 }
 

@@ -36,6 +36,7 @@ if (__DEV__) {
 
 import { PlaybackProvider } from './src/contexts/PlaybackContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
+import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
 import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useState, useEffect } from 'react';
@@ -73,9 +74,11 @@ export default function App() {
   return (
     <ThemeProvider>
       <PlaybackProvider>
-        <NavigationContainer>
-          <AppNavigator session={session} />
-        </NavigationContainer>
+        <SubscriptionProvider>
+          <NavigationContainer>
+            <AppNavigator session={session} />
+          </NavigationContainer>
+        </SubscriptionProvider>
       </PlaybackProvider>
     </ThemeProvider>
   );

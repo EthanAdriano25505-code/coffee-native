@@ -13,20 +13,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { getColors, spacing } from '../theme/designTokens';
-
-type ThemeChoice = 'system' | 'light' | 'dark';
+import { useTheme, ThemePreference } from '../contexts/ThemeContext';
+import AppBackground from '../components/AppBackground';
 
 export default function SettingsScreen() {
-  // Local state only — safe, no new dependencies.
-  const [theme, setTheme] = useState<ThemeChoice>('system');
+  // Use global theme context
+  const { themePreference, setThemePreference, isDarkMode } = useTheme();
+  
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [wifiOnlyDownloads, setWifiOnlyDownloads] = useState(true);
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
 
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const colors = getColors(isDark);
+  const colors = getColors(isDarkMode);
   const navigation = useNavigation<any>();
 
   const clearCache = () => {
@@ -41,7 +40,7 @@ export default function SettingsScreen() {
         text: 'Reset',
         style: 'destructive',
         onPress: () => {
-          setTheme('system');
+          setThemePreference('system');
           setNotificationsEnabled(true);
           setWifiOnlyDownloads(true);
           setHapticsEnabled(true);
@@ -58,9 +57,10 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {/* Header */}
+    <AppBackground>
+      <SafeAreaView style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.container}>
+          {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => { if (navigation?.canGoBack && navigation.canGoBack()) navigation.goBack(); else navigation?.navigate?.('Home'); }}
@@ -72,6 +72,32 @@ export default function SettingsScreen() {
           <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
         </View>
 
+        {/* Subscription Banner */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Premium')}
+          style={[
+            styles.card, 
+            { 
+              borderColor: 'rgba(47, 128, 237, 0.3)', 
+              backgroundColor: isDarkMode ? 'rgba(47, 128, 237, 0.1)' : '#F0F7FF', 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              justifyContent: 'space-between' 
+            }
+          ]}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#2F80ED', alignItems: 'center', justifyContent: 'center' }}>
+              <Feather name="star" size={20} color="#fff" />
+            </View>
+            <View>
+              <Text style={[styles.cardTitle, { color: colors.text, marginBottom: 2, fontSize: 16 }]}>Go Premium</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Unlock high quality audio & no ads</Text>
+            </View>
+          </View>
+          <Feather name="chevron-right" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
+
         {/* Appearance */}
         <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Appearance</Text>
@@ -80,12 +106,12 @@ export default function SettingsScreen() {
           </Text>
 
           <View style={styles.segmentRow}>
-            {(['system', 'light', 'dark'] as ThemeChoice[]).map((opt) => {
-              const selected = theme === opt;
+            {(['system', 'light', 'dark'] as ThemePreference[]).map((opt) => {
+              const selected = themePreference === opt;
               return (
                 <TouchableOpacity
                   key={opt}
-                  onPress={() => setTheme(opt)}
+                  onPress={() => setThemePreference(opt)}
                   style={[
                     styles.segmentBtn,
                     {
@@ -177,6 +203,7 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+    </AppBackground>
   );
 }
 

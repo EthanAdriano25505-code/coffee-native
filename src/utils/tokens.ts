@@ -11,8 +11,8 @@ export const colors = {
   backgroundBottom: '#FFFFFF',
 
   // Primary accent colors
-  primaryBlue: '#2F80ED',
-  accentBlue: '#0AA1FF',
+  primaryBlue: '#2F80ED', // Standard Blue
+  accentBlue: '#0AA1FF', // Light Blue
 
   // Glass effect colors
   glassBackground: 'rgba(255, 255, 255, 0.25)',
@@ -23,6 +23,11 @@ export const colors = {
   // Dark glass (for mini player)
   darkGlassBackground: 'rgba(17, 17, 17, 0.85)',
   darkGlassBorder: 'rgba(255, 255, 255, 0.08)',
+
+  // Dark Mode Gradient Colors (Premium Midnight)
+  backgroundDarkTop: '#0f172a', // Deep Navy
+  backgroundDarkMid: '#1e1b4b', // Deep Purple
+  backgroundDarkBottom: '#000000', // Pure Black
 
   // Text colors
   textPrimary: '#111111',
@@ -47,6 +52,7 @@ export const colors = {
 
 export const gradients = {
   background: [colors.backgroundTop, colors.backgroundMid, colors.backgroundBottom] as const,
+  backgroundDark: [colors.backgroundDarkTop, colors.backgroundDarkMid, colors.backgroundDarkBottom] as const,
   playButton: [colors.primaryBlue, colors.accentBlue] as const,
   waveformPlayed: [colors.primaryBlue, colors.accentBlue] as const,
 };

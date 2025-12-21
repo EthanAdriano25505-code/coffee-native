@@ -20,6 +20,8 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { supabase } from '../utils/supabase';
 import { BlurView } from 'expo-blur';
 import { spacing, radii, sizes } from '../theme/designTokens';
+import { useTheme } from '../contexts/ThemeContext';
+import AppBackground from '../components/AppBackground';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -313,6 +315,7 @@ const FeedScreen = () => {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
+  const { isDarkMode: isDark, colors, gradients } = useTheme();
   const [songs, setSongs] = useState<Song[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const currentIndexRef = useRef(0);
@@ -480,15 +483,17 @@ const FeedScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2F6DFD" />
-      </View>
+      <AppBackground>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2F6DFD" />
+        </View>
+      </AppBackground>
     );
   }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={styles.container}>
+      <AppBackground>
         <StatusBar barStyle="light-content" />
         <FlatList
           data={songs}
@@ -509,7 +514,7 @@ const FeedScreen = () => {
             { length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index }
           )}
         />
-      </View>
+      </AppBackground>
     </GestureHandlerRootView>
   );
 };
@@ -517,11 +522,9 @@ const FeedScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
   },

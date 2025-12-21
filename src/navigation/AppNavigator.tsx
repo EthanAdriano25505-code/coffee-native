@@ -24,6 +24,7 @@ import ArtistDetailsScreen from '../screens/ArtistDetailsScreen';
 import ArtistsScreen from '../screens/ArtistsScreen';
 import AlbumsScreen from '../screens/AlbumsScreen';
 import FeedScreen from '../screens/FeedScreen';
+import PremiumScreen from '../screens/PremiumScreen';
 
 export default function AppNavigator({ session }: { session: Session | null }) {
   return (
@@ -47,6 +48,7 @@ export default function AppNavigator({ session }: { session: Session | null }) {
           <Stack.Screen name="Artists" component={ArtistsScreen} />
           <Stack.Screen name="Albums" component={AlbumsScreen} />
           <Stack.Screen name="Feed" component={FeedScreen} />
+          <Stack.Screen name="Premium" component={PremiumScreen} options={{ presentation: 'modal' }} />
         </>
       ) : (
         // Auth Stack

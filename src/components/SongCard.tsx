@@ -37,12 +37,19 @@ export default function SongCard({ song, onPress, index, isActive = false, onRig
           style={[
             styles.container,
             { 
-              backgroundColor: isActive 
-                ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)') 
-                : 'transparent',
+              backgroundColor: 'transparent', // Handled by LinearGradient or View below
             }
           ]}
         >
+          {isActive && (
+             <LinearGradient
+                colors={isDark ? ['rgba(47, 128, 237, 0.15)', 'rgba(47, 128, 237, 0.02)'] : ['rgba(47, 128, 237, 0.1)', 'rgba(47, 128, 237, 0.01)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+             />
+          )}
+
           {/* Active Indicator (Left Bar) */}
           {isActive && (
             <View style={{
@@ -51,16 +58,21 @@ export default function SongCard({ song, onPress, index, isActive = false, onRig
               top: 12,
               bottom: 12,
               width: 4,
-              backgroundColor: '#1DB954',
+              backgroundColor: '#2F80ED',
               borderTopRightRadius: 4,
               borderBottomRightRadius: 4,
+              shadowColor: '#2F80ED',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.5,
+              shadowRadius: 6,
+              elevation: 4,
             }} />
           )}
 
           {/* Index Number / Playing Icon */}
           <View style={styles.indexContainer}>
             {isActive ? (
-              <Ionicons name="stats-chart" size={16} color="#1DB954" />
+              <Ionicons name="stats-chart" size={16} color="#2F80ED" />
             ) : (
               <Text style={[styles.index, { color: isDark ? '#666' : '#999' }]}>
                 {formattedIndex}
@@ -91,7 +103,7 @@ export default function SongCard({ song, onPress, index, isActive = false, onRig
               numberOfLines={1} 
               style={[
                 styles.title, 
-                { color: isActive ? (isDark ? '#1DB954' : '#10893E') : colors.text }
+                { color: isActive ? (isDark ? '#2F80ED' : '#2F80ED') : colors.text }
               ]}
             >
               {song.title}

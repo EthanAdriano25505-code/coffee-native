@@ -48,19 +48,19 @@ export const elevation = {
     elevation: 16,
   },
   glow: {
-    shadowColor: '#1DB954',
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
+    shadowColor: '#2F80ED',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
+    elevation: 6,
   }
 };
 
 // Shared Palette
 const palette = {
   brand: {
-    primary: '#1DB954', // Spotify-ish Green - Vibrant, energetic
-    secondary: '#1ed760', // Lighter green for gradients/hovers
+    primary: '#2F80ED', // Standard Premium Blue
+    secondary: '#0AA1FF', // Lighter Blue
     tertiary: '#121212', // Deep background
   },
   neutral: {
@@ -115,8 +115,8 @@ export const dark = {
     primary: palette.brand.primary,
     secondary: palette.brand.secondary,
     background: '#000000', // OLED Black
-    surface: '#121212', // Material Dark
-    surfaceHighlight: '#1E1E1E', // Slightly lighter
+    surface: '#18181B', // Zinc 900 (Premium Dark)
+    surfaceHighlight: '#27272A', // Zinc 800
     text: '#FFFFFF',
     textSecondary: '#A1A1AA', // Zinc 400
     textMuted: '#52525B', // Zinc 600
@@ -128,7 +128,7 @@ export const dark = {
     muted: '#52525B',
   },
   gradients: {
-    primary: [palette.brand.primary, '#15803d'], // Green to Dark Green
+    primary: [palette.brand.primary, palette.brand.secondary],
     surface: ['#121212', '#000000'],
     skeleton: ['#27272A', '#3F3F46', '#27272A'],
     fadeOverlay: ['transparent', 'rgba(0,0,0,0.8)', '#000000'],

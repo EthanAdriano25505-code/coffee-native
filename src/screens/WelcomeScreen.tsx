@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { spacing, radii, sizes } from '../theme/designTokens';
 import { StatusBar } from 'expo-status-bar';
+import AppBackground from '../components/AppBackground';
 
 const { width, height } = Dimensions.get('window');
 
@@ -15,17 +16,8 @@ export default function WelcomeScreen() {
   const navigation = useNavigation<WelcomeScreenProp>();
 
   return (
-    <View style={styles.container}>
+    <AppBackground>
       <StatusBar style="light" />
-      
-      {/* Background Gradient - Deep Dark Blue/Black */}
-      <LinearGradient
-        // Fallback or creative gradient; using app theme: Dark Blue to Black
-        colors={['#0f172a', '#000000']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
 
       {/* Decorative blurred orbs for "Glass" feel */}
       <View style={[styles.orb, { top: -100, left: -50, backgroundColor: '#2F80ED', opacity: 0.2 }]} />
@@ -59,7 +51,7 @@ export default function WelcomeScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </AppBackground>
   );
 }
 

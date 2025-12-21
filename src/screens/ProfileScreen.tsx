@@ -14,14 +14,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { getColors, spacing, radii } from '../theme/designTokens';
+import { spacing, radii } from '../theme/designTokens';
+import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../utils/supabase';
+import AppBackground from '../components/AppBackground';
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const colors = getColors(isDark);
+  const { isDarkMode: isDark, colors, gradients } = useTheme();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -178,9 +178,10 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {/* Header */}
+    <AppBackground>
+      <SafeAreaView style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.container}>
+          {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             {/* Back-aware header: shows back arrow when appropriate */}
@@ -270,7 +271,8 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </AppBackground>
   );
 }
 

@@ -153,7 +153,7 @@ const ArtistDetailsScreen: React.FC = () => {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <StatusBar barStyle="light-content" />
-        <ActivityIndicator size="large" color="#1DB954" />
+        <ActivityIndicator size="large" color="#00E5FF" />
       </View>
     );
   }
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#1DB954',
+    backgroundColor: '#00E5FF',
     justifyContent: 'center',
     alignItems: 'center',
   },

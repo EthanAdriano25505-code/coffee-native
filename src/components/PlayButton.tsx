@@ -106,8 +106,8 @@ export default function PlayButton({
               fy="50%"
               gradientUnits="userSpaceOnUse"
             >
-              <Stop offset="20%" stopColor={colors.primaryBlue} stopOpacity="0.5" />
-              <Stop offset="70%" stopColor={colors.accentBlue} stopOpacity="0.2" />
+              <Stop offset="20%" stopColor={colors.primaryBlue} stopOpacity="0.3" />
+              <Stop offset="70%" stopColor={colors.accentBlue} stopOpacity="0.1" />
               <Stop offset="100%" stopColor={colors.accentBlue} stopOpacity="0" />
             </RadialGradient>
           </Defs>

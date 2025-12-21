@@ -41,8 +41,10 @@ import { spacing, radii, sizes, elevation, getColors } from '../theme/designToke
 import { tokens } from '../theme/designTokens';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import GlassDrawer from '../components/GlassDrawer';
+import { useTheme } from '../contexts/ThemeContext';
+import AppBackground from '../components/AppBackground';
 import MiniPlayer from '../components/MiniPlayer';
+import GlassDrawer from '../components/GlassDrawer';
 
 const { width, height } = Dimensions.get('window');
 const isLargeScreen = Math.max(width, height) >= 768;
@@ -93,8 +95,7 @@ const HomeScreen: React.FC = () => {
 
   const hookNav = useNavigation<HomeNavProp>();
   const navigation = useNavigation<any>();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDarkMode: isDark } = useTheme();
   const colors = getColors(isDark);
   const insets = useSafeAreaInsets();
 
@@ -279,33 +280,33 @@ const HomeScreen: React.FC = () => {
                   marginRight: spacing.sm,
                   borderRadius: radii.round,
                   // Shadow for the "lifted" glass look
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: isDark ? 0.4 : 0.1,
-                  shadowRadius: 8,
-                  elevation: 4,
+                  shadowColor: isActive ? '#2F80ED' : '#000',
+                  shadowOffset: { width: 0, height: isActive ? 0 : 4 },
+                  shadowOpacity: isActive ? 0.4 : (isDark ? 0.4 : 0.1),
+                  shadowRadius: isActive ? 8 : 8,
+                  elevation: isActive ? 6 : 4,
                   backgroundColor: 'transparent',
                 }}
               >
                 <BlurView
-                  intensity={Platform.OS === 'ios' ? 80 : 40}
+                  intensity={Platform.OS === 'ios' ? (isDark ? 90 : 80) : (isDark ? 60 : 40)}
                   tint={isDark ? 'dark' : 'light'}
                   style={{
                     borderRadius: radii.round,
                     overflow: 'hidden',
                     borderWidth: 1,
                     borderColor: isActive
-                      ? (isDark ? '#1DB954' : '#1DB954')
-                      : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
+                      ? (isDark ? '#2F80ED' : '#2F80ED')
+                      : (isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.05)'),
                     backgroundColor: 'transparent',
                   }}
                 >
                   <LinearGradient
                     colors={
                       isActive
-                        ? ['rgba(29, 185, 84, 0.2)', 'rgba(29, 185, 84, 0.1)']
+                        ? ['rgba(47, 128, 237, 0.2)', 'rgba(47, 128, 237, 0.1)']
                         : (isDark 
-                            ? ['rgba(255,255,255,0.05)', 'rgba(255,255,255,0.02)'] 
+                            ? ['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.06)'] 
                             : ['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.5)'])
                     }
                     start={{ x: 0, y: 0 }}
@@ -321,8 +322,8 @@ const HomeScreen: React.FC = () => {
                     <Text
                       style={{
                         color: isActive
-                          ? '#1DB954'
-                          : (isDark ? '#E6EEF8' : '#111'),
+                          ? '#2F80ED'
+                          : (isDark ? '#FFFFFF' : '#111111'),
                         fontWeight: isActive ? '700' : '600',
                         fontSize: 14,
                       }}
@@ -341,7 +342,7 @@ const HomeScreen: React.FC = () => {
            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
               <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#FFF' : '#111' }}>Categories</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Search')}>
-                <Text style={{ fontSize: 13, color: '#999' }}>See all</Text>
+                <Text style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.6)' : '#999' }}>See all</Text>
               </TouchableOpacity>
            </View>
            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -spacing.md }} contentContainerStyle={{ paddingHorizontal: spacing.md }}>
@@ -380,11 +381,11 @@ const HomeScreen: React.FC = () => {
         <View style={styles.sectionHeaderCompact}>
           <View>
             <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark, { fontSize: 22, fontWeight: '700' }]}>Trending Now</Text>
-            <Text style={{ color: isDark ? '#888' : '#666', fontSize: 13, marginTop: 2 }}>Top hits for you</Text>
+            <Text style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#666', fontSize: 13, marginTop: 2 }}>Top hits for you</Text>
           </View>
           <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ color: isDark ? '#888' : '#666', fontSize: 13, marginRight: 4 }}>See all</Text>
-            <Feather name="chevron-right" size={16} color={isDark ? '#888' : '#666'} />
+            <Text style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#666', fontSize: 13, marginRight: 4 }}>See all</Text>
+            <Feather name="chevron-right" size={16} color={isDark ? 'rgba(255,255,255,0.7)' : '#666'} />
           </TouchableOpacity>
         </View>
       </View>
@@ -442,17 +443,12 @@ const HomeScreen: React.FC = () => {
   ];
 
   return (
-    <LinearGradient
-      colors={isDark ? ['#000000', '#121212', '#18181B'] : ['#FFFFFF', '#F9FAFB', '#F3F4F6']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
-      style={{ flex: 1 }}
-    >
+    <AppBackground>
       {/* Subtle Gradient Mesh (Premium Look) */}
       {isDark && (
         <>
-          <View style={[styles.glowBlob, { top: -100, left: -100, backgroundColor: 'rgba(29, 185, 84, 0.08)', width: 500, height: 500 }]} />
-          <View style={[styles.glowBlob, { top: '30%', right: -150, backgroundColor: 'rgba(29, 185, 84, 0.05)', width: 600, height: 600 }]} />
+          <View style={[styles.glowBlob, { top: -100, left: -100, backgroundColor: 'rgba(47, 128, 237, 0.08)', width: 500, height: 500 }]} />
+          <View style={[styles.glowBlob, { top: '30%', right: -150, backgroundColor: 'rgba(47, 128, 237, 0.05)', width: 600, height: 600 }]} />
         </>
       )}
     <SafeAreaView
@@ -531,7 +527,7 @@ const HomeScreen: React.FC = () => {
         onClose={() => setIsDrawerOpen(false)}
         onNavigate={(screen: string) => {
           // Only allow safe, parameterless routes from the drawer
-          const safeRoutes = ['Home', 'Profile', 'Settings', 'About'];
+          const safeRoutes = ['Home', 'Profile', 'Settings', 'About', 'Premium'];
           if (safeRoutes.includes(screen)) {
             setIsDrawerOpen(false);
             try {
@@ -545,7 +541,7 @@ const HomeScreen: React.FC = () => {
         }}
       />
     </SafeAreaView>
-    </LinearGradient>
+    </AppBackground>
   );
 };
 
@@ -630,6 +626,7 @@ const styles = StyleSheet.create({
   },
   sectionTitleDark: { color: '#fff' },
   seeAll: { color: '#999', fontSize: 13 },
+  seeAllDark: { color: 'rgba(255,255,255,0.6)' },
 
   albumRow: {
     flexDirection: 'row',
@@ -656,6 +653,7 @@ const styles = StyleSheet.create({
   },
   albumTitleDark: { color: '#fff' },
   albumArtist: { color: '#777', marginTop: 2 },
+  albumArtistDark: { color: 'rgba(255,255,255,0.5)' },
 
   rowSeparator: { height: 7, backgroundColor: 'transparent' },
 

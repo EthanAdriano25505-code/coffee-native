@@ -13,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { getColors, spacing } from '../theme/designTokens';
+import { useTheme } from '../contexts/ThemeContext';
+import AppBackground from '../components/AppBackground';
 
 const Constants: any = (() => {
   try {
@@ -36,8 +38,7 @@ const openLink = async (url: string) => {
 };
 
 export default function AboutScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDarkMode: isDark } = useTheme();
   const colors = getColors(isDark);
   const navigation = useNavigation<any>();
 
@@ -46,7 +47,8 @@ export default function AboutScreen() {
   const sdkVersion = (Constants.expoConfig as any)?.sdkVersion ?? Constants.manifest?.sdkVersion ?? 'unknown';
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+    <AppBackground>
+    <SafeAreaView style={[styles.safe, { backgroundColor: 'transparent' }]}>
       <ScrollView contentContainerStyle={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -125,6 +127,7 @@ export default function AboutScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+    </AppBackground>
   );
 }
 

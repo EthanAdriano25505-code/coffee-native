@@ -16,6 +16,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { supabase } from '../utils/supabase';
 import RemoteImage from '../components/RemoteImage';
+import AppBackground from '../components/AppBackground';
+import { useTheme } from '../contexts/ThemeContext';
+import { getColors } from '../theme/designTokens';
 
 const { width } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
@@ -30,6 +33,8 @@ interface Artist {
 
 const ArtistsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { isDarkMode: isDark } = useTheme();
+  const colors = getColors(isDark);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -115,20 +120,17 @@ const ArtistsScreen: React.FC = () => {
   );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient
-        colors={['#1a1a1a', '#000']}
-        style={StyleSheet.absoluteFill}
-      />
+    <AppBackground>
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                <BlurView intensity={20} tint="light" style={styles.blurButton}>
-                   <Feather name="arrow-left" size={24} color="#fff" />
+                <BlurView intensity={20} tint={isDark ? "light" : "dark"} style={styles.blurButton}>
+                   <Feather name="arrow-left" size={24} color={colors.text} />
                 </BlurView>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Artists</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Artists</Text>
             <View style={{ width: 40 }} />
         </View>
 
@@ -155,6 +157,7 @@ const ArtistsScreen: React.FC = () => {
         )}
       </SafeAreaView>
     </View>
+    </AppBackground>
   );
 };
 
