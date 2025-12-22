@@ -5,6 +5,7 @@ import { Animated, Pressable, Text, View, Image, StyleSheet, useColorScheme } fr
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getColors, radii, spacing, elevation } from '../theme/designTokens';
+import { useTheme } from '../contexts/ThemeContext';
 
 type Song = { id: string | number; title: string; artist?: string | null; cover_url?: string | null };
 
@@ -20,8 +21,7 @@ type Props = {
 export default function SongCard({ song, onPress, index, isActive = false, onRightAction, rightIconName = "more-horizontal" }: Props) {
   const scale = React.useRef(new Animated.Value(1)).current;
   const [imageError, setImageError] = React.useState(false);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDarkMode: isDark } = useTheme();
   const colors = getColors(isDark);
 
   const onPressIn = () => Animated.spring(scale, { toValue: 0.98, useNativeDriver: true }).start();
@@ -103,7 +103,7 @@ export default function SongCard({ song, onPress, index, isActive = false, onRig
               numberOfLines={1} 
               style={[
                 styles.title, 
-                { color: isActive ? (isDark ? '#2F80ED' : '#2F80ED') : colors.text }
+                { color: isActive ? (isDark ? '#2F80ED' : '#2F80ED') : (isDark ? '#FFFFFF' : colors.text) }
               ]}
             >
               {song.title}
