@@ -74,7 +74,7 @@ export default function SongCard({ song, onPress, index, isActive = false, onRig
             {isActive ? (
               <Ionicons name="stats-chart" size={16} color="#2F80ED" />
             ) : (
-              <Text style={[styles.index, { color: isDark ? '#666' : '#999' }]}>
+              <Text style={[styles.index, { color: '#FFFFFF' }]}> 
                 {formattedIndex}
               </Text>
             )}
@@ -91,7 +91,7 @@ export default function SongCard({ song, onPress, index, isActive = false, onRig
                 />
               ) : (
                 <View style={[styles.art, { backgroundColor: isDark ? '#333' : '#E0E0E0', justifyContent: 'center', alignItems: 'center' }]}>
-                  <Ionicons name="musical-note" size={20} color={isDark ? '#555' : '#AAA'} />
+                  <Ionicons name="musical-note" size={20} color={'#FFFFFF'} />
                 </View>
               )}
             </View>
@@ -103,12 +103,12 @@ export default function SongCard({ song, onPress, index, isActive = false, onRig
               numberOfLines={1} 
               style={[
                 styles.title, 
-                { color: isActive ? (isDark ? '#2F80ED' : '#2F80ED') : colors.text }
+                { color: '#FFFFFF' }
               ]}
             >
               {song.title}
             </Text>
-            <Text numberOfLines={1} style={[styles.artist, { color: colors.textSecondary }]}>
+            <Text numberOfLines={1} style={[styles.artist, { color: '#FFFFFF' }]}>
               {song.artist || 'Unknown Artist'}
             </Text>
           </View>
@@ -116,11 +116,11 @@ export default function SongCard({ song, onPress, index, isActive = false, onRig
           {/* Right: Menu Icon (3 dots) or Custom Action */}
           {onRightAction ? (
             <Pressable onPress={onRightAction} style={styles.menuButton} hitSlop={8}>
-              <Feather name={rightIconName} size={20} color={isDark ? '#666' : '#999'} />
+              <Feather name={rightIconName} size={20} color={'#FFFFFF'} />
             </Pressable>
           ) : (
             <View style={styles.menuButton}>
-                <Feather name={rightIconName} size={20} color={isDark ? '#666' : '#999'} />
+                <Feather name={rightIconName} size={20} color={'#FFFFFF'} />
             </View>
           )}
         </View>

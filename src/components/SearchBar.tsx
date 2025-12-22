@@ -73,11 +73,11 @@ export default function SearchBar({ onPress, placeholder = 'Search songs, artist
             minHeight: sizes.touchTarget,
           }}
         >
-          <Feather name="search" size={18} color={isDark ? colors.muted : '#666'} />
+          <Feather name="search" size={18} color={'#FFFFFF'} />
           <Text
             style={[
               styles.placeholder,
-              { color: isDark ? colors.muted : '#666', marginLeft: spacing.sm },
+              { color: '#FFFFFF', marginLeft: spacing.sm },
             ]}
             numberOfLines={1}
           >

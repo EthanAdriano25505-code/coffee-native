@@ -321,9 +321,7 @@ const HomeScreen: React.FC = () => {
                   >
                     <Text
                       style={{
-                        color: isActive
-                          ? '#2F80ED'
-                          : (isDark ? '#FFFFFF' : '#111111'),
+                        color: '#FFFFFF',
                         fontWeight: isActive ? '700' : '600',
                         fontSize: 14,
                       }}
@@ -340,9 +338,9 @@ const HomeScreen: React.FC = () => {
         {/* Categories / Albums Row (Restored) */}
         <View style={{ paddingHorizontal: spacing.md, marginBottom: spacing.lg, marginTop: spacing.sm }}>
            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-              <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#FFF' : '#111' }}>Categories</Text>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: '#FFFFFF' }}>Categories</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Search')}>
-                <Text style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.6)' : '#999' }}>See all</Text>
+                <Text style={{ fontSize: 13, color: '#FFFFFF' }}>See all</Text>
               </TouchableOpacity>
            </View>
            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -spacing.md }} contentContainerStyle={{ paddingHorizontal: spacing.md }}>
@@ -365,7 +363,7 @@ const HomeScreen: React.FC = () => {
                           style={{ padding: spacing.sm, height: '100%', justifyContent: 'flex-end' }}
                         >
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800', textShadowColor: 'rgba(0, 0, 0, 0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{item.name}</Text>
+                            <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '800', textShadowColor: 'rgba(0, 0, 0, 0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>{item.name}</Text>
                             <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}>
                               <Feather name="music" size={10} color="rgba(255,255,255,0.8)" />
                             </View>
@@ -380,12 +378,12 @@ const HomeScreen: React.FC = () => {
 
         <View style={styles.sectionHeaderCompact}>
           <View>
-            <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark, { fontSize: 22, fontWeight: '700' }]}>Trending Now</Text>
-            <Text style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#666', fontSize: 13, marginTop: 2 }}>Top hits for you</Text>
+            <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark, { fontSize: 22, fontWeight: '700', color: '#FFFFFF' }]}>Trending Now</Text>
+            <Text style={{ color: '#FFFFFF', fontSize: 13, marginTop: 2 }}>Top hits for you</Text>
           </View>
           <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#666', fontSize: 13, marginRight: 4 }}>See all</Text>
-            <Feather name="chevron-right" size={16} color={isDark ? 'rgba(255,255,255,0.7)' : '#666'} />
+            <Text style={{ color: '#FFFFFF', fontSize: 13, marginRight: 4 }}>See all</Text>
+            <Feather name="chevron-right" size={16} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -574,7 +572,7 @@ const styles = StyleSheet.create({
     fontSize: isLargeScreen ? 30 : 24,
     fontWeight: '800',
     letterSpacing: 0.5,
-    color: '#111',
+    color: '#FFFFFF',
   },
   headerTitleDark: { color: '#fff' },
   headerActions: {
@@ -594,7 +592,7 @@ const styles = StyleSheet.create({
   },
 
   profileButton: { marginLeft: 10, width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  profileInitials: { fontSize: 12, fontWeight: '700', color: '#111' },
+  profileInitials: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
 
   bannerWrapper: {
     marginHorizontal: BASE_PADDING,
@@ -622,11 +620,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: isLargeScreen ? 20 : 18,
     fontWeight: '700',
-    color: '#111',
+    color: '#FFFFFF',
   },
   sectionTitleDark: { color: '#fff' },
-  seeAll: { color: '#999', fontSize: 13 },
-  seeAllDark: { color: 'rgba(255,255,255,0.6)' },
+  seeAll: { color: '#FFFFFF', fontSize: 13 },
+  seeAllDark: { color: '#FFFFFF' },
 
   albumRow: {
     flexDirection: 'row',
@@ -645,14 +643,14 @@ const styles = StyleSheet.create({
     ...elevation.medium,
   },
   albumThumbDark: { backgroundColor: '#1a1a2e' },
-  albumThumbText: { color: '#667', fontWeight: '700' },
+  albumThumbText: { color: '#FFFFFF', fontWeight: '700' },
   albumTitle: {
     marginTop: 10,
     fontWeight: '700',
-    color: '#111',
+    color: '#FFFFFF',
   },
   albumTitleDark: { color: '#fff' },
-  albumArtist: { color: '#777', marginTop: 2 },
+  albumArtist: { color: '#FFFFFF', marginTop: 2 },
   albumArtistDark: { color: 'rgba(255,255,255,0.5)' },
 
   rowSeparator: { height: 7, backgroundColor: 'transparent' },
