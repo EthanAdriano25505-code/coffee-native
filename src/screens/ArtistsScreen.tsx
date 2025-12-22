@@ -93,7 +93,7 @@ const ArtistsScreen: React.FC = () => {
         onPress={() => navigation.navigate('ArtistDetails' as any, { artist: item.name, cover_url: item.cover_url })}
         activeOpacity={0.8}
     >
-      <View style={styles.imageContainer}>
+      <View style={[styles.imageContainer, { borderColor: colors.border }]}>
         <RemoteImage 
             uri={item.cover_url} 
             width={ITEM_WIDTH} 
@@ -107,11 +107,11 @@ const ArtistsScreen: React.FC = () => {
         />
       </View>
       <View style={styles.textContainer}>
-        <Text style={styles.artistName} numberOfLines={1}>{item.name}</Text>
+        <Text style={[styles.artistName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
         {item.songs && item.songs.length > 0 && (
           <View style={styles.artistSongsPreview}>
             {item.songs.map((s, i) => (
-              <Text key={`${s.id ?? s.title}-${i}`} style={styles.artistSongText} numberOfLines={1}>{s.title}</Text>
+              <Text key={`${s.id ?? s.title}-${i}`} style={[styles.artistSongText, { color: colors.textSecondary }]} numberOfLines={1}>{s.title}</Text>
             ))}
           </View>
         )}
@@ -149,8 +149,8 @@ const ArtistsScreen: React.FC = () => {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Feather name="users" size={48} color="rgba(255,255,255,0.3)" />
-                <Text style={styles.emptyText}>No artists found</Text>
+                <Feather name="users" size={48} color={colors.textSecondary} />
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No artists found</Text>
               </View>
             }
           />

@@ -195,10 +195,10 @@ export default function SearchScreen() {
           style={styles.backButton}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Feather name="chevron-left" size={28} color={isDark ? '#fff' : colors.text} />
+          <Feather name="chevron-left" size={28} color={colors.text} />
         </TouchableOpacity>
 
-        <View style={[styles.searchBar, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#FFFFFF' }]}>
+        <View style={[styles.searchBar, { backgroundColor: colors.surface }]}>
           <Feather name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
           <TextInput
             ref={inputRef}

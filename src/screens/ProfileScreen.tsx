@@ -209,7 +209,7 @@ export default function ProfileScreen() {
           <View style={[styles.avatarContainer, { borderColor: colors.border }]}>
             <Image source={{ uri: image }} style={styles.avatar} />
             {isEditing && (
-              <TouchableOpacity onPress={pickImage} style={[styles.cameraBtn, { backgroundColor: colors.primary }]}>
+              <TouchableOpacity onPress={pickImage} style={[styles.cameraBtn, { backgroundColor: colors.primary, borderColor: colors.background }]}>
                 <Feather name="camera" size={16} color="#fff" />
               </TouchableOpacity>
             )}
@@ -387,7 +387,6 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: '#fff',
   },
   nameContainer: {
     alignItems: 'center',

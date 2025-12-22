@@ -90,7 +90,7 @@ const AlbumsScreen: React.FC = () => {
 
   const renderAlbumItem = ({ item }: { item: Album }) => (
     <TouchableOpacity 
-        style={styles.albumItem}
+        style={[styles.albumItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
         onPress={() => navigation.navigate('AlbumDetails' as any, { album: item.title, artist: item.artist, cover_url: item.cover_url })}
         activeOpacity={0.8}
     >
@@ -111,8 +111,8 @@ const AlbumsScreen: React.FC = () => {
         </View>
       </View>
       <View style={styles.textContainer}>
-        <Text style={styles.albumTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.albumArtist} numberOfLines={1}>{item.artist || 'Unknown Artist'}</Text>
+        <Text style={[styles.albumTitle, { color: colors.text }]} numberOfLines={1}>{item.title}</Text>
+        <Text style={[styles.albumArtist, { color: colors.textSecondary }]} numberOfLines={1}>{item.artist || 'Unknown Artist'}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -147,8 +147,8 @@ const AlbumsScreen: React.FC = () => {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Feather name="disc" size={48} color="rgba(255,255,255,0.3)" />
-                <Text style={styles.emptyText}>No albums found</Text>
+                <Feather name="disc" size={48} color={colors.textSecondary} />
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No albums found</Text>
               </View>
             }
           />

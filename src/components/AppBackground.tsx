@@ -1,7 +1,6 @@
 import React from 'react';
 import { StyleSheet, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { gradients } from '../utils/tokens';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface AppBackgroundProps {
@@ -15,8 +14,8 @@ interface AppBackgroundProps {
  * Dark: Deep Black Gradient
  */
 export default function AppBackground({ children, style }: AppBackgroundProps) {
-  const { isDarkMode } = useTheme();
-  const currentGradient = isDarkMode ? gradients.backgroundDark : gradients.background;
+  const { gradients } = useTheme();
+  const currentGradient = gradients.appBackground;
 
   return (
     <LinearGradient
