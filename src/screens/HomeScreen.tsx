@@ -37,8 +37,7 @@ import BannerIllustration from '../assets/BannerIllustration';
 import BannerSlider from '../components/BannerSlider';
 import SearchBar from '../components/SearchBar';
 import RemoteImage from '../components/RemoteImage';
-import { spacing, radii, sizes, elevation, getColors } from '../theme/designTokens';
-import { tokens } from '../theme/designTokens';
+import { spacing, radii, sizes, elevation } from '../theme/designTokens';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../contexts/ThemeContext';
@@ -95,8 +94,7 @@ const HomeScreen: React.FC = () => {
 
   const hookNav = useNavigation<HomeNavProp>();
   const navigation = useNavigation<any>();
-  const { isDarkMode: isDark } = useTheme();
-  const colors = getColors(isDark);
+  const { isDarkMode: isDark, colors } = useTheme();
   const insets = useSafeAreaInsets();
 
   const { currentSong: ctxSong, isPlaying: ctxPlaying, positionMillis, durationMillis, play, pause, next, prev, togglePlay } = usePlayback();
@@ -296,8 +294,8 @@ const HomeScreen: React.FC = () => {
                     overflow: 'hidden',
                     borderWidth: 1,
                     borderColor: isActive
-                      ? (isDark ? '#2F80ED' : '#2F80ED')
-                      : (isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.05)'),
+                      ? colors.primary
+                      : (isDark ? colors.glassBorder : colors.border),
                     backgroundColor: 'transparent',
                   }}
                 >
@@ -321,9 +319,7 @@ const HomeScreen: React.FC = () => {
                   >
                     <Text
                       style={{
-                        color: isActive
-                          ? '#2F80ED'
-                          : (isDark ? '#FFFFFF' : '#111111'),
+                        color: isActive ? colors.primary : colors.text,
                         fontWeight: isActive ? '700' : '600',
                         fontSize: 14,
                       }}
@@ -340,9 +336,9 @@ const HomeScreen: React.FC = () => {
         {/* Categories / Albums Row (Restored) */}
         <View style={{ paddingHorizontal: spacing.md, marginBottom: spacing.lg, marginTop: spacing.sm }}>
            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-              <Text style={{ fontSize: 18, fontWeight: '700', color: isDark ? '#FFFFFF' : '#111' }}>Categories</Text>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text }}>Categories</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Search')}>
-                <Text style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.6)' : '#999' }}>See all</Text>
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>See all</Text>
               </TouchableOpacity>
            </View>
            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -spacing.md }} contentContainerStyle={{ paddingHorizontal: spacing.md }}>
@@ -380,17 +376,17 @@ const HomeScreen: React.FC = () => {
 
         <View style={styles.sectionHeaderCompact}>
           <View>
-            <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark, { fontSize: 22, fontWeight: '700' }]}>Trending Now</Text>
-            <Text style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#666', fontSize: 13, marginTop: 2 }}>Top hits for you</Text>
+            <Text style={[styles.sectionTitle, { fontSize: 22, fontWeight: '700', color: colors.text }]}>Trending Now</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>Top hits for you</Text>
           </View>
           <TouchableOpacity onPress={() => hookNav.navigate('FullSongs')} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#666', fontSize: 13, marginRight: 4 }}>See all</Text>
-            <Feather name="chevron-right" size={16} color={isDark ? 'rgba(255,255,255,0.7)' : '#666'} />
+            <Text style={{ color: colors.textSecondary, fontSize: 13, marginRight: 4 }}>See all</Text>
+            <Feather name="chevron-right" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
     );
-  }, [bannerSlides, isDark, hookNav, activeFilter]);
+  }, [bannerSlides, isDark, hookNav, activeFilter, colors, navigation]);
 
   const onCardPress = useCallback((song: Song) => {
     const payload = {
@@ -457,7 +453,7 @@ const HomeScreen: React.FC = () => {
     >
       {/* Header */}
       <View style={[styles.header, isDark && styles.headerDark, { paddingTop: insets.top + 3 }]}>
-        <Text style={[styles.headerTitle, isDark && styles.headerTitleDark]}>Music</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Music</Text>
         <View style={styles.headerActions}>
           <SearchBar
             onPress={() => navigation.navigate('Search')}
@@ -470,7 +466,7 @@ const HomeScreen: React.FC = () => {
               // open with animation
               openDrawer();
             }}
-            color={isDark ? '#fff' : '#111'}
+            color={colors.icon}
           />
 
           
@@ -574,7 +570,6 @@ const styles = StyleSheet.create({
     fontSize: isLargeScreen ? 30 : 24,
     fontWeight: '800',
     letterSpacing: 0.5,
-    color: '#111',
   },
   headerTitleDark: { color: '#FFFFFF' },
   headerActions: {
@@ -622,7 +617,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: isLargeScreen ? 20 : 18,
     fontWeight: '700',
-    color: '#111',
   },
   sectionTitleDark: { color: '#FFFFFF' },
   seeAll: { color: '#999', fontSize: 13 },
