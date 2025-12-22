@@ -21,6 +21,7 @@ import { RootStackParamList } from '../navigation/types';
 import { usePlayback } from '../contexts/PlaybackContext';
 import { useTheme } from '../contexts/ThemeContext';
 import AppBackground from '../components/AppBackground';
+import { DownloadService, DownloadedSong } from '../services/DownloadService';
 
 type PlaylistDetailRouteProp = RouteProp<RootStackParamList, 'PlaylistDetail'>;
 
@@ -87,8 +88,12 @@ export default function PlaylistDetailScreen() {
     let filteredSongs: Song[] = [];
     if (type === 'purchased') {
       filteredSongs = MOCK_SONGS.filter(s => s.is_purchased);
-    } else if (type === 'teasers') {
-      filteredSongs = MOCK_SONGS.filter(s => s.is_teaser);
+    } else if (type === 'downloaded') {
+      const downloaded = await DownloadService.getDownloadedSongs();
+      filteredSongs = downloaded.map(s => ({
+        ...s,
+        is_available: true
+      })) as Song[];
     } else {
       // Custom playlist - just show all non-special songs for demo
       // For a new empty playlist, this might be empty initially
@@ -133,16 +138,24 @@ export default function PlaylistDetailScreen() {
   };
 
   const removeSong = (songId: string | number) => {
+    const isDownloadedType = type === 'downloaded';
     Alert.alert(
-      'Remove Song',
-      'Are you sure you want to remove this song from the playlist?',
+      isDownloadedType ? 'Remove Download' : 'Remove Song',
+      isDownloadedType 
+        ? 'Are you sure you want to remove this download?' 
+        : 'Are you sure you want to remove this song from the playlist?',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Remove', 
           style: 'destructive',
-          onPress: () => {
-            setSongs(prev => prev.filter(s => s.id !== songId));
+          onPress: async () => {
+            if (isDownloadedType) {
+              await DownloadService.removeSong(songId);
+              fetchSongs();
+            } else {
+              setSongs(prev => prev.filter(s => s.id !== songId));
+            }
           }
         }
       ]
@@ -155,8 +168,8 @@ export default function PlaylistDetailScreen() {
       index={index}
       onPress={() => handlePlaySong(item, index)}
       isActive={false} // TODO: Check if currently playing
-      onRightAction={type === 'custom' ? () => removeSong(item.id) : undefined}
-      rightIconName={type === 'custom' ? "trash-2" : "more-horizontal"}
+      onRightAction={(type === 'custom' || type === 'downloaded') ? () => removeSong(item.id) : undefined}
+      rightIconName={(type === 'custom' || type === 'downloaded') ? "trash-2" : "more-horizontal"}
     />
   ), [type, handlePlaySong, removeSong]);
 

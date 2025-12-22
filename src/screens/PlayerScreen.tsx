@@ -27,6 +27,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { DownloadService, DownloadedSong } from '../services/DownloadService';
 
 // Glass UI Components
 import AppBackground from '../components/AppBackground';
@@ -69,25 +70,54 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
   const [shuffleEnabled, setShuffleEnabled] = useState(false);
   // Like state (for UI demo)
   const [isLiked, setIsLiked] = useState(false);
-
-  // Ensure playback started if navigated with a param and it's different
-  useFocusEffect(
-    useCallback(() => {
-      if (paramSong && currentSong?.id !== paramSong.id) {
-        const payload = {
-          id: paramSong.id,
-          title: paramSong.title,
-          artist: paramSong.artist ?? undefined,
-          cover_url: paramSong.cover_url ?? undefined,
-          uri: paramSong.audio_url ? { uri: paramSong.audio_url } : undefined,
-        };
-        // fire-and-forget; PlaybackContext is race-protected
-        play(payload);
-      }
-    }, [paramSong?.id, currentSong?.id, paramSong, currentSong, play])
-  );
+  // Download state
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [isDownloaded, setIsDownloaded] = useState(false);
 
   const song = currentSong ?? paramSong;
+
+  // Check if current song is downloaded
+  useEffect(() => {
+    if (song?.id) {
+      DownloadService.isDownloaded(song.id).then(setIsDownloaded);
+    }
+  }, [song?.id]);
+
+  const handleDownload = async () => {
+    if (!song || isDownloaded || isDownloading) return;
+
+    setIsDownloading(true);
+    setDownloadProgress(0);
+
+    // Simulate download progress
+    const interval = setInterval(() => {
+      setDownloadProgress((prev) => {
+        if (prev >= 1) {
+          clearInterval(interval);
+          return 1;
+        }
+        return prev + 0.1;
+      });
+    }, 300);
+
+    // Wait for simulation to finish
+    await new Promise((resolve) => setTimeout(resolve, 3500));
+
+    const downloadedSong: DownloadedSong = {
+      id: song.id,
+      title: song.title,
+      artist: song.artist ?? undefined,
+      cover_url: song.cover_url ?? undefined,
+      audio_url: song.audio_url ?? undefined,
+      downloaded_at: new Date().toISOString(),
+    };
+
+    await DownloadService.saveSong(downloadedSong);
+    setIsDownloading(false);
+    setIsDownloaded(true);
+    setDownloadProgress(0);
+  };
 
   if (!song) {
     return (
@@ -419,10 +449,23 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
 
             <TouchableOpacity
               style={styles.actionButton}
-              accessibilityLabel="Download"
+              onPress={handleDownload}
+              accessibilityLabel={isDownloaded ? "Downloaded" : "Download"}
               accessibilityRole="button"
+              disabled={isDownloading || isDownloaded}
             >
-              <Ionicons name="download-outline" size={26} color={colors.textSecondary} />
+              {isDownloading ? (
+                <View style={styles.downloadProgressContainer}>
+                  <View style={[styles.downloadProgressBar, { height: `${downloadProgress * 100}%` }]} />
+                  <Ionicons name="download" size={26} color={colors.primaryBlue} />
+                </View>
+              ) : (
+                <Ionicons 
+                  name={isDownloaded ? "checkmark-circle" : "download-outline"} 
+                  size={26} 
+                  color={isDownloaded ? colors.primaryBlue : colors.textSecondary} 
+                />
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -618,5 +661,20 @@ const styles = StyleSheet.create({
   actionLabel: {
     ...typography.caption,
     color: colors.textSecondary,
+  },
+  downloadProgressContainer: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  downloadProgressBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(47, 128, 237, 0.2)',
+    borderRadius: 4,
   },
 });

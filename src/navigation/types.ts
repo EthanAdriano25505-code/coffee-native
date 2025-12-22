@@ -12,7 +12,7 @@ export type RootStackParamList = {
   About: undefined;
   Search: undefined;
   Playlists: undefined;
-  PlaylistDetail: { playlistId: string; title: string; type?: 'purchased' | 'teasers' | 'custom' };
+  PlaylistDetail: { playlistId: string; title: string; type?: 'purchased' | 'downloaded' | 'custom' };
   AlbumDetails: { album: string; artist?: string; cover_url?: string };
   ArtistDetails: { artist: string; cover_url?: string };
   Artists: undefined;

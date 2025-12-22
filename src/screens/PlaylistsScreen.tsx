@@ -34,7 +34,7 @@ const ITEM_HEIGHT = ITEM_WIDTH * 0.65; // Reduced height ratio for smaller cards
 type Playlist = {
   id: string;
   title: string;
-  type: 'purchased' | 'teasers' | 'custom';
+  type: 'purchased' | 'downloaded' | 'custom';
   count: number;
   cover?: string;
   gradient?: string[];
@@ -51,10 +51,10 @@ const DEFAULT_PLAYLISTS: Playlist[] = [
     gradient: ['#2F80ED', '#56CCF2'],
   },
   {
-    id: 'teasers',
-    title: 'Teasers',
-    type: 'teasers',
-    count: 5, // Example count
+    id: 'downloaded',
+    title: 'Downloaded',
+    type: 'downloaded',
+    count: 0,
     cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&q=80',
     gradient: ['#FF512F', '#DD2476'],
   },
@@ -110,7 +110,7 @@ export default function PlaylistsScreen() {
   };
 
   const renderItem: ListRenderItem<Playlist> = useCallback(({ item }) => {
-    const isSpecial = item.type === 'purchased' || item.type === 'teasers';
+    const isSpecial = item.type === 'purchased' || item.type === 'downloaded';
     
     return (
       <TouchableOpacity
@@ -151,7 +151,7 @@ export default function PlaylistsScreen() {
           {isSpecial && (
             <View style={styles.iconBadge}>
               <Ionicons 
-                name={item.type === 'purchased' ? "cart" : "musical-notes"} 
+                name={item.type === 'purchased' ? "cart" : "download"} 
                 size={16} 
                 color="#FFF" 
               />
