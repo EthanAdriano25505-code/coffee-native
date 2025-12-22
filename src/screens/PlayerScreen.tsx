@@ -362,7 +362,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
             accessibilityLabel={shuffleEnabled ? 'Disable shuffle' : 'Enable shuffle'}
             accessibilityRole="button"
           >
-            <Ionicons name="shuffle" size={28} color={shuffleEnabled ? colors.primaryBlue : colors.controlInactive} />
+            <Ionicons name="shuffle" size={28} color={shuffleEnabled ? colors.primaryBlue : '#FFFFFF'} />
           </TouchableOpacity>
 
           {/* Previous */}
@@ -372,7 +372,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
             accessibilityLabel="Previous track"
             accessibilityRole="button"
           >
-            <Ionicons name="play-skip-back" size={32} color={colors.textPrimary} />
+            <Ionicons name="play-skip-back" size={32} color={'#FFFFFF'} />
           </TouchableOpacity>
 
           {/* Play/Pause */}
@@ -398,7 +398,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
             accessibilityLabel="Next track"
             accessibilityRole="button"
           >
-            <Ionicons name="play-skip-forward" size={32} color={colors.textPrimary} />
+            <Ionicons name="play-skip-forward" size={32} color={'#FFFFFF'} />
           </TouchableOpacity>
 
           {/* Repeat */}
@@ -411,7 +411,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
             <Ionicons 
               name="repeat" 
               size={28} 
-              color={repeatMode !== 'off' ? colors.primaryBlue : colors.controlInactive} 
+              color={repeatMode !== 'off' ? colors.primaryBlue : '#FFFFFF'} 
             />
             {repeatMode === 'one' && (
               <View style={{ 
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28, // Larger title
     fontWeight: '800',
-    color: colors.textPrimary,
+    color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 8,
     letterSpacing: -0.8,
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
   },
   controlIcon: {
     fontSize: 22,
-    color: colors.controlInactive,
+    color: '#FFFFFF',
   },
   controlIconLarge: {
     fontSize: 28,
