@@ -1,12 +1,35 @@
+/**
+ * PlayerScreen
+ * Full-screen music player with animations using react-native-reanimated.
+ * Provides play/pause toggle, progress tracking, and track info display.
+ * 
+ * TODO: Wire to Supabase audio data
+ * - Load track metadata from Supabase
+ * - Stream audio via Supabase storage
+ * - Sync playback progress to UI
+ */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions, Pressable } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  interpolate,
+} from 'react-native-reanimated';
 import Slider from '@react-native-community/slider';
+import { Ionicons } from '@expo/vector-icons';
 import { usePlayback } from '../contexts/PlaybackContext';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/types';
 import { useFocusEffect } from '@react-navigation/native';
+import { colors, spacing, radii, durations, springConfig, hitSlop, iconSizes } from '../utils/tokens';
+import PlayButton from '../components/PlayButton';
+import Waveform from '../components/Waveform';
 
 const { width } = Dimensions.get('window');
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function PlayerScreen({ route }: { route: RouteProp<RootStackParamList, 'Player'> }) {
   const paramSong = route.params?.song;
@@ -223,48 +246,137 @@ export default function PlayerScreen({ route }: { route: RouteProp<RootStackPara
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seeking]);
 
+  // Animated values for cover image and controls
+  const coverScale = useSharedValue(1);
+  const controlsOpacity = useSharedValue(1);
+
+  // Animate cover when song changes
+  useEffect(() => {
+    coverScale.value = withSpring(1, springConfig.bouncy);
+    controlsOpacity.value = withTiming(1, { duration: durations.normal });
+  }, [song?.id, coverScale, controlsOpacity]);
+
+  const animatedCoverStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: coverScale.value }],
+  }));
+
+  // Control button press animations
+  const prevScale = useSharedValue(1);
+  const nextScale = useSharedValue(1);
+
+  const handlePrevPressIn = () => {
+    prevScale.value = withSpring(0.9, springConfig.snappy);
+  };
+  const handlePrevPressOut = () => {
+    prevScale.value = withSpring(1, springConfig.snappy);
+  };
+  const handleNextPressIn = () => {
+    nextScale.value = withSpring(0.9, springConfig.snappy);
+  };
+  const handleNextPressOut = () => {
+    nextScale.value = withSpring(1, springConfig.snappy);
+  };
+
+  const animatedPrevStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: prevScale.value }],
+  }));
+  const animatedNextStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: nextScale.value }],
+  }));
+
   return (
     <View style={styles.container}>
-      <Image source={song?.cover_url ? { uri: String(song.cover_url) } : undefined} style={styles.cover} />
+      {/* Album artwork with animated scale */}
+      <Animated.View style={animatedCoverStyle}>
+        <Image 
+          source={song?.cover_url ? { uri: String(song.cover_url) } : undefined} 
+          style={styles.cover} 
+        />
+      </Animated.View>
+
+      {/* Track info */}
       <Text style={styles.title}>{song?.title}</Text>
       <Text style={styles.artist}>{song?.artist}</Text>
 
-      <View style={styles.controls}>
-        <TouchableOpacity onPress={prev}><Text style={styles.control}>⏮</Text></TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => {
-            // optimistic UI handled in context; call togglePlay without awaiting
-            togglePlay();
-          }}
-          style={styles.playButton}
-        >
-          <Text style={styles.playText}>{isPlaying ? '⏸' : '▶'}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={next}><Text style={styles.control}>⏭</Text></TouchableOpacity>
+      {/* Waveform visualization */}
+      <View style={styles.waveformContainer}>
+        <Waveform 
+          isAnimating={isPlaying} 
+          barCount={7}
+          maxHeight={32}
+          minHeight={8}
+        />
       </View>
 
+      {/* Playback controls */}
+      <View style={styles.controls}>
+        <AnimatedPressable 
+          onPress={prev}
+          onPressIn={handlePrevPressIn}
+          onPressOut={handlePrevPressOut}
+          hitSlop={hitSlop}
+          style={[styles.controlButton, animatedPrevStyle]}
+          accessibilityLabel="Previous track"
+          accessibilityRole="button"
+        >
+          <Ionicons name="play-skip-back" size={iconSizes.lg} color={colors.text} />
+        </AnimatedPressable>
+
+        <PlayButton 
+          isPlaying={isPlaying} 
+          onToggle={togglePlay}
+          size={64}
+        />
+
+        <AnimatedPressable 
+          onPress={next}
+          onPressIn={handleNextPressIn}
+          onPressOut={handleNextPressOut}
+          hitSlop={hitSlop}
+          style={[styles.controlButton, animatedNextStyle]}
+          accessibilityLabel="Next track"
+          accessibilityRole="button"
+        >
+          <Ionicons name="play-skip-forward" size={iconSizes.lg} color={colors.text} />
+        </AnimatedPressable>
+      </View>
+
+      {/* Progress slider */}
       <View style={styles.progressRow}>
         <Text style={styles.time}>{formatMillis(seekingRef.current ? localPosRef.current : positionMillis)}</Text>
         <Slider
           ref={sliderRef}
-          style={{ flex: 1 }}
+          style={styles.slider}
           minimumValue={0}
           maximumValue={durationMillis || 0}
-          value={localPos} // React-driven, but during drag we move native thumb directly for instant feedback
-          minimumTrackTintColor="#2f6dfd"
-          maximumTrackTintColor="#ddd"
-          thumbTintColor="#2f6dfd"
+          value={localPos}
+          minimumTrackTintColor={colors.primary}
+          maximumTrackTintColor={colors.trackBackground}
+          thumbTintColor={colors.primary}
           onValueChange={onValueChange}
           onSlidingComplete={onSlidingComplete}
         />
         <Text style={styles.time}>{formatMillis(durationMillis)}</Text>
       </View>
 
+      {/* Extra controls (repeat, shuffle) */}
       <View style={styles.extraRow}>
-        <TouchableOpacity style={styles.smallBtn}><Text>🔁</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.smallBtn}><Text>🔀</Text></TouchableOpacity>
+        <Pressable 
+          style={styles.smallBtn} 
+          hitSlop={hitSlop}
+          accessibilityLabel="Repeat"
+          accessibilityRole="button"
+        >
+          <Ionicons name="repeat" size={iconSizes.md} color={colors.textSecondary} />
+        </Pressable>
+        <Pressable 
+          style={styles.smallBtn} 
+          hitSlop={hitSlop}
+          accessibilityLabel="Shuffle"
+          accessibilityRole="button"
+        >
+          <Ionicons name="shuffle" size={iconSizes.md} color={colors.textSecondary} />
+        </Pressable>
       </View>
     </View>
   );
@@ -279,17 +391,73 @@ function formatMillis(ms: number | null | undefined): string {
 }
 
 const COVER = Math.min(width - 48, 420);
+
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', padding: 20, backgroundColor: '#fff' },
-  cover: { width: COVER, height: COVER, borderRadius: 12, backgroundColor: '#eee' },
-  title: { marginTop: 18, fontSize: 20, fontWeight: '800' },
-  artist: { color: '#666', marginTop: 6 },
-  controls: { flexDirection: 'row', alignItems: 'center', marginTop: 18 },
-  control: { fontSize: 22, paddingHorizontal: 12 },
-  playButton: { marginHorizontal: 10, backgroundColor: '#2f6dfd', padding: 12, borderRadius: 30 },
-  playText: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  progressRow: { width: '100%', flexDirection: 'row', alignItems: 'center', marginTop: 18 },
-  time: { width: 44, textAlign: 'center', color: '#666', fontSize: 12 },
-  extraRow: { flexDirection: 'row', marginTop: 20, alignItems: 'center' },
-  smallBtn: { padding: 10, marginHorizontal: 8, backgroundColor: '#f3f3f3', borderRadius: 8 },
+  container: { 
+    flex: 1, 
+    alignItems: 'center', 
+    padding: spacing.xl, 
+    backgroundColor: colors.background,
+  },
+  cover: { 
+    width: COVER, 
+    height: COVER, 
+    borderRadius: radii.md, 
+    backgroundColor: colors.surface,
+  },
+  title: { 
+    marginTop: spacing.lg, 
+    fontSize: 20, 
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  artist: { 
+    color: colors.textSecondary, 
+    marginTop: spacing.sm,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  waveformContainer: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+    height: 40,
+    justifyContent: 'center',
+  },
+  controls: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginTop: spacing.lg,
+    gap: spacing.xl,
+  },
+  controlButton: { 
+    padding: spacing.md,
+  },
+  progressRow: { 
+    width: '100%', 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginTop: spacing.lg,
+  },
+  slider: {
+    flex: 1,
+    marginHorizontal: spacing.sm,
+  },
+  time: { 
+    width: 44, 
+    textAlign: 'center', 
+    color: colors.textSecondary, 
+    fontSize: 12,
+  },
+  extraRow: { 
+    flexDirection: 'row', 
+    marginTop: spacing.xl, 
+    alignItems: 'center',
+    gap: spacing.lg,
+  },
+  smallBtn: { 
+    padding: spacing.md, 
+    backgroundColor: colors.surface, 
+    borderRadius: radii.sm,
+  },
 });

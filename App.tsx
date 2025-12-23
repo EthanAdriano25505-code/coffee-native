@@ -1,4 +1,5 @@
 import React from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PlaybackProvider } from './src/contexts/PlaybackContext';
 import PlayerScreen from './src/screens/PlayerScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -12,15 +13,17 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (
-    <PlaybackProvider>
-      <NavigationContainer>
-        <Stack.Navigator initialRouteName="Home" screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="MusicDetail" component={MusicDetail} />
-          <Stack.Screen name="FullSongs" component={FullSongsScreen} />
-          <Stack.Screen name="Player" component={PlayerScreen} options={{ headerShown: false }} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </PlaybackProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PlaybackProvider>
+        <NavigationContainer>
+          <Stack.Navigator initialRouteName="Home" screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="MusicDetail" component={MusicDetail} />
+            <Stack.Screen name="FullSongs" component={FullSongsScreen} />
+            <Stack.Screen name="Player" component={PlayerScreen} options={{ headerShown: false }} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </PlaybackProvider>
+    </GestureHandlerRootView>
   );
 }
