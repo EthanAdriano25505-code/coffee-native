@@ -111,16 +111,22 @@ export default function PlaylistDetailScreen() {
   };
 
   const handlePlaySong = (song: Song, index: number) => {
+    const playlist = songs.map(s => ({
+      ...s,
+      url: s.audio_url || s.teaser_url || undefined,
+    }));
+
     // Construct payload compatible with PlaybackContext
     const uri = song.audio_url ? { uri: song.audio_url } : song.uri;
     const payload = {
       ...song,
       uri: uri,
       cover_url: song.cover_url, // Ensure cover_url is passed
+      url: song.audio_url || song.teaser_url || undefined,
     };
     
     // Play the selected song
-    play(payload);
+    play(payload, playlist);
     navigation.navigate('Player');
   };
 

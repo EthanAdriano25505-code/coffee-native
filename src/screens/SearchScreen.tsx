@@ -104,16 +104,24 @@ export default function SearchScreen() {
   }, [query]);
 
   const handlePlay = useCallback(async (song: Song) => {
+    const playlist = results.map(s => ({
+      id: s.id,
+      title: s.title,
+      artist: s.artist ?? undefined,
+      cover_url: s.cover_url ?? undefined,
+      url: s.audio_url ?? undefined,
+    }));
+
     const payload = {
       id: song.id,
       title: song.title,
       artist: song.artist ?? undefined,
       cover_url: song.cover_url ?? undefined,
-      uri: song.audio_url ? { uri: song.audio_url } : undefined,
+      url: song.audio_url ?? undefined,
     };
-    await play(payload);
+    await play(payload, playlist);
     navigation.navigate('Player', { song: payload });
-  }, [play, navigation]);
+  }, [play, navigation, results]);
 
   const clearQuery = () => {
     setQuery('');

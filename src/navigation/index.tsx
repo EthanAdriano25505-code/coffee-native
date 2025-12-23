@@ -48,14 +48,23 @@ export default function SongListPreview(): JSX.Element {
   }, []);
 
   const onCardPress = (song: Song) => {
-    play({
+    const playlist = songs.map(s => ({
+      id: s.id,
+      title: s.title,
+      artist: s.artist,
+      cover_url: s.cover_url,
+      url: s.teaser_url || s.audio_url || undefined,
+    }));
+
+    const payload = {
       id: song.id,
       title: song.title,
       artist: song.artist,
       cover_url: song.cover_url,
-      uri: song.teaser_url ? { uri: song.teaser_url } : song.audio_url ? { uri: song.audio_url } : undefined,
-    } as any);
-    navigation.navigate('Player', { song });
+      url: song.teaser_url || song.audio_url || undefined,
+    };
+    play(payload, playlist);
+    navigation.navigate('Player', { song: payload });
   };
 
   const renderItem: ListRenderItem<Song> = ({ item }) => <SongCard song={item} onPress={() => onCardPress(item)} />;

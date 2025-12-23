@@ -18,10 +18,14 @@ import { spacing, radii } from '../theme/designTokens';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../utils/supabase';
 import AppBackground from '../components/AppBackground';
+import { DownloadService, DownloadedSong } from '../services/DownloadService';
+import { usePlayback } from '../contexts/PlaybackContext';
+import RemoteImage from '../components/RemoteImage';
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
   const { isDarkMode: isDark, colors, gradients } = useTheme();
+  const { play } = usePlayback();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -29,10 +33,27 @@ export default function ProfileScreen() {
   const [image, setImage] = useState('https://via.placeholder.com/150');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [downloadedSongs, setDownloadedSongs] = useState<DownloadedSong[]>([]);
 
   useEffect(() => {
     getProfile();
+    loadDownloads();
   }, []);
+
+  const loadDownloads = async () => {
+    const songs = await DownloadService.getDownloadedSongs();
+    setDownloadedSongs(songs);
+  };
+
+  const handlePlayDownloaded = (song: DownloadedSong) => {
+    play({
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      artwork: song.cover_url,
+      url: song.audio_url || '',
+    } as any);
+  };
 
   const getProfile = async () => {
     try {
@@ -261,6 +282,45 @@ export default function ProfileScreen() {
           <StatCard label="Following" value="24" colors={colors} icon="users" />
         </View>
 
+        {/* Downloads Section */}
+        <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.surface, marginTop: spacing.md }]}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Downloads</Text>
+            <TouchableOpacity onPress={loadDownloads}>
+              <Feather name="refresh-cw" size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          
+          {downloadedSongs.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Feather name="download" size={32} color={colors.textSecondary} style={{ marginBottom: 8 }} />
+              <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>No downloaded songs yet.</Text>
+            </View>
+          ) : (
+            downloadedSongs.map((song) => (
+              <TouchableOpacity 
+                key={song.id} 
+                style={styles.downloadItem}
+                onPress={() => handlePlayDownloaded(song)}
+              >
+                <RemoteImage 
+                  uri={song.cover_url || 'https://via.placeholder.com/50'} 
+                  style={styles.downloadThumb} 
+                />
+                <View style={styles.downloadInfo}>
+                  <Text style={[styles.downloadTitle, { color: colors.text }]} numberOfLines={1}>
+                    {song.title}
+                  </Text>
+                  <Text style={[styles.downloadArtist, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {song.artist}
+                  </Text>
+                </View>
+                <Feather name="play-circle" size={24} color={colors.primary} />
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+
         {/* Sign Out Button */}
         <TouchableOpacity
           onPress={handleSignOut}
@@ -471,5 +531,40 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontSize: 16,
     fontWeight: '700',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  emptyState: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  downloadItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  downloadThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.small,
+    marginRight: spacing.md,
+  },
+  downloadInfo: {
+    flex: 1,
+  },
+  downloadTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  downloadArtist: {
+    fontSize: 13,
+    marginTop: 2,
   },
 });

@@ -120,8 +120,22 @@ const ArtistDetailsScreen: React.FC = () => {
   };
 
   const handlePlaySong = async (song: Song) => {
-    const uri = song.audio_url ? { uri: song.audio_url } : undefined;
-    await play(song);
+    const playlist = popularSongs.map(s => ({
+      id: s.id,
+      title: s.title,
+      artist: s.artist || artist,
+      cover_url: s.cover_url || cover_url,
+      url: s.audio_url || '',
+    }));
+
+    const track = {
+      id: song.id,
+      title: song.title,
+      artist: song.artist || artist,
+      cover_url: song.cover_url || cover_url,
+      url: song.audio_url || '',
+    } as any;
+    await play(track, playlist);
   };
 
   const renderSongItem = (item: Song, index: number) => (

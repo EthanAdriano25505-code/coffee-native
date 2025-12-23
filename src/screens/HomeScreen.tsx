@@ -42,7 +42,6 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../contexts/ThemeContext';
 import AppBackground from '../components/AppBackground';
-import MiniPlayer from '../components/MiniPlayer';
 import GlassDrawer from '../components/GlassDrawer';
 
 const { width, height } = Dimensions.get('window');
@@ -389,16 +388,24 @@ const HomeScreen: React.FC = () => {
   }, [bannerSlides, isDark, hookNav, activeFilter, colors, navigation]);
 
   const onCardPress = useCallback((song: Song) => {
+    const playlist = songs.map(s => ({
+      id: s.id,
+      title: s.title,
+      artist: s.artist ?? undefined,
+      cover_url: s.cover_url ?? undefined,
+      url: s.audio_url ?? undefined,
+    }));
+
     const payload = {
       id: song.id,
       title: song.title,
       artist: song.artist ?? undefined,
       cover_url: song.cover_url ?? undefined,
-      uri: song.audio_url ? { uri: song.audio_url } : undefined,
+      url: song.audio_url ?? undefined,
     };
-    play(payload);
-    navigation.navigate('Player', { song });
-  }, [play, navigation]);
+    play(payload, playlist);
+    navigation.navigate('Player', { song: payload });
+  }, [play, navigation, songs]);
 
   const renderSongItem: ListRenderItem<Song> = useCallback(({ item, index }) => (
     <View style={{ paddingHorizontal: spacing.sm }}>
@@ -481,35 +488,13 @@ const HomeScreen: React.FC = () => {
         ListEmptyComponent={null}
         ListFooterComponent={listFooter}
         style={{ flex: 1 }}
-        contentContainerStyle={{ backgroundColor: 'transparent', paddingBottom: 20 }}
+        contentContainerStyle={{ backgroundColor: 'transparent', paddingBottom: 100 }}
         ItemSeparatorComponent={() => <View style={styles.rowSeparator} />}
         showsVerticalScrollIndicator={false}
         initialNumToRender={8}
         windowSize={9}
         removeClippedSubviews={true}
       />
-
-      {/* Mini-player */}
-      {currentSong ? (
-        <View
-          style={[styles.playerBar, { bottom: (insets.bottom ?? 0), paddingHorizontal: 0 }]}
-          pointerEvents="box-none"
-        >
-          <MiniPlayer
-            song={currentSong}
-            isPlaying={isPlaying}
-            progress={durationMillis ? positionMillis / durationMillis : 0}
-            onPress={() => {
-              (hookNav ?? navigation)?.navigate('Player' as any, { song: currentSong });
-            }}
-            onPlayPause={() => {
-              setIsPlaying((p) => !p);
-              togglePlay();
-            }}
-            onNext={() => next()}
-          />
-        </View>
-      ) : null}
 
       {/* Animated glass drawer (implemented inline so we avoid reanimated/worklets) */}
       {/*

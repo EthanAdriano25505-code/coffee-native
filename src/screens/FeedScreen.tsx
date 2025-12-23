@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  AppState,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
@@ -384,6 +385,20 @@ const FeedScreen = () => {
       pauseGlobal().catch(() => {});
     }
   }, [isFocused, pauseGlobal]);
+
+  // Handle AppState changes (pause when backgrounded)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState !== 'active' && sound) {
+        sound.pauseAsync().catch(() => {});
+        setIsPlaying(false);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [sound]);
 
   useEffect(() => {
     if (!isFocused && sound) {

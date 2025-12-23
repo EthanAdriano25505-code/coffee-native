@@ -26,6 +26,7 @@ interface MiniPlayerProps {
   onPress: () => void;
   onPlayPause: () => void;
   onNext: () => void;
+  onPrev: () => void;
 }
 
 /**
@@ -39,6 +40,7 @@ export default function MiniPlayer({
   onPress,
   onPlayPause,
   onNext,
+  onPrev,
 }: MiniPlayerProps) {
   const { isDarkMode, colors } = useTheme();
   const pressScale = useSharedValue(1);
@@ -100,6 +102,11 @@ export default function MiniPlayer({
           {/* Like Button (Visual only for now) */}
           <Pressable style={styles.iconButton}>
             <Ionicons name="heart" size={24} color="#2F80ED" />
+          </Pressable>
+
+          {/* Previous Button */}
+          <Pressable onPress={(e) => { e.stopPropagation(); onPrev(); }} style={styles.iconButton}>
+            <Ionicons name="play-skip-back" size={24} color="#fff" />
           </Pressable>
 
           {/* Play/Pause Button */}

@@ -1,20 +1,25 @@
 import React, { createContext, useContext, useRef, useState, useEffect } from 'react';
 import { Audio } from 'expo-av';
 
-type Song = { id: string | number; title: string; artist?: string | null; uri?: { uri: string } | undefined; cover_url?: string | null };
+type Song = { id: string | number; title: string; artist?: string | null; uri?: { uri: string } | undefined; cover_url?: string | null; artwork?: string | null; url?: string };
 
 type PlaybackContextType = {
   currentSong: Song | null;
   isPlaying: boolean;
   positionMillis: number;
   durationMillis: number;
-  play: (song: Song) => Promise<void>;
+  playlist: Song[];
+  shuffleEnabled: boolean;
+  repeatMode: 'off' | 'all' | 'one';
+  play: (song: Song, newPlaylist?: Song[]) => Promise<void>;
   pause: () => Promise<void>;
   stop: () => Promise<void>;
   next: () => Promise<void>;
   prev: () => Promise<void>;
   seek: (positionMillis: number) => Promise<void>;
   togglePlay: (song?: Song) => Promise<void>;
+  toggleShuffle: () => void;
+  setRepeatMode: (mode: 'off' | 'all' | 'one') => void;
 };
 
 const PlaybackContext = createContext<PlaybackContextType | undefined>(undefined);
@@ -31,6 +36,8 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playlist, setPlaylist] = useState<Song[]>([]);
+  const [shuffleEnabled, setShuffleEnabled] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
   const [positionMillis, setPositionMillis] = useState<number>(0);
   const [durationMillis, setDurationMillis] = useState<number>(0);
 
@@ -94,10 +101,14 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const play = async (song: any) => {
+  const play = async (song: any, newPlaylist?: Song[]) => {
     const actionId = ++lastActionIdRef.current;
     // mark loading (do not reject new requests, latest actionId controls correctness)
     isLoadingRef.current = true;
+
+    if (newPlaylist) {
+      setPlaylist(newPlaylist);
+    }
 
     // Optimistic UI: reflect user's intent immediately
     setCurrentSong((prev: any) => ({ ...(prev ?? {}), ...song }));
@@ -107,7 +118,8 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Ensure any existing sound is stopped/unloaded before creating a new one
       await _stopAndUnloadCurrent();
 
-      if (!song?.uri) {
+      const uri = song.uri || (song.url ? { uri: song.url } : null);
+      if (!uri) {
         // nothing playable: only clear UI if this action is still the latest
         if (lastActionIdRef.current === actionId) {
           setCurrentSong(null);
@@ -119,7 +131,7 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       // create and play new sound
-      const created = await Audio.Sound.createAsync(song.uri, { shouldPlay: true });
+      const created = await Audio.Sound.createAsync(uri, { shouldPlay: true });
       const sound = (created as any).sound;
 
       // If a newer action arrived while we were creating the sound, unload & abandon
@@ -150,16 +162,11 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         // Always handle didJustFinish immediately
         if (s.didJustFinish) {
-          setPositionMillis( s.positionMillis ?? 0 );
-          setDurationMillis( s.durationMillis ?? 0 );
-          setIsPlaying(false);
-          try { sound.unloadAsync().catch(() => {}); } catch (e) {}
-          soundRef.current = null;
+          // We use a functional update or a ref to get the latest repeatMode
+          // But since this is a callback, it might have stale closure.
+          // Let's use a ref for repeatMode and playlist if needed, or just call a method that handles it.
+          handleSongFinished();
           return;
-        }
-
-        if (__DEV__) {
-          try { console.log('playback status update', { positionMillis: s.positionMillis, durationMillis: s.durationMillis, isPlaying: s.isPlaying, didJustFinish: s.didJustFinish }); } catch (e) {}
         }
 
         // Throttle frequent position updates to reduce re-renders
@@ -184,6 +191,27 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  // Use refs for values needed in callbacks to avoid stale closures
+  const repeatModeRef = useRef(repeatMode);
+  useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
+  
+  const playlistRef = useRef(playlist);
+  useEffect(() => { playlistRef.current = playlist; }, [playlist]);
+
+  const currentSongRef = useRef(currentSong);
+  useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
+
+  const handleSongFinished = () => {
+    if (repeatModeRef.current === 'one') {
+      if (soundRef.current) {
+        soundRef.current.setPositionAsync(0).then(() => soundRef.current?.playAsync());
+        setIsPlaying(true);
+      }
+    } else {
+      next();
+    }
+  };
+
   const pause = async () => {
     setIsPlaying(false); // optimistic
     if (soundRef.current) {
@@ -203,18 +231,59 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const next = async () => {
-    if (!currentSong || playlist.length === 0) return;
-    const idx = playlist.findIndex((s) => s.id === currentSong.id);
-    const nextSong = playlist[(idx + 1) % playlist.length];
+    const currentPlaylist = playlistRef.current;
+    const song = currentSongRef.current;
+    if (!song || currentPlaylist.length === 0) return;
+
+    let nextSong: Song;
+    if (shuffleEnabled) {
+      const randomIndex = Math.floor(Math.random() * currentPlaylist.length);
+      nextSong = currentPlaylist[randomIndex];
+    } else {
+      const idx = currentPlaylist.findIndex((s) => s.id === song.id);
+      if (idx === currentPlaylist.length - 1) {
+        if (repeatModeRef.current === 'all') {
+          nextSong = currentPlaylist[0];
+        } else {
+          // End of playlist
+          await stop();
+          return;
+        }
+      } else {
+        nextSong = currentPlaylist[idx + 1];
+      }
+    }
     if (nextSong) await play(nextSong);
   };
 
   const prev = async () => {
-    if (!currentSong || playlist.length === 0) return;
-    const idx = playlist.findIndex((s) => s.id === currentSong.id);
-    const prevSong = playlist[(idx - 1 + playlist.length) % playlist.length];
+    const currentPlaylist = playlistRef.current;
+    const song = currentSongRef.current;
+    if (!song || currentPlaylist.length === 0) return;
+
+    // If we're more than 3 seconds into the song, just restart it
+    if (positionMillis > 3000) {
+      await seek(0);
+      return;
+    }
+
+    let prevSong: Song;
+    const idx = currentPlaylist.findIndex((s) => s.id === song.id);
+    if (idx <= 0) {
+      if (repeatModeRef.current === 'all') {
+        prevSong = currentPlaylist[currentPlaylist.length - 1];
+      } else {
+        // Start of playlist, just restart first song
+        await seek(0);
+        return;
+      }
+    } else {
+      prevSong = currentPlaylist[idx - 1];
+    }
     if (prevSong) await play(prevSong);
   };
+
+  const toggleShuffle = () => setShuffleEnabled(!shuffleEnabled);
 
   const seek = async (position: number) => {
     if (soundRef.current) {
@@ -227,12 +296,24 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync().catch(() => {});
+      }
+    };
+  }, []);
+
   // Expose methods
   const value: PlaybackContextType = {
     currentSong,
     isPlaying,
     positionMillis,
     durationMillis,
+    playlist,
+    shuffleEnabled,
+    repeatMode,
     play,
     pause,
     stop,
@@ -240,6 +321,8 @@ export const PlaybackProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     prev,
     seek,
     togglePlay,
+    toggleShuffle,
+    setRepeatMode,
   };
 
   return <PlaybackContext.Provider value={value}>{children}</PlaybackContext.Provider>;

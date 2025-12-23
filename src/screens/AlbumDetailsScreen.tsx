@@ -80,6 +80,14 @@ const AlbumDetailsScreen: React.FC = () => {
   };
 
   const handlePlaySong = async (song: Song) => {
+    const playlist = songs.map(s => ({
+      id: s.id,
+      title: s.title,
+      artist: s.artist || 'Unknown Artist',
+      artwork: s.cover_url || cover_url || 'https://via.placeholder.com/300',
+      url: s.audio_url || '',
+    }));
+
     const track = {
       id: song.id,
       title: song.title,
@@ -87,7 +95,7 @@ const AlbumDetailsScreen: React.FC = () => {
       artwork: song.cover_url || cover_url || 'https://via.placeholder.com/300',
       url: song.audio_url || '',
     } as any;
-    await play(track);
+    await play(track, playlist);
   };
 
   const renderSongItem = ({ item, index }: { item: Song; index: number }) => (

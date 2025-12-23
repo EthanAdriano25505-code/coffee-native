@@ -62,12 +62,22 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
   const paramSong = route.params?.song;
   const navigation = useNavigation<PlayerScreenNavProp>();
   const insets = useSafeAreaInsets();
-  const { currentSong, isPlaying, positionMillis, durationMillis, play, next, prev, seek, togglePlay } = usePlayback();
+  const { 
+    currentSong, 
+    isPlaying, 
+    positionMillis, 
+    durationMillis, 
+    play, 
+    next, 
+    prev, 
+    seek, 
+    togglePlay,
+    shuffleEnabled,
+    toggleShuffle,
+    repeatMode,
+    setRepeatMode
+  } = usePlayback();
 
-  // Repeat mode state: 'off' | 'all' | 'one'
-  const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
-  // Shuffle state
-  const [shuffleEnabled, setShuffleEnabled] = useState(false);
   // Like state (for UI demo)
   const [isLiked, setIsLiked] = useState(false);
   // Download state
@@ -228,11 +238,9 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
   };
 
   const cycleRepeatMode = () => {
-    setRepeatMode((prev) => {
-      if (prev === 'off') return 'all';
-      if (prev === 'all') return 'one';
-      return 'off';
-    });
+    if (repeatMode === 'off') setRepeatMode('all');
+    else if (repeatMode === 'all') setRepeatMode('one');
+    else setRepeatMode('off');
   };
 
   const getRepeatIcon = () => {
@@ -357,7 +365,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
         <Animated.View entering={FadeInUp.duration(400).delay(400)} style={styles.controlsContainer}>
           {/* Shuffle */}
           <TouchableOpacity
-            onPress={() => setShuffleEnabled(!shuffleEnabled)}
+            onPress={toggleShuffle}
             style={styles.controlButton}
             accessibilityLabel={shuffleEnabled ? 'Disable shuffle' : 'Enable shuffle'}
             accessibilityRole="button"

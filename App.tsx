@@ -39,6 +39,7 @@ import { ThemeProvider } from './src/contexts/ThemeContext';
 import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
 import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from './src/navigation/AppNavigator';
+import GlobalMiniPlayer from './src/components/GlobalMiniPlayer';
 import { useState, useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { supabase } from './src/utils/supabase';
@@ -76,7 +77,10 @@ export default function App() {
       <PlaybackProvider>
         <SubscriptionProvider>
           <NavigationContainer>
-            <AppNavigator session={session} />
+            <View style={{ flex: 1 }}>
+              <AppNavigator session={session} />
+              <GlobalMiniPlayer />
+            </View>
           </NavigationContainer>
         </SubscriptionProvider>
       </PlaybackProvider>
