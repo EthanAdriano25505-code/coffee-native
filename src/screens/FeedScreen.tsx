@@ -17,6 +17,7 @@ import { Audio } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { usePlayback } from '../contexts/PlaybackContext';
 import { supabase } from '../utils/supabase';
 import { BlurView } from 'expo-blur';
 import { spacing, radii, sizes } from '../theme/designTokens';
@@ -314,6 +315,7 @@ const FeedItem = React.memo(({
 const FeedScreen = () => {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
+  const { pause: pauseGlobal } = usePlayback();
   const insets = useSafeAreaInsets();
   const { isDarkMode: isDark, colors, gradients } = useTheme();
   const [songs, setSongs] = useState<Song[]>([]);
@@ -374,6 +376,14 @@ const FeedScreen = () => {
       }
     };
   }, [sound]);
+
+  // Pause global playback (e.g. Home mini-player) when Feed becomes focused
+  useEffect(() => {
+    if (isFocused) {
+      // best-effort pause; ignore errors
+      pauseGlobal().catch(() => {});
+    }
+  }, [isFocused, pauseGlobal]);
 
   useEffect(() => {
     if (!isFocused && sound) {
