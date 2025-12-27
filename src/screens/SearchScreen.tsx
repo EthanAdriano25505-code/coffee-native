@@ -320,11 +320,11 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: spacing.md,
-    paddingBottom: spacing.xl * 3,
+    paddingBottom: 120,
   },
   resultsContent: {
     padding: spacing.md,
-    paddingBottom: spacing.xl * 3,
+    paddingBottom: 120,
   },
   sectionTitle: {
     fontSize: 22,

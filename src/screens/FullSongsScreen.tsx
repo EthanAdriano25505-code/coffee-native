@@ -15,6 +15,10 @@ import { supabase } from '../utils/supabase';
 import { useNavigation } from '@react-navigation/native';
 import AppBackground from '../components/AppBackground';
 import { useTheme } from '../contexts/ThemeContext';
+import SongCard from '../components/SongCard';
+import { usePlayback } from '../contexts/PlaybackContext';
+import { spacing, radii } from '../theme/designTokens';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Song = {
   id: string;
@@ -33,6 +37,7 @@ export default function FullSongsScreen({ embedded = false }: Props): JSX.Elemen
   console.log('FullSongsScreen loaded: src/screens/FullSongsScreen.tsx');
   const navigation = useNavigation<any>();
   const { isDarkMode, colors } = useTheme();
+  const { play } = usePlayback();
   
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -42,31 +47,12 @@ export default function FullSongsScreen({ embedded = false }: Props): JSX.Elemen
   const fetchFullSongs = useCallback(async () => {
     setError(null);
     try {
-      // Try with full column list (that should exist according to supabase table)
       const selectCols = 'id,title,artist,audio_url,cover_url,teaser_url,is_available,created_at,popularity';
       let { data, error } = await supabase
         .from('songs')
         .select(selectCols)
         .order('created_at', { ascending: false })
         .limit(embedded ? 6 : 1000);
-
-      // Debug log immediately so we can see the raw response
-      console.log('FullSongs fetch result (attempt 1):', { data, error });
-
-      // If column missing error (Postgres 42703 or message), retry with minimal safe select
-      const isMissingColumn = error && (error.code === '42703' || /column .* does not exist/i.test(error.message || ''));
-      if (isMissingColumn) {
-        const fallbackCols = 'id,title,created_at';
-        const retry = await supabase
-          .from('songs')
-          .select(fallbackCols)
-          .order('created_at', { ascending: false })
-          .limit(embedded ? 6 : 1000);
-        // Log the retry result
-        console.log('FullSongs fetch result (fallback):', retry);
-        data = retry.data as any;
-        error = retry.error;
-      }
 
       if (error) {
         const message = error.message || JSON.stringify(error);
@@ -86,21 +72,24 @@ export default function FullSongsScreen({ embedded = false }: Props): JSX.Elemen
 
   useEffect(() => { fetchFullSongs(); }, [fetchFullSongs]);
 
+  const handlePlay = (song: Song) => {
+    play(song, songs);
+  };
+
   const renderSongItem: ListRenderItem<Song> = ({ item }) => (
-    <View style={[styles.songItem, { backgroundColor: 'transparent', borderBottomColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#eee', borderBottomWidth: 1 }]}>
-      <Text style={[styles.songTitle, { color: colors.text }]}>{item.title}</Text>
-      <Text style={[styles.songArtist, { color: colors.textSecondary }]}>{item.artist}</Text>
+    <View style={{ marginBottom: spacing.sm }}>
+      <SongCard song={item} onPress={() => handlePlay(item)} />
     </View>
   );
 
   const content = (
     <View style={embedded ? styles.containerEmbedded : styles.container}>
       {!embedded && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-          <TouchableOpacity onPress={() => { if (navigation?.canGoBack && navigation.canGoBack()) navigation.goBack(); else navigation?.navigate?.('Home'); }} style={{ padding: 6, marginRight: 8 }}>
-            <Feather name="chevron-left" size={20} color={colors.text} />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Feather name="chevron-left" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>Songs</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Songs</Text>
         </View>
       )}
       
@@ -111,10 +100,15 @@ export default function FullSongsScreen({ embedded = false }: Props): JSX.Elemen
         </View>
       ) : error ? (
         <View style={styles.centered}>
-          <Text style={styles.errorTitle}>Error loading songs</Text>
-          <Text style={[styles.errorMessage, { color: colors.text }]}>{error}</Text>
+          <Text style={[styles.errorTitle, { color: colors.error }]}>Error loading songs</Text>
+          <Text style={[styles.errorMessage, { color: colors.textSecondary }]}>{error}</Text>
           <View style={{ marginTop: 12 }}>
-            <Button title="Retry" onPress={() => { setLoading(true); fetchFullSongs(); }} color={colors.primary} />
+            <TouchableOpacity 
+              style={[styles.retryButton, { backgroundColor: colors.primary }]}
+              onPress={() => { setLoading(true); fetchFullSongs(); }}
+            >
+              <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Retry</Text>
+            </TouchableOpacity>
           </View>
         </View>
       ) : (
@@ -122,11 +116,18 @@ export default function FullSongsScreen({ embedded = false }: Props): JSX.Elemen
           data={songs}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderSongItem}
+          contentContainerStyle={[
+            styles.listContent,
+            embedded && { padding: 0, paddingBottom: 0 }
+          ]}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchFullSongs(); }} tintColor={colors.text} />
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={() => { setRefreshing(true); fetchFullSongs(); }} 
+              tintColor={colors.primary} 
+            />
           }
           ListEmptyComponent={null}
-          contentContainerStyle={songs.length === 0 ? { flexGrow: 0 } : undefined}
           scrollEnabled={!embedded}
         />
       )}
@@ -139,19 +140,44 @@ export default function FullSongsScreen({ embedded = false }: Props): JSX.Elemen
 
   return (
     <AppBackground>
-      {content}
+      <SafeAreaView style={{ flex: 1 }}>
+        {content}
+      </SafeAreaView>
     </AppBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
+  container: { flex: 1 },
   containerEmbedded: { padding: 0, marginTop: 8, marginBottom: 8, flexShrink: 0 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+  },
+  backButton: {
+    padding: 4,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  listContent: {
+    padding: spacing.md,
+    paddingBottom: 100,
+  },
   songItem: { paddingVertical: 12, paddingHorizontal: 16 },
   songTitle: { fontSize: 16, fontWeight: '700' },
   songArtist: { fontSize: 13, marginTop: 4 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 200 },
-  errorTitle: { fontSize: 18, fontWeight: '700', color: '#b00020' },
-  errorMessage: { marginTop: 8 },
+  errorTitle: { fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  errorMessage: { textAlign: 'center', marginBottom: 20 },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: radii.normal,
+  },
 });
 

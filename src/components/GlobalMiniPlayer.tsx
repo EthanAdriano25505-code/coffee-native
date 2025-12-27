@@ -2,25 +2,17 @@ import React from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayback } from '../contexts/PlaybackContext';
-import { useNavigation, useNavigationState } from '@react-navigation/native';
 import MiniPlayer from './MiniPlayer';
 
 const { width } = Dimensions.get('window');
 
-const GlobalMiniPlayer: React.FC = () => {
+const GlobalMiniPlayer: React.FC<{ currentRouteName: string | null; navigationRef?: React.RefObject<any> }> = ({ currentRouteName, navigationRef }) => {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation<any>();
   const { currentSong, isPlaying, positionMillis, durationMillis, togglePlay, next, prev } = usePlayback();
 
-  // Get current route name to hide mini-player on specific screens
-  const routeName = useNavigationState((state) => {
-    if (!state) return null;
-    return state.routes[state.index].name;
-  });
-
   // Hide on Player screen, Feed screen, and Auth screens
-  const hiddenScreens = ['Player', 'Welcome', 'Login', 'SignUp'];
-  if (!currentSong || hiddenScreens.includes(routeName || '')) {
+  const hiddenScreens = ['Player', 'Feed', 'Welcome', 'Login', 'SignUp'];
+  if (!currentSong || hiddenScreens.includes(currentRouteName || '')) {
     return null;
   }
 
@@ -37,7 +29,10 @@ const GlobalMiniPlayer: React.FC = () => {
         isPlaying={isPlaying}
         progress={durationMillis ? positionMillis / durationMillis : 0}
         onPress={() => {
-          navigation.navigate('Player', { song: currentSong });
+          // prefer navigationRef if provided
+          if (navigationRef && navigationRef.current && typeof navigationRef.current.navigate === 'function') {
+            navigationRef.current.navigate('Player', { song: currentSong });
+          }
         }}
         onPlayPause={() => {
           togglePlay();

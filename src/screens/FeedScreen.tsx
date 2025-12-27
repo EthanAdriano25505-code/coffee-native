@@ -56,12 +56,14 @@ const FeedItem = React.memo(({
   item, 
   isActive, 
   isPlaying, 
+  isBuffering,
   progress,
   togglePlayback 
 }: { 
   item: Song; 
   isActive: boolean; 
   isPlaying: boolean; 
+  isBuffering: boolean;
   progress: ReturnType<typeof useSharedValue>;
   togglePlayback: () => void; 
 }) => {
@@ -75,7 +77,7 @@ const FeedItem = React.memo(({
   const [isLiked, setIsLiked] = useState(false);
 
   useEffect(() => {
-    if (isActive && isPlaying) {
+    if (isActive && isPlaying && !isBuffering) {
       rotation.value = withRepeat(
         withTiming(360, { duration: 8000, easing: Easing.linear }),
         -1,
@@ -84,7 +86,7 @@ const FeedItem = React.memo(({
     } else {
       cancelAnimation(rotation);
     }
-  }, [isActive, isPlaying]);
+  }, [isActive, isPlaying, isBuffering]);
 
   // Pulse animation for Buy Button
   useEffect(() => {
@@ -178,7 +180,15 @@ const FeedItem = React.memo(({
                <Ionicons name="heart" size={100} color="#FFF" />
              </Animated.View>
 
-             {!isPlaying && (
+             {/* Buffering Indicator */}
+             {isActive && isBuffering && (
+                <View style={[styles.playOverlay, { backgroundColor: 'transparent' }]}>
+                  <ActivityIndicator size="large" color="#FFF" />
+                </View>
+             )}
+
+             {/* Play Button */}
+             {!isPlaying && !isBuffering && (
                 <View style={styles.playOverlay}>
                   <Ionicons name="play" size={50} color="rgba(255,255,255,0.9)" />
                 </View>
@@ -322,8 +332,12 @@ const FeedScreen = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const currentIndexRef = useRef(0);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  
+  // Use a ref for the sound object to avoid closure staleness in callbacks
+  const soundRef = useRef<Audio.Sound | null>(null);
+  
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [loading, setLoading] = useState(true);
   const progress = useSharedValue(0);
   const lastRequestId = useRef(0);
@@ -369,14 +383,14 @@ const FeedScreen = () => {
     fetchFeed();
   }, []);
 
-  // Cleanup sound on unmount or blur
+  // Cleanup sound on unmount
   useEffect(() => {
     return () => {
-      if (sound) {
-        sound.unloadAsync();
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
       }
     };
-  }, [sound]);
+  }, []);
 
   // Pause global playback (e.g. Home mini-player) when Feed becomes focused
   useEffect(() => {
@@ -389,8 +403,8 @@ const FeedScreen = () => {
   // Handle AppState changes (pause when backgrounded)
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
-      if (nextAppState !== 'active' && sound) {
-        sound.pauseAsync().catch(() => {});
+      if (nextAppState !== 'active' && soundRef.current) {
+        soundRef.current.pauseAsync().catch(() => {});
         setIsPlaying(false);
       }
     });
@@ -398,14 +412,14 @@ const FeedScreen = () => {
     return () => {
       subscription.remove();
     };
-  }, [sound]);
+  }, []);
 
   useEffect(() => {
-    if (!isFocused && sound) {
-      sound.pauseAsync();
+    if (!isFocused && soundRef.current) {
+      soundRef.current.pauseAsync();
       setIsPlaying(false);
     }
-  }, [isFocused, sound]);
+  }, [isFocused]);
 
   // Play current song
   const playSong = async (index: number) => {
@@ -414,45 +428,67 @@ const FeedScreen = () => {
     const requestId = ++lastRequestId.current;
     
     try {
-      // 1. Immediate cleanup of previous sound (don't await unload to keep it snappy)
-      if (sound) {
-        const oldSound = sound;
-        setSound(null);
-        oldSound.stopAsync().then(() => oldSound.unloadAsync()).catch(() => {});
+      setIsBuffering(true);
+      
+      // 1. Cleanup previous sound
+      const previousSound = soundRef.current;
+      soundRef.current = null; // Detach immediately
+      
+      if (previousSound) {
+        // Fire and forget cleanup to speed up next load
+        previousSound.unloadAsync().catch(err => console.warn('Unload error:', err));
       }
 
       const song = songs[index];
-      const uri = song.teaser_url || song.audio_url;
+      let uri = song.teaser_url || song.audio_url;
       
-      if (!uri) return;
+      if (!uri) {
+        setIsBuffering(false);
+        setIsPlaying(false);
+        return;
+      }
+
+      // FIX: Encode URI to prevent 400 Bad Request on Android for URLs with spaces
+      if (uri.includes(' ')) {
+        uri = uri.replace(/ /g, '%20');
+      }
 
       // 2. Load new sound
-      const { sound: newSound } = await Audio.Sound.createAsync(
+      const { sound: newSound, status } = await Audio.Sound.createAsync(
         { uri },
         { shouldPlay: true, isLooping: true, progressUpdateIntervalMillis: 100 },
-        onPlaybackStatusUpdate
+        (status) => {
+          if (status.isLoaded) {
+            setIsBuffering(status.isBuffering);
+            if (status.durationMillis) {
+              progress.value = status.positionMillis / status.durationMillis;
+            }
+          } else if (status.error) {
+             console.warn('Playback status error:', status.error);
+          }
+        }
       );
 
-      // 3. Check if this is still the latest request before setting state
+      // 3. Check if this is still the latest request
       if (requestId === lastRequestId.current) {
-        setSound(newSound);
+        soundRef.current = newSound;
         setIsPlaying(true);
-        progress.value = 0;
+        setIsBuffering(false);
+        
+        // Ensure playback started
+        if (status.isLoaded && !status.isPlaying) {
+            await newSound.playAsync();
+        }
       } else {
         // If user scrolled away while loading, clean up this sound
-        newSound.unloadAsync().catch(() => {});
+        await newSound.unloadAsync();
       }
     } catch (error) {
       if (requestId === lastRequestId.current) {
         console.warn('Error playing sound:', error);
         setIsPlaying(false);
+        setIsBuffering(false);
       }
-    }
-  };
-
-  const onPlaybackStatusUpdate = (status: any) => {
-    if (status.isLoaded && status.durationMillis) {
-      progress.value = status.positionMillis / status.durationMillis;
     }
   };
 
@@ -461,16 +497,16 @@ const FeedScreen = () => {
     if (viewableItems.length > 0) {
       const index = viewableItems[0].index;
       if (index !== null && index !== undefined && index !== currentIndexRef.current) {
+        // Stop current sound immediately via ref to prevent overlap
+        if (soundRef.current) {
+          soundRef.current.stopAsync().catch(() => {});
+        }
+        
         setCurrentIndex(index);
         currentIndexRef.current = index;
         
-        // Cancel any pending loads immediately
+        // Cancel any pending loads logic is handled in playSong via requestId
         lastRequestId.current++;
-        
-        // Stop current sound immediately for instant silence on scroll
-        if (sound) {
-          sound.stopAsync().catch(() => {});
-        }
       }
     }
   }).current;
@@ -482,12 +518,12 @@ const FeedScreen = () => {
   }, [currentIndex, songs]);
 
   const togglePlayback = async () => {
-    if (!sound) return;
+    if (!soundRef.current) return;
     if (isPlaying) {
-      await sound.pauseAsync();
+      await soundRef.current.pauseAsync();
       setIsPlaying(false);
     } else {
-      await sound.playAsync();
+      await soundRef.current.playAsync();
       setIsPlaying(true);
     }
   };
@@ -498,13 +534,12 @@ const FeedScreen = () => {
         item={item} 
         isActive={index === currentIndex}
         isPlaying={isPlaying}
+        isBuffering={index === currentIndex && isBuffering}
         progress={progress}
         togglePlayback={togglePlayback}
       />
     );
-  }, [currentIndex, isPlaying, togglePlayback]);
-
-
+  }, [currentIndex, isPlaying, isBuffering, togglePlayback]);
 
   if (loading) {
     return (

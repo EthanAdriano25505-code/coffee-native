@@ -38,10 +38,13 @@ import { PlaybackProvider } from './src/contexts/PlaybackContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { SubscriptionProvider } from './src/contexts/SubscriptionContext';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import AppNavigator from './src/navigation/AppNavigator';
 import GlobalMiniPlayer from './src/components/GlobalMiniPlayer';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './src/utils/supabase';
 import { Session } from '@supabase/supabase-js';
 
@@ -50,19 +53,60 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsLoading(false);
-    });
+    let mounted = true;
+    (async () => {
+      try {
+        // Try restoring persisted session first (faster for immediate routing)
+        const stored = await AsyncStorage.getItem('sb_session');
+        if (stored && mounted) {
+          try {
+            const parsed = JSON.parse(stored);
+            setSession(parsed);
+          } catch (e) {
+            // ignore parse errors and fall back to supabase
+          }
+        }
+
+        // Also ask Supabase for the canonical session (keeps server / client in sync)
+        const { data } = await supabase.auth.getSession();
+        if (mounted) {
+          setSession(data.session ?? null);
+        }
+      } catch (e) {
+        // ignore
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    })();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Keep in-memory state
       setSession(session);
+
+      // Persist or remove session in storage so next app cold start can restore immediately
+      (async () => {
+        try {
+          if (session) {
+            await AsyncStorage.setItem('sb_session', JSON.stringify(session));
+          } else {
+            await AsyncStorage.removeItem('sb_session');
+          }
+        } catch (err) {
+          // ignore storage errors
+        }
+      })();
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      mounted = false;
+    };
   }, []);
+
+  const navigationRef = useRef<any>(null);
+  const [currentRouteName, setCurrentRouteName] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -73,17 +117,28 @@ export default function App() {
   }
 
   return (
-    <ThemeProvider>
-      <PlaybackProvider>
+    <SafeAreaProvider>
+      <StatusBar style="light" />
+      <ThemeProvider>
+        <PlaybackProvider>
         <SubscriptionProvider>
-          <NavigationContainer>
+          <NavigationContainer
+            ref={navigationRef}
+            onReady={() => {
+              setCurrentRouteName(navigationRef.current?.getCurrentRoute()?.name ?? null);
+            }}
+            onStateChange={() => {
+              setCurrentRouteName(navigationRef.current?.getCurrentRoute()?.name ?? null);
+            }}
+          >
             <View style={{ flex: 1 }}>
               <AppNavigator session={session} />
-              <GlobalMiniPlayer />
+              <GlobalMiniPlayer currentRouteName={currentRouteName} navigationRef={navigationRef} />
             </View>
           </NavigationContainer>
         </SubscriptionProvider>
       </PlaybackProvider>
     </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

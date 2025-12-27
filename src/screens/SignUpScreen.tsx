@@ -21,7 +21,7 @@ import { RootStackParamList } from '../navigation/types';
 import { spacing } from '../theme/designTokens';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../utils/supabase';
-import AppBackground from '../components/AppBackground';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type SignUpScreenProp = NativeStackNavigationProp<RootStackParamList, 'SignUp'>;
 
@@ -41,17 +41,28 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      const res = await supabase.auth.signUp({
         email,
         password,
       });
 
+      const { data, error } = res;
+
       if (error) {
         Alert.alert('Sign Up Failed', error.message);
       } else {
+        // If signUp returned a session (depends on Supabase settings), persist it
+        try {
+          if ((data as any)?.session) {
+            await AsyncStorage.setItem('sb_session', JSON.stringify((data as any).session));
+          }
+        } catch (e) {
+          // ignore storage errors
+        }
+
         Alert.alert(
           'Success',
-          'Account created! Please check your email for verification.',
+          'Account created! Please check your email for verification. You will be kept signed in until you sign out.',
           [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
         );
       }
@@ -64,8 +75,14 @@ export default function SignUpScreen() {
   };
 
   return (
-    <AppBackground>
+    <View style={styles.container}>
       <StatusBar style="light" />
+      <LinearGradient
+        colors={["#0f172a", "#000000"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -81,7 +98,8 @@ export default function SignUpScreen() {
               >
                 <Ionicons name="chevron-back" size={24} color="#fff" />
               </TouchableOpacity>
-              <Text style={styles.title}>Create Account</Text>
+              <Text style={styles.title}>SIGN UP</Text>
+              <Text style={styles.subtitle}>Never Lost. Discover New Music.</Text>
             </View>
 
             {/* Form */}
@@ -163,7 +181,7 @@ export default function SignUpScreen() {
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-    </AppBackground>
+    </View>
   );
 }
 
@@ -180,20 +198,31 @@ const styles = StyleSheet.create({
   header: {
     marginTop: 60,
     marginBottom: 20,
+    alignItems: 'center',
   },
   backButton: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.lg,
+    zIndex: 1,
   },
   title: {
     fontSize: 32,
     fontWeight: '800',
     color: '#fff',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#9AA7BF',
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
   form: {
     flex: 1,
@@ -238,12 +267,12 @@ const styles = StyleSheet.create({
   },
   signupButton: {
     height: 56,
-    backgroundColor: '#2F80ED', // Green for signup in reference, but keeping Blue for brand consistency
+    backgroundColor: '#1DB954', // Spotify Green
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing.md,
-    shadowColor: '#2F80ED',
+    shadowColor: '#1DB954',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,

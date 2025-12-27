@@ -133,6 +133,13 @@ export default function ProfileScreen() {
             try {
               const { error } = await supabase.auth.signOut();
               if (error) throw error;
+              // Reset navigation to the auth stack so user lands on Login immediately
+              try {
+                navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+              } catch (e) {
+                // fallback: navigate to Welcome/Login if reset fails
+                navigation.navigate('Login');
+              }
               Alert.alert('Signed out', 'You have been signed out.');
             } catch (err) {
               if (err instanceof Error) {
@@ -400,6 +407,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+    paddingBottom: 120,
     gap: spacing.lg,
   },
   header: {

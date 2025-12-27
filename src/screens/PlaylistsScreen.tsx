@@ -73,15 +73,35 @@ export default function PlaylistsScreen() {
   }, []);
 
   const fetchPlaylists = async () => {
-    // TODO: Fetch user playlists from Supabase
-    // const { data, error } = await supabase.from('playlists').select('*');
-    // if (data) setUserPlaylists(data);
-    
-    // Mock user playlists
-    setUserPlaylists([
-      { id: '1', title: 'My Favorites', count: 24, type: 'custom', cover: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?w=800&q=80' },
-      { id: '2', title: 'Workout Mix', count: 15, type: 'custom', cover: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80' },
-    ]);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('playlists')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching playlists:', error);
+        Alert.alert('Error', 'Failed to load playlists');
+      } else if (data) {
+        // Map Supabase data to Playlist type
+        const mappedPlaylists: Playlist[] = data.map(p => ({
+          id: p.id,
+          title: p.title,
+          type: 'custom',
+          count: 0, // We'll need to fetch counts separately or use a join/view
+          cover: p.cover_url,
+        }));
+        
+        // Only set user playlists, as DEFAULT_PLAYLISTS are added in FlatList
+        setUserPlaylists(mappedPlaylists);
+      }
+    } catch (err) {
+      console.error('Exception fetching playlists:', err);
+    }
   };
 
   const handleCreatePlaylist = () => {
@@ -89,24 +109,46 @@ export default function PlaylistsScreen() {
     setModalVisible(true);
   };
 
-  const confirmCreatePlaylist = () => {
+  const confirmCreatePlaylist = async () => {
     if (!newPlaylistName.trim()) {
       Alert.alert('Error', 'Please enter a playlist name');
       return;
     }
 
-    // TODO: Create playlist in Supabase
-    const newPlaylist: Playlist = {
-      id: Date.now().toString(),
-      title: newPlaylistName.trim(),
-      count: 0,
-      type: 'custom',
-      cover:
-        'https://via.placeholder.com/300/2F80ED/FFFFFF?text=' +
-        newPlaylistName.trim().charAt(0).toUpperCase(),
-    };
-    setUserPlaylists((prev) => [...prev, newPlaylist]);
-    setModalVisible(false);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'You must be logged in to create a playlist');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('playlists')
+        .insert({
+          title: newPlaylistName.trim(),
+          user_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating playlist:', error);
+        Alert.alert('Error', 'Failed to create playlist');
+      } else if (data) {
+        const newPlaylist: Playlist = {
+          id: data.id,
+          title: data.title,
+          type: 'custom',
+          count: 0,
+          cover: data.cover_url,
+        };
+        setUserPlaylists(prev => [...prev, newPlaylist]);
+        setModalVisible(false);
+      }
+    } catch (err) {
+      console.error('Exception creating playlist:', err);
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
   };
 
   const renderItem: ListRenderItem<Playlist> = useCallback(({ item }) => {
@@ -288,7 +330,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: 100,
   },
   sectionTitle: {
     fontSize: 18,

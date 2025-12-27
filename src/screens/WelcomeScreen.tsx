@@ -30,7 +30,7 @@ export default function WelcomeScreen() {
             <Text style={styles.logoText}>S</Text>
           </View>
           <Text style={styles.title}>Ta'ang Music App</Text>
-          <Text style={styles.subtitle}>မင်္ဂလာပါ</Text>
+          <Text style={styles.subtitle}>Never Lost. Discover New Music.</Text>
         </View>
 
         <View style={styles.footer}>
@@ -119,8 +119,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonPrimary: {
-    backgroundColor: '#2F80ED', // App Primary Blue
-    shadowColor: '#2F80ED',
+    backgroundColor: '#1DB954', // Spotify Green
+    shadowColor: '#1DB954',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,

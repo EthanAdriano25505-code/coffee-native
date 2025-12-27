@@ -6,7 +6,6 @@ import { Session } from '@supabase/supabase-js';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 import HomeScreen from '../screens/HomeScreen';
-import MusicDetail from '../screens/MusicDetail';
 import FullSongsScreen from '../screens/FullSongsScreen';
 import PlayerScreen from '../screens/PlayerScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -33,7 +32,6 @@ export default function AppNavigator({ session }: { session: Session | null }) {
         // Authenticated Stack
         <>
           <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="MusicDetail" component={MusicDetail} />
           <Stack.Screen name="FullSongs" component={FullSongsScreen} />
           <Stack.Screen name="Player" component={PlayerScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />

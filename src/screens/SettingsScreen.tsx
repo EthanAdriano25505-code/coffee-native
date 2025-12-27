@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { getColors, spacing } from '../theme/designTokens';
+import { supabase } from '../utils/supabase';
 import { useTheme, ThemePreference } from '../contexts/ThemeContext';
 import AppBackground from '../components/AppBackground';
 
@@ -52,8 +53,32 @@ export default function SettingsScreen() {
   };
 
   const signOut = () => {
-    // Placeholder for sign-out flow. Integrate with your auth state/provider.
-    Alert.alert('Signed out', 'You have been signed out (placeholder).');
+    Alert.alert(
+      'Sign out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase.auth.signOut();
+              if (error) throw error;
+              try {
+                navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+              } catch (e) {
+                navigation.navigate('Login');
+              }
+              Alert.alert('Signed out', 'You have been signed out.');
+            } catch (err) {
+              if (err instanceof Error) Alert.alert('Error', err.message);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   return (
@@ -236,6 +261,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+    paddingBottom: 120,
     gap: spacing.md,
   },
   header: {

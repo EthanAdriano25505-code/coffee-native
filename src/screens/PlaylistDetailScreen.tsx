@@ -84,30 +84,51 @@ export default function PlaylistDetailScreen() {
   };
 
   const fetchSongs = async () => {
-    // TODO: Fetch real data from Supabase based on playlistId/type
     let filteredSongs: Song[] = [];
     if (type === 'purchased') {
       filteredSongs = MOCK_SONGS.filter(s => s.is_purchased);
+      setSongs(filteredSongs);
     } else if (type === 'downloaded') {
       const downloaded = await DownloadService.getDownloadedSongs();
       filteredSongs = downloaded.map(s => ({
         ...s,
         is_available: true
       })) as Song[];
-    } else {
-      // Custom playlist - just show all non-special songs for demo
-      // For a new empty playlist, this might be empty initially
-      // But for demo purposes, let's start with empty if it's a new custom playlist
-      // or some random ones if it's "My Favorites" (mocked in PlaylistsScreen)
-      if (title === 'My Favorites') {
-         filteredSongs = MOCK_SONGS.slice(0, 3);
-      } else if (title === 'Workout Mix') {
-         filteredSongs = MOCK_SONGS.slice(2, 4);
-      } else {
-         filteredSongs = [];
+      setSongs(filteredSongs);
+    } else if (type === 'custom') {
+      try {
+        const { data, error } = await supabase
+          .from('playlist_songs')
+          .select(`
+            song_id,
+            songs:song_id (
+              id,
+              title,
+              artist,
+              cover_url,
+              audio_url,
+              teaser_url,
+              is_available,
+              created_at,
+              popularity
+            )
+          `)
+          .eq('playlist_id', playlistId)
+          .order('added_at', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching playlist songs:', error);
+        } else if (data) {
+          // Map the joined data to Song type
+          const mappedSongs = data.map((item: any) => item.songs).filter((s: any) => s !== null);
+          setSongs(mappedSongs);
+        }
+      } catch (err) {
+        console.error('Exception fetching playlist songs:', err);
       }
+    } else {
+      setSongs([]);
     }
-    setSongs(filteredSongs);
   };
 
   const handlePlaySong = (song: Song, index: number) => {
@@ -134,11 +155,33 @@ export default function PlaylistDetailScreen() {
     setAddModalVisible(true);
   };
 
-  const addSongToPlaylist = (song: Song) => {
+  const addSongToPlaylist = async (song: Song) => {
     if (songs.find(s => s.id === song.id)) {
       Alert.alert('Already added', 'This song is already in the playlist');
       return;
     }
+
+    if (type === 'custom') {
+      try {
+        const { error } = await supabase
+          .from('playlist_songs')
+          .insert({
+            playlist_id: playlistId,
+            song_id: song.id
+          });
+
+        if (error) {
+          console.error('Error adding song to playlist:', error);
+          Alert.alert('Error', 'Failed to add song to playlist');
+          return;
+        }
+      } catch (err) {
+        console.error('Exception adding song:', err);
+        Alert.alert('Error', 'An unexpected error occurred');
+        return;
+      }
+    }
+
     setSongs(prev => [...prev, song]);
     setAddModalVisible(false);
   };
@@ -159,6 +202,23 @@ export default function PlaylistDetailScreen() {
             if (isDownloadedType) {
               await DownloadService.removeSong(songId);
               fetchSongs();
+            } else if (type === 'custom') {
+              try {
+                const { error } = await supabase
+                  .from('playlist_songs')
+                  .delete()
+                  .eq('playlist_id', playlistId)
+                  .eq('song_id', songId);
+                
+                if (error) {
+                  console.error('Error removing song:', error);
+                  Alert.alert('Error', 'Failed to remove song');
+                } else {
+                  setSongs(prev => prev.filter(s => s.id !== songId));
+                }
+              } catch (err) {
+                console.error('Exception removing song:', err);
+              }
             } else {
               setSongs(prev => prev.filter(s => s.id !== songId));
             }
@@ -301,7 +361,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: 100,
     paddingTop: spacing.sm,
   },
   emptyContainer: {

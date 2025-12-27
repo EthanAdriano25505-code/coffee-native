@@ -21,7 +21,7 @@ import { RootStackParamList } from '../navigation/types';
 import { spacing, radii } from '../theme/designTokens';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../utils/supabase';
-import AppBackground from '../components/AppBackground';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type LoginScreenProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -40,10 +40,12 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const res = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
+      const { data, error } = res;
 
       if (error) {
         if (error.message.includes('Email not confirmed')) {
@@ -52,8 +54,15 @@ export default function LoginScreen() {
           Alert.alert('Login Failed', error.message);
         }
       } else {
-        // Navigation will be handled by the auth state listener in App.tsx
-        // But we can also manually navigate if needed, though listener is better.
+        // Persist session for fast restore on next cold start
+        try {
+          if (data?.session) {
+            await AsyncStorage.setItem('sb_session', JSON.stringify(data.session));
+          }
+        } catch (e) {
+          // ignore storage errors
+        }
+        // auth state listener in App.tsx will handle navigation
       }
     } catch (err) {
       Alert.alert('Error', 'An unexpected error occurred.');
@@ -64,8 +73,14 @@ export default function LoginScreen() {
   };
 
   return (
-    <AppBackground>
+    <View style={styles.container}>
       <StatusBar style="light" />
+      <LinearGradient
+        colors={["#0f172a", "#000000"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -76,12 +91,17 @@ export default function LoginScreen() {
             {/* Header */}
             <View style={styles.header}>
               <TouchableOpacity
-                onPress={() => navigation.goBack()}
+                onPress={() =>
+                  navigation.canGoBack()
+                    ? navigation.goBack()
+                    : navigation.navigate('Welcome')
+                }
                 style={styles.backButton}
               >
                 <Ionicons name="chevron-back" size={24} color="#fff" />
               </TouchableOpacity>
-              <Text style={styles.title}>Log In</Text>
+              <Text style={styles.title}>LOG IN</Text>
+              <Text style={styles.subtitle}>Never Lost. Discover New Music.</Text>
             </View>
 
             {/* Form */}
@@ -154,7 +174,7 @@ export default function LoginScreen() {
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
-    </AppBackground>
+    </View>
   );
 }
 
@@ -171,20 +191,31 @@ const styles = StyleSheet.create({
   header: {
     marginTop: 60,
     marginBottom: 40,
+    alignItems: 'center',
   },
   backButton: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.lg,
+    zIndex: 1,
   },
   title: {
     fontSize: 32,
     fontWeight: '800',
     color: '#fff',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#9AA7BF',
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
   form: {
     flex: 1,
@@ -229,12 +260,12 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     height: 56,
-    backgroundColor: '#2F80ED',
+    backgroundColor: '#1DB954', // Spotify Green
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing.md,
-    shadowColor: '#2F80ED',
+    shadowColor: '#1DB954',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,

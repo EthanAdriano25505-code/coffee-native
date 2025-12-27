@@ -22,6 +22,7 @@ import { usePlayback } from '../contexts/PlaybackContext';
 import { spacing, radii, tokens } from '../theme/designTokens';
 import type { RootStackParamList } from '../navigation/types';
 import RemoteImage from '../components/RemoteImage';
+import AppBackground from '../components/AppBackground';
 
 const { width } = Dimensions.get('window');
 
@@ -165,21 +166,24 @@ const ArtistDetailsScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <StatusBar barStyle="light-content" />
-        <ActivityIndicator size="large" color="#00E5FF" />
-      </View>
+      <AppBackground>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <StatusBar barStyle="light-content" />
+          <ActivityIndicator size="large" color="#2F80ED" />
+        </View>
+      </AppBackground>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      
-      <ScrollView 
-        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
-        showsVerticalScrollIndicator={false}
-      >
+    <AppBackground>
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        
+        <ScrollView 
+          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+          showsVerticalScrollIndicator={false}
+        >
         {/* Header */}
         <View style={styles.header}>
             <ImageBackground
@@ -250,13 +254,14 @@ const ArtistDetailsScreen: React.FC = () => {
 
       </ScrollView>
     </View>
+    </AppBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: 'transparent',
   },
   header: {
     height: 400,

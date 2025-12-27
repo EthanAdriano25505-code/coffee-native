@@ -170,6 +170,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+    paddingBottom: 120,
     gap: spacing.md,
   },
   header: {
