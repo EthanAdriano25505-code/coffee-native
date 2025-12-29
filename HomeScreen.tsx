@@ -13,6 +13,7 @@ import {
   Image,
   Pressable,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation';
@@ -46,6 +47,9 @@ const HomeScreen: React.FC = () => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const insets = useSafeAreaInsets();
+
+  // icon color that respects dark mode
+  const iconColor = isDark ? '#ddd' : '#444';
 
   const { currentSong: ctxSong, isPlaying: ctxPlaying, positionMillis, durationMillis, play, pause, next, prev, togglePlay } = usePlayback();
   
@@ -203,10 +207,35 @@ const HomeScreen: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Music</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconButton}><Text style={styles.iconText}>⚙️</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}><Text style={styles.iconText}>🔍</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.profileButton}><Text style={styles.profileInitials}>JD</Text></TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => { /* placeholder: open settings */ }}
+              accessibilityLabel="Open settings"
+              accessible
+            >
+              <Feather name="settings" size={20} color={iconColor} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => { /* placeholder: search */ }}
+              accessibilityLabel="Search songs"
+              accessible
+            >
+              <Feather name="search" size={20} color={iconColor} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.avatarButton, styles.iconButton]}
+              onPress={() => { /* placeholder: open profile */ }}
+              accessibilityLabel="Open profile"
+              accessible
+            >
+              <View style={[styles.avatarCircle, isDark ? styles.avatarCircleDark : null]}>
+                <Text style={[styles.avatarInitials, isDark ? styles.avatarInitialsDark : null]}>JD</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
       </View>
 
       <FlatList
@@ -263,10 +292,11 @@ const HomeScreen: React.FC = () => {
 
             {/* keep player controls functional; tapping these should not navigate */}
             <View style={styles.playerControls}>
-              <TouchableOpacity onPress={(e) => { e?.stopPropagation?.(); prev(); }} style={styles.controlBtn}>
+              <TouchableOpacity onPress={(e) => { e?.stopPropagation?.(); prev(); }} style={styles.controlBtn} accessibilityLabel="Previous">
                 <Text style={styles.controlText}>⏮</Text>
               </TouchableOpacity>
 
+              {/* Play/Pause FAB - stopPropagation preserved so parent Pressable doesn't navigate */}
               <TouchableOpacity
                 onPress={(e) => {
                   e?.stopPropagation?.();
@@ -275,12 +305,15 @@ const HomeScreen: React.FC = () => {
                   // call context toggle quickly (do not await)
                   togglePlay();
                 }}
-                style={[styles.controlBtn, styles.playControl]}
+                style={styles.playFab}
+                activeOpacity={0.9}
+                accessibilityLabel="Play or pause"
+                accessible
               >
-                <Text style={styles.controlText}>{isPlaying ? '⏸' : '▶️'}</Text>
+                <Feather name={isPlaying ? 'pause' : 'play'} size={26} color="#fff" />
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={(e) => { e?.stopPropagation?.(); next(); }} style={styles.controlBtn}>
+              <TouchableOpacity onPress={(e) => { e?.stopPropagation?.(); next(); }} style={styles.controlBtn} accessibilityLabel="Next">
                 <Text style={styles.controlText}>⏭</Text>
               </TouchableOpacity>
             </View>
@@ -309,8 +342,33 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: isLargeScreen ? 30 : 24, fontWeight: '800', letterSpacing: 0.5 },
   headerActions: { flexDirection: 'row', alignItems: 'center' },
-  iconButton: { paddingHorizontal: 8, paddingVertical: 6, marginLeft: 8 },
+  // updated icon button: ensure minimum hit area and consistent padding
+  iconButton: { padding: 8, marginLeft: 8, minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   iconText: { fontSize: 18 },
+  // avatar styles
+  avatarButton: { marginLeft: 12 },
+  avatarCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  avatarCircleDark: {
+    backgroundColor: '#121212',
+    borderColor: 'rgba(255,255,255,0.06)'
+  },
+  avatarInitials: { fontSize: 12, fontWeight: '700', color: '#111' },
+  avatarInitialsDark: { color: '#fff' },
+  // keep legacy profile styles (not used now)
   profileButton: { marginLeft: 10, width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   profileInitials: { fontSize: 12, fontWeight: '700', color: '#111' },
 
@@ -367,6 +425,21 @@ const styles = StyleSheet.create({
   controlBtn: { paddingHorizontal: 8 },
   playControl: { backgroundColor: '#fff', borderRadius: 24, padding: 8, marginHorizontal: 6 },
   controlText: { fontSize: 18, color: '#111' },
+  // Play FAB for mini-player
+  playFab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#2f6dfd',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+    marginHorizontal: 6,
+  },
   progressContainer: { height: 4, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 2, overflow: 'hidden', marginTop: 8, alignSelf: 'stretch', },
   progressFill: { height: '100%', backgroundColor: '#2f6dfd', borderRadius: 2, width: '0%', },
 });
