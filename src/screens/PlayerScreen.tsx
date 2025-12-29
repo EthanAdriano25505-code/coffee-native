@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,14 +26,13 @@ import { usePlayback } from '../contexts/PlaybackContext';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { DownloadService, DownloadedSong } from '../services/DownloadService';
 
 // Glass UI Components
 import AppBackground from '../components/AppBackground';
 import GlassCard from '../components/GlassCard';
 import PlayButton from '../components/PlayButton';
-import Waveform from '../components/Waveform';
 import ProgressBar from '../components/ProgressBar';
 
 // Design tokens
@@ -56,7 +55,7 @@ interface PlayerScreenProps {
 
 /**
  * PlayerScreen - Full player with liquid glass UI design
- * Features gradient background, glass cards, animated play button, and waveform visualization
+ * Features gradient background, glass cards, and animated play button
  */
 export default function PlayerScreen({ route }: PlayerScreenProps) {
   const paramSong = route.params?.song;
@@ -94,7 +93,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
     }
   }, [song?.id]);
 
-  const handleDownload = async () => {
+  const handleDownload = useCallback(async () => {
     if (!song || isDownloaded || isDownloading) return;
 
     setIsDownloading(true);
@@ -127,7 +126,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
     setIsDownloading(false);
     setIsDownloaded(true);
     setDownloadProgress(0);
-  };
+  }, [song, isDownloaded, isDownloading]);
 
   if (!song) {
     return (
@@ -211,7 +210,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
     transform: [{ translateY: floatY.value }],
   }));
 
-  const onValueChange = (v: number) => {
+  const onValueChange = useCallback((v: number) => {
     setIsSeeking(true);
     // drive shared value (0..1) for smooth visuals without rerender
     if (durationMillis && durationMillis > 0) {
@@ -223,9 +222,9 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
       setDisplayPos(v);
       lastUpdateRef.current = now;
     }
-  };
+  }, [durationMillis, progressShared]);
 
-  const onSlidingComplete = async (value: number) => {
+  const onSlidingComplete = useCallback(async (value: number) => {
     setIsSeeking(false);
     if (seek) {
       await seek(value);
@@ -235,13 +234,23 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
       progressShared.value = (value || 0) / durationMillis;
     }
     setDisplayPos(value);
-  };
+  }, [seek, durationMillis, progressShared]);
 
-  const cycleRepeatMode = () => {
+  const cycleRepeatMode = useCallback(() => {
     if (repeatMode === 'off') setRepeatMode('all');
     else if (repeatMode === 'all') setRepeatMode('one');
     else setRepeatMode('off');
-  };
+  }, [repeatMode, setRepeatMode]);
+
+  const handleTogglePlay = useCallback(async () => {
+    try {
+      if (__DEV__) console.log('PlayerScreen: PlayButton pressed, calling togglePlay()');
+      await togglePlay();
+      if (__DEV__) console.log('PlayerScreen: togglePlay() returned');
+    } catch (e) {
+      console.warn('PlayerScreen: togglePlay() error', e);
+    }
+  }, [togglePlay]);
 
   const getRepeatIcon = () => {
     switch (repeatMode) {
@@ -254,12 +263,12 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
     }
   };
 
-  // Calculate progress for waveform
-  const progress = durationMillis ? displayPos / durationMillis : 0;
-
-  // Calculate cover size based on screen dimensions
-  // Increased size for better visual impact, removed extra padding calculation
-  const COVER_SIZE = Math.min(width - spacing.xl * 2, 350);
+  // Memoized computed values to avoid recalculation on every render
+  const sliderMax = useMemo(() => durationMillis || 1, [durationMillis]);
+  const progressProp = useMemo(() => (durationMillis ? displayPos / durationMillis : 0), [displayPos, durationMillis]);
+  const contentWidth = useMemo(() => width - spacing.xl * 2, [width, spacing.xl]);
+  // Calculate cover size based on screen dimensions (memoized)
+  const COVER_SIZE = useMemo(() => Math.min(contentWidth, 350), [contentWidth]);
 
   return (
     <AppBackground>
@@ -321,32 +330,23 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
           </Text>
         </Animated.View>
 
-        {/* Waveform Visualization */}
-        <Animated.View entering={FadeInDown.duration(400).delay(300)} style={styles.waveformContainer}>
-          <Waveform
-            progress={0}
-            progressValue={progressShared}
-            width={width - spacing.xl * 2}
-            height={50}
-            isPlaying={isPlaying}
-          />
-        </Animated.View>
+        {/* Waveform removed: tightened spacing */}
 
         {/* Progress Bar */}
         <Animated.View entering={FadeInDown.duration(400).delay(350)} style={styles.progressSection}>
           <View style={styles.progressRow}>
               <ProgressBar 
-                progress={durationMillis ? (displayPos) / durationMillis : 0}
+                progress={progressProp}
                 durationMillis={durationMillis}
                 isPlaying={isPlaying && !isSeeking}
-                width={width - spacing.xl * 2}
+                width={contentWidth}
                 progressShared={progressShared}
               />
               <Slider
                 ref={sliderRef}
                 style={styles.sliderOverlay}
                 minimumValue={0}
-                maximumValue={durationMillis || 1}
+                maximumValue={sliderMax}
                 // leave slider uncontrolled to avoid rerenders; native thumb moves by itself
                 minimumTrackTintColor="transparent"
                 maximumTrackTintColor="transparent"
@@ -386,15 +386,7 @@ export default function PlayerScreen({ route }: PlayerScreenProps) {
           {/* Play/Pause */}
           <PlayButton
             isPlaying={isPlaying}
-            onPress={async () => {
-              try {
-                if (__DEV__) console.log('PlayerScreen: PlayButton pressed, calling togglePlay()');
-                await togglePlay();
-                if (__DEV__) console.log('PlayerScreen: togglePlay() returned');
-              } catch (e) {
-                console.warn('PlayerScreen: togglePlay() error', e);
-              }
-            }}
+            onPress={handleTogglePlay}
             size={80}
             accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
           />
@@ -582,14 +574,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.9,
   },
-  waveformContainer: {
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
   progressSection: {
     width: '100%',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   progressRow: {
     width: '100%',
